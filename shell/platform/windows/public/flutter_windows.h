@@ -185,6 +185,17 @@ FlutterDesktopEngineGetMessenger(FlutterDesktopEngineRef engine);
 FLUTTER_EXPORT FlutterDesktopTextureRegistrarRef
 FlutterDesktopEngineGetTextureRegistrar(FlutterDesktopEngineRef engine);
 
+typedef void (*FlutterDesktopEngineNextFrameCallback)(void* /* user data */);
+
+// Schedule a callback to be called after the next frame is drawn.
+//
+// This must be called from the platform thread. The callback is executed only
+// once on the platform thread.
+FLUTTER_EXPORT void FlutterDesktopEngineSetNextFrameCallback(
+    FlutterDesktopEngineRef engine,
+    FlutterDesktopEngineNextFrameCallback callback,
+    void* user_data);
+
 // ========== View ==========
 
 // Return backing HWND for manipulation in host application.

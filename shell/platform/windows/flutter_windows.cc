@@ -176,6 +176,14 @@ FlutterDesktopTextureRegistrarRef FlutterDesktopEngineGetTextureRegistrar(
       EngineFromHandle(engine)->texture_registrar());
 }
 
+void FlutterDesktopEngineSetNextFrameCallback(
+    FlutterDesktopEngineRef engine,
+    FlutterDesktopEngineNextFrameCallback callback,
+    void* user_data) {
+  EngineFromHandle(engine)->SetNextFrameCallback(
+      [callback, user_data]() { callback(user_data); });
+}
+
 HWND FlutterDesktopViewGetHWND(FlutterDesktopViewRef view) {
   return ViewFromHandle(view)->GetPlatformWindow();
 }
