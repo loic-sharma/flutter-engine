@@ -149,7 +149,7 @@ TEST_F(WindowsTest, VerifyNativeFunctionWithReturn) {
   EXPECT_TRUE(bool_value_passed);
 }
 
-// Verify the first frame callback is executed.
+// Verify the next frame callback is executed.
 TEST_F(WindowsTest, FirstFrameCallback) {
   struct Captures {
     fml::AutoResetWaitableEvent latch;
