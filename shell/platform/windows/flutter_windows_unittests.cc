@@ -150,7 +150,7 @@ TEST_F(WindowsTest, VerifyNativeFunctionWithReturn) {
 }
 
 // Verify the next frame callback is executed.
-TEST_F(WindowsTest, FirstFrameCallback) {
+TEST_F(WindowsTest, NextFrameCallback) {
   struct Captures {
     fml::AutoResetWaitableEvent latch;
     std::thread::id thread_id;
