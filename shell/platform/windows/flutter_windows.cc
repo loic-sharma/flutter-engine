@@ -176,10 +176,9 @@ FlutterDesktopTextureRegistrarRef FlutterDesktopEngineGetTextureRegistrar(
       EngineFromHandle(engine)->texture_registrar());
 }
 
-void FlutterDesktopEngineSetNextFrameCallback(
-    FlutterDesktopEngineRef engine,
-    FlutterDesktopEngineNextFrameCallback callback,
-    void* user_data) {
+void FlutterDesktopEngineSetNextFrameCallback(FlutterDesktopEngineRef engine,
+                                              VoidCallback callback,
+                                              void* user_data) {
   EngineFromHandle(engine)->SetNextFrameCallback(
       [callback, user_data]() { callback(user_data); });
 }

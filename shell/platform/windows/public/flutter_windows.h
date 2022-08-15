@@ -17,6 +17,8 @@
 extern "C" {
 #endif
 
+typedef void (*VoidCallback)(void* /* user data */);
+
 // Opaque reference to a Flutter window controller.
 typedef struct FlutterDesktopViewControllerState*
     FlutterDesktopViewControllerRef;
@@ -185,15 +187,13 @@ FlutterDesktopEngineGetMessenger(FlutterDesktopEngineRef engine);
 FLUTTER_EXPORT FlutterDesktopTextureRegistrarRef
 FlutterDesktopEngineGetTextureRegistrar(FlutterDesktopEngineRef engine);
 
-typedef void (*FlutterDesktopEngineNextFrameCallback)(void* /* user data */);
-
 // Schedule a callback to be called after the next frame is drawn.
 //
 // This must be called from the platform thread. The callback is executed only
 // once on the platform thread.
 FLUTTER_EXPORT void FlutterDesktopEngineSetNextFrameCallback(
     FlutterDesktopEngineRef engine,
-    FlutterDesktopEngineNextFrameCallback callback,
+    VoidCallback callback,
     void* user_data);
 
 // ========== View ==========

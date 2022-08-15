@@ -48,7 +48,7 @@ class TestFlutterWindowsApi : public testing::StubFlutterWindowsApi {
 
   // |flutter::testing::StubFlutterWindowsApi|
   void EngineSetNextFrameCallback(
-      FlutterDesktopEngineNextFrameCallback callback,
+      VoidCallback callback,
       void* user_data) override {
     next_frame_callback_ = callback;
     next_frame_user_data_ = user_data;
@@ -81,7 +81,7 @@ class TestFlutterWindowsApi : public testing::StubFlutterWindowsApi {
   bool destroy_called_ = false;
   bool reload_fonts_called_ = false;
   std::vector<std::string> dart_entrypoint_arguments_;
-  FlutterDesktopEngineNextFrameCallback next_frame_callback_ = nullptr;
+  VoidCallback next_frame_callback_ = nullptr;
   void* next_frame_user_data_ = nullptr;
 };
 

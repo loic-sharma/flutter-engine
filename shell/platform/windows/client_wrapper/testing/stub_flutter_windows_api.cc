@@ -113,7 +113,7 @@ uint64_t FlutterDesktopEngineProcessMessages(FlutterDesktopEngineRef engine) {
 
 void FlutterDesktopEngineSetNextFrameCallback(
     FlutterDesktopEngineRef engine,
-    FlutterDesktopEngineNextFrameCallback callback,
+    VoidCallback callback,
     void* user_data) {
   if (s_stub_implementation) {
     s_stub_implementation->EngineSetNextFrameCallback(callback, user_data);
