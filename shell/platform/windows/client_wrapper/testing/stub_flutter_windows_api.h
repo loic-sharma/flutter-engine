@@ -62,9 +62,8 @@ class StubFlutterWindowsApi {
   // Called for FlutterDesktopEngineProcessMessages.
   virtual uint64_t EngineProcessMessages() { return 0; }
 
-  virtual void EngineSetNextFrameCallback(
-      VoidCallback callback,
-      void* user_data) {}
+  virtual void EngineSetNextFrameCallback(VoidCallback callback,
+                                          void* user_data) {}
 
   // Called for FlutterDesktopEngineReloadSystemFonts.
   virtual void EngineReloadSystemFonts() {}

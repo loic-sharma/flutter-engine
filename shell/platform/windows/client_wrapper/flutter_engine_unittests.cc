@@ -47,9 +47,8 @@ class TestFlutterWindowsApi : public testing::StubFlutterWindowsApi {
   uint64_t EngineProcessMessages() override { return 99; }
 
   // |flutter::testing::StubFlutterWindowsApi|
-  void EngineSetNextFrameCallback(
-      VoidCallback callback,
-      void* user_data) override {
+  void EngineSetNextFrameCallback(VoidCallback callback,
+                                  void* user_data) override {
     next_frame_callback_ = callback;
     next_frame_user_data_ = user_data;
   }
