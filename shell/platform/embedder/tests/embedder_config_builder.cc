@@ -110,7 +110,7 @@ EmbedderConfigBuilder::EmbedderConfigBuilder(
   if (preference != InitializationPreference::kNoInitialize) {
     SetAssetsPath();
     SetIsolateCreateCallbackHook();
-    SetSemanticsCallbackHooks();
+    SetSemanticsCallbackHooks(context);
     SetLogMessageCallbackHook();
     SetLocalizationCallbackHooks();
     AddCommandLineArgument("--disable-observatory");
@@ -246,11 +246,12 @@ void EmbedderConfigBuilder::SetIsolateCreateCallbackHook() {
       EmbedderTestContext::GetIsolateCreateCallbackHook();
 }
 
-void EmbedderConfigBuilder::SetSemanticsCallbackHooks() {
+void EmbedderConfigBuilder::SetSemanticsCallbackHooks(EmbedderTestContext& context) {
+  project_args_.update_semantics_callback = context.GetUpdateSemanticsCallbackHook();
   project_args_.update_semantics_node_callback =
-      EmbedderTestContext::GetUpdateSemanticsNodeCallbackHook();
+      context.GetUpdateSemanticsNodeCallbackHook();
   project_args_.update_semantics_custom_action_callback =
-      EmbedderTestContext::GetUpdateSemanticsCustomActionCallbackHook();
+      context.GetUpdateSemanticsCustomActionCallbackHook();
 }
 
 void EmbedderConfigBuilder::SetLogMessageCallbackHook() {

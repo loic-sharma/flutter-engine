@@ -75,7 +75,7 @@ class EmbedderConfigBuilder {
 
   void SetIsolateCreateCallbackHook();
 
-  void SetSemanticsCallbackHooks();
+  void SetSemanticsCallbackHooks(EmbedderTestContext& context);
 
   // Used to set a custom log message handler.
   void SetLogMessageCallbackHook();
