@@ -190,7 +190,7 @@ directly), follow these steps to roll to the new version:
 - If not already authenticated with CIPD, run `cipd auth-login` and follow
   instructions (this step requires sufficient privileges; file a github
   infra ticket queue issue: https://github.com/flutter/flutter/wiki/Infra-Ticket-Queue
-  and request the `WRITER` role in prefix "flutter/web/canvaskit_bundle")
+  and request the `WRITER` role for prefix "flutter/web/canvaskit_bundle")
 - Edit `dev/canvaskit_lock.yaml` and update the value of `canvaskit_version`
   to the new version.
 - Run `dart dev/canvaskit_roller.dart` and make sure it completes successfully.
