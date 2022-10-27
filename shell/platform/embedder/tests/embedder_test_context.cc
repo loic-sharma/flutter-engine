@@ -121,6 +121,11 @@ void EmbedderTestContext::AddNativeCallback(const char* name,
   native_resolver_->AddNativeCallback({name}, function);
 }
 
+void EmbedderTestContext::SetSemanticsUpdateCallback(
+    SemanticsUpdateCallback update_semantics_callback) {
+  update_semantics_callback_ = std::move(update_semantics_callback);
+}
+
 void EmbedderTestContext::SetSemanticsNodeCallback(
     SemanticsNodeCallback update_semantics_node_callback) {
   update_semantics_node_callback_ = std::move(update_semantics_node_callback);
@@ -149,8 +154,26 @@ void EmbedderTestContext::SetLogMessageCallback(
   log_message_callback_ = callback;
 }
 
+FlutterUpdateSemanticsCallback
+EmbedderTestContext::GetUpdateSemanticsCallbackHook() {
+  if (update_semantics_callback_ == nullptr) {
+    return nullptr;
+  }
+
+  return [](const FlutterSemanticsUpdate* update, void* user_data) {
+    auto context = reinterpret_cast<EmbedderTestContext*>(user_data);
+    if (auto callback = context->update_semantics_callback_) {
+      callback(update);
+    }
+  };
+}
+
 FlutterUpdateSemanticsNodeCallback
 EmbedderTestContext::GetUpdateSemanticsNodeCallbackHook() {
+  if (update_semantics_node_callback_ == nullptr) {
+    return nullptr;
+  }
+
   return [](const FlutterSemanticsNode* semantics_node, void* user_data) {
     auto context = reinterpret_cast<EmbedderTestContext*>(user_data);
     if (auto callback = context->update_semantics_node_callback_) {
@@ -161,6 +184,10 @@ EmbedderTestContext::GetUpdateSemanticsNodeCallbackHook() {
 
 FlutterUpdateSemanticsCustomActionCallback
 EmbedderTestContext::GetUpdateSemanticsCustomActionCallbackHook() {
+  if (update_semantics_custom_action_callback_ == nullptr) {
+    return nullptr;
+  }
+
   return [](const FlutterSemanticsCustomAction* action, void* user_data) {
     auto context = reinterpret_cast<EmbedderTestContext*>(user_data);
     if (auto callback = context->update_semantics_custom_action_callback_) {
