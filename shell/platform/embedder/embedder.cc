@@ -1304,62 +1304,47 @@ FlutterSemanticsCustomAction CreateEmbedderSemanticsCustomAction(
   };
 }
 
-// Creates a callback that receives semantic updates from the engine
-// and notifies the embedder's callback(s). Returns null if the embedder
-// did not register any callbacks.
+// Create a callback to notify the embedder of semantic updates
+// using the new embedder callback 'update_semantics_callback'.
 flutter::PlatformViewEmbedder::UpdateSemanticsCallback
-CreateEmbedderSemanticsUpdateCallback(const FlutterProjectArgs* args,
-                                      void* user_data) {
-  // The embedder can register the new callback, or the old callbacks, or
-  // nothing at all. Handle the case where the embedder registered the 'new'
-  // callback.
-  if (SAFE_ACCESS(args, update_semantics_callback, nullptr) != nullptr) {
-    return [ptr = args->update_semantics_callback, user_data](
-               const flutter::SemanticsNodeUpdates& nodes,
-               const flutter::CustomAccessibilityActionUpdates& actions) {
-      std::vector<FlutterSemanticsNode> embedder_nodes;
-      for (const auto& value : nodes) {
-        embedder_nodes.push_back(CreateEmbedderSemanticsNode(value.second));
-      }
+CreateNewEmbedderSemanticsUpdateCallback(
+    FlutterUpdateSemanticsCallback update_semantics_callback,
+    void* user_data) {
+  return [update_semantics_callback, user_data](
+             const flutter::SemanticsNodeUpdates& nodes,
+             const flutter::CustomAccessibilityActionUpdates& actions) {
+    std::vector<FlutterSemanticsNode> embedder_nodes;
+    for (const auto& value : nodes) {
+      embedder_nodes.push_back(CreateEmbedderSemanticsNode(value.second));
+    }
 
-      std::vector<FlutterSemanticsCustomAction> embedder_custom_actions;
-      for (const auto& value : actions) {
-        embedder_custom_actions.push_back(
-            CreateEmbedderSemanticsCustomAction(value.second));
-      }
+    std::vector<FlutterSemanticsCustomAction> embedder_custom_actions;
+    for (const auto& value : actions) {
+      embedder_custom_actions.push_back(
+          CreateEmbedderSemanticsCustomAction(value.second));
+    }
 
-      FlutterSemanticsUpdate update{
-          .struct_size = sizeof(FlutterSemanticsUpdate),
-          .nodes_count = embedder_nodes.size(),
-          .nodes = embedder_nodes.data(),
-          .custom_actions_count = embedder_custom_actions.size(),
-          .custom_actions = embedder_custom_actions.data(),
-      };
-
-      ptr(&update, user_data);
+    FlutterSemanticsUpdate update{
+        .struct_size = sizeof(FlutterSemanticsUpdate),
+        .nodes_count = embedder_nodes.size(),
+        .nodes = embedder_nodes.data(),
+        .custom_actions_count = embedder_custom_actions.size(),
+        .custom_actions = embedder_custom_actions.data(),
     };
-  }
 
-  FlutterUpdateSemanticsNodeCallback update_semantics_node_callback = nullptr;
-  if (SAFE_ACCESS(args, update_semantics_node_callback, nullptr) != nullptr) {
-    update_semantics_node_callback = args->update_semantics_node_callback;
-  }
+    update_semantics_callback(&update, user_data);
+  };
+}
 
-  FlutterUpdateSemanticsCustomActionCallback
-      update_semantics_custom_action_callback = nullptr;
-  if (SAFE_ACCESS(args, update_semantics_custom_action_callback, nullptr) !=
-      nullptr) {
-    update_semantics_custom_action_callback =
-        args->update_semantics_custom_action_callback;
-  }
-
-  // Handle the case where the embedder registered no callbacks.
-  if (update_semantics_node_callback == nullptr &&
-      update_semantics_custom_action_callback == nullptr) {
-    return nullptr;
-  }
-
-  // Handle the case where the embedder registered 'old' callbacks.
+// Create a callback to notify the embedder of semantic updates
+// using the legacy embedder callbacks 'update_semantics_node_callback' and
+// 'update_semantics_custom_action_callback'.
+flutter::PlatformViewEmbedder::UpdateSemanticsCallback
+CreateLegacyEmbedderSemanticsUpdateCallback(
+    FlutterUpdateSemanticsNodeCallback update_semantics_node_callback,
+    FlutterUpdateSemanticsCustomActionCallback
+        update_semantics_custom_action_callback,
+    void* user_data) {
   return [update_semantics_node_callback,
           update_semantics_custom_action_callback,
           user_data](const flutter::SemanticsNodeUpdates& nodes,
@@ -1399,6 +1384,45 @@ CreateEmbedderSemanticsUpdateCallback(const FlutterProjectArgs* args,
       update_semantics_custom_action_callback(&batch_end_sentinel, user_data);
     }
   };
+}
+
+// Creates a callback that receives semantic updates from the engine
+// and notifies the embedder's callback(s). Returns null if the embedder
+// did not register any callbacks.
+flutter::PlatformViewEmbedder::UpdateSemanticsCallback
+CreateEmbedderSemanticsUpdateCallback(const FlutterProjectArgs* args,
+                                      void* user_data) {
+  // The embedder can register the new callback, or the old callbacks, or
+  // nothing at all. Handle the case where the embedder registered the 'new'
+  // callback.
+  if (SAFE_ACCESS(args, update_semantics_callback, nullptr) != nullptr) {
+    return CreateNewEmbedderSemanticsUpdateCallback(
+        args->update_semantics_callback, user_data);
+  }
+
+  // Handle the case where the embedder registered 'old' callbacks.
+  FlutterUpdateSemanticsNodeCallback update_semantics_node_callback = nullptr;
+  if (SAFE_ACCESS(args, update_semantics_node_callback, nullptr) != nullptr) {
+    update_semantics_node_callback = args->update_semantics_node_callback;
+  }
+
+  FlutterUpdateSemanticsCustomActionCallback
+      update_semantics_custom_action_callback = nullptr;
+  if (SAFE_ACCESS(args, update_semantics_custom_action_callback, nullptr) !=
+      nullptr) {
+    update_semantics_custom_action_callback =
+        args->update_semantics_custom_action_callback;
+  }
+
+  if (update_semantics_node_callback != nullptr ||
+      update_semantics_custom_action_callback != nullptr) {
+    return CreateLegacyEmbedderSemanticsUpdateCallback(
+        update_semantics_node_callback, update_semantics_custom_action_callback,
+        user_data);
+  }
+
+  // Handle the case where the embedder registered no callbacks.
+  return nullptr;
 }
 
 FlutterEngineResult FlutterEngineRun(size_t version,
