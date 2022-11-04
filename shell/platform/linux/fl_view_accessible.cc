@@ -206,8 +206,8 @@ void fl_view_accessible_handle_update_semantics(
     fl_accessible_node_set_text_selection(atk_node, node->text_selection_base,
                                           node->text_selection_extent);
 
-    FlValue* children = fl_value_new_int32_list(node->children_in_traversal_order,
-                                                node->child_count);
+    FlValue* children = fl_value_new_int32_list(
+        node->children_in_traversal_order, node->child_count);
     g_hash_table_insert(self->pending_children, atk_node, children);
   }
 

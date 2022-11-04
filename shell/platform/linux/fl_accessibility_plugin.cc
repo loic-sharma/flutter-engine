@@ -51,6 +51,6 @@ void fl_accessibility_plugin_handle_update_semantics(
   }
 
   AtkObject* accessible = gtk_widget_get_accessible(GTK_WIDGET(self->view));
-  fl_view_accessible_handle_update_semantics(
-      FL_VIEW_ACCESSIBLE(accessible), update);
+  fl_view_accessible_handle_update_semantics(FL_VIEW_ACCESSIBLE(accessible),
+                                             update);
 }

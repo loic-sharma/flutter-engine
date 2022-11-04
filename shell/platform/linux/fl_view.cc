@@ -234,8 +234,8 @@ static void update_semantics_cb(FlEngine* engine,
                                 gpointer user_data) {
   FlView* self = FL_VIEW(user_data);
 
-  fl_accessibility_plugin_handle_update_semantics(
-      self->accessibility_plugin, update);
+  fl_accessibility_plugin_handle_update_semantics(self->accessibility_plugin,
+                                                  update);
 }
 
 // Invoked by the engine right before the engine is restarted.
@@ -496,8 +496,8 @@ static void fl_view_constructed(GObject* object) {
 
   self->renderer = FL_RENDERER(fl_renderer_gl_new());
   self->engine = fl_engine_new(self->project, self->renderer);
-  fl_engine_set_update_semantics_handler(
-      self->engine, update_semantics_cb, self, nullptr);
+  fl_engine_set_update_semantics_handler(self->engine, update_semantics_cb,
+                                         self, nullptr);
   fl_engine_set_on_pre_engine_restart_handler(
       self->engine, on_pre_engine_restart_cb, self, nullptr);
 
@@ -596,7 +596,7 @@ static void fl_view_dispose(GObject* object) {
 
   if (self->engine != nullptr) {
     fl_engine_set_update_semantics_handler(self->engine, nullptr, nullptr,
-                                                nullptr);
+                                           nullptr);
     fl_engine_set_on_pre_engine_restart_handler(self->engine, nullptr, nullptr,
                                                 nullptr);
   }

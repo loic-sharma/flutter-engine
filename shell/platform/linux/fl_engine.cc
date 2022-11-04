@@ -304,13 +304,13 @@ static void fl_engine_platform_message_cb(const FlutterPlatformMessage* message,
 }
 
 // Called when a semantics update is received from the engine.
-static void fl_engine_update_semantics_node_cb(const FlutterSemanticsUpdate* update,
-                                               void* user_data) {
+static void fl_engine_update_semantics_cb(const FlutterSemanticsUpdate* update,
+                                          void* user_data) {
   FlEngine* self = FL_ENGINE(user_data);
 
   if (self->update_semantics_handler != nullptr) {
-    self->update_semantics_handler(
-        self, update, self->update_semantics_handler_data);
+    self->update_semantics_handler(self, update,
+                                   self->update_semantics_handler_data);
   }
 }
 
