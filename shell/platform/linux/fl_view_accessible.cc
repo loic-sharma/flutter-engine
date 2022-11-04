@@ -189,28 +189,29 @@ static void fl_view_accessible_init(FlViewAccessible* self) {
                             reinterpret_cast<GDestroyNotify>(fl_value_unref));
 }
 
-void fl_view_accessible_handle_update_semantics_node(
+void fl_view_accessible_handle_update_semantics(
     FlViewAccessible* self,
-    const FlutterSemanticsNode* node) {
-  if (node->id == kFlutterSemanticsNodeIdBatchEnd) {
-    commit_updates(self);
-    return;
+    const FlutterSemanticsUpdate* update) {
+  for (size_t i = 0; i < update->nodes_count; i++) {
+    FlAccessibleNode* atk_node = get_node(self, node);
+
+    fl_accessible_node_set_flags(atk_node, node->flags);
+    fl_accessible_node_set_actions(atk_node, node->actions);
+    fl_accessible_node_set_name(atk_node, node->label);
+    fl_accessible_node_set_extents(
+        atk_node, node->rect.left + node->transform.transX,
+        node->rect.top + node->transform.transY,
+        node->rect.right - node->rect.left, node->rect.bottom - node->rect.top);
+    fl_accessible_node_set_value(atk_node, node->value);
+    fl_accessible_node_set_text_selection(atk_node, node->text_selection_base,
+                                          node->text_selection_extent);
+
+    FlValue* children = fl_value_new_int32_list(node->children_in_traversal_order,
+                                                node->child_count);
+    g_hash_table_insert(self->pending_children, atk_node, children);
   }
 
-  FlAccessibleNode* atk_node = get_node(self, node);
-
-  fl_accessible_node_set_flags(atk_node, node->flags);
-  fl_accessible_node_set_actions(atk_node, node->actions);
-  fl_accessible_node_set_name(atk_node, node->label);
-  fl_accessible_node_set_extents(
-      atk_node, node->rect.left + node->transform.transX,
-      node->rect.top + node->transform.transY,
-      node->rect.right - node->rect.left, node->rect.bottom - node->rect.top);
-  fl_accessible_node_set_value(atk_node, node->value);
-  fl_accessible_node_set_text_selection(atk_node, node->text_selection_base,
-                                        node->text_selection_extent);
-
-  FlValue* children = fl_value_new_int32_list(node->children_in_traversal_order,
-                                              node->child_count);
-  g_hash_table_insert(self->pending_children, atk_node, children);
+  // TODO: Handle semantics custom action updates.
+  // See: https://github.com/flutter/flutter/issues/114649
+  commit_updates(self);
 }
