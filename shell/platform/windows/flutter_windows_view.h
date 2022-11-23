@@ -99,6 +99,10 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
   // Returns the frame buffer id for the engine to render to.
   uint32_t GetFrameBufferId(size_t width, size_t height);
 
+  // Sets the cursor that should be used when the mouse is over the Flutter
+  // content. See mouse_cursor.dart for the values and meanings of cursor_name.
+  void UpdateFlutterCursor(const std::string& cursor_name);
+
   // Invoked by the engine right before the engine is restarted.
   //
   // This should reset necessary states to as if the view has just been
@@ -382,9 +386,6 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
 
   // Handler for the flutter/platform channel.
   std::unique_ptr<PlatformHandler> platform_handler_;
-
-  // Handler for cursor events.
-  std::unique_ptr<CursorHandler> cursor_handler_;
 
   // Currently configured WindowBindingHandler for view.
   std::unique_ptr<WindowBindingHandler> binding_handler_;

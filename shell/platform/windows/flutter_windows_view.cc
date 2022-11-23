@@ -65,8 +65,6 @@ void FlutterWindowsView::SetEngine(
   InitializeKeyboard();
   platform_handler_ =
       std::make_unique<PlatformHandler>(internal_plugin_messenger, this);
-  cursor_handler_ = std::make_unique<CursorHandler>(internal_plugin_messenger,
-                                                    binding_handler_.get());
 
   PhysicalWindowBounds bounds = binding_handler_->GetPhysicalWindowBounds();
 
@@ -114,6 +112,10 @@ uint32_t FlutterWindowsView::GetFrameBufferId(size_t width, size_t height) {
   }
 
   return kWindowFrameBufferID;
+}
+
+void FlutterWindowsView::UpdateFlutterCursor(const std::string& cursor_name) {
+  binding_handler_->UpdateFlutterCursor(cursor_name);
 }
 
 void FlutterWindowsView::ForceRedraw() {

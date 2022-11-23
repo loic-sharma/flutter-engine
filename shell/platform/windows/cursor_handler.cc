@@ -7,6 +7,8 @@
 #include <windows.h>
 
 #include "flutter/shell/platform/common/client_wrapper/include/flutter/standard_method_codec.h"
+#include "flutter/shell/platform/windows/flutter_windows_engine.h"
+#include "flutter/shell/platform/windows/flutter_windows_view.h"
 
 static constexpr char kChannelName[] = "flutter/mousecursor";
 
@@ -17,12 +19,12 @@ static constexpr char kKindKey[] = "kind";
 namespace flutter {
 
 CursorHandler::CursorHandler(BinaryMessenger* messenger,
-                             WindowBindingHandler* delegate)
+                             FlutterWindowsEngine* engine)
     : channel_(std::make_unique<MethodChannel<EncodableValue>>(
           messenger,
           kChannelName,
           &StandardMethodCodec::GetInstance())),
-      delegate_(delegate) {
+      engine_(engine) {
   channel_->SetMethodCallHandler(
       [this](const MethodCall<EncodableValue>& call,
              std::unique_ptr<MethodResult<EncodableValue>> result) {
@@ -43,7 +45,10 @@ void CursorHandler::HandleMethodCall(
       return;
     }
     const auto& kind = std::get<std::string>(kind_iter->second);
-    delegate_->UpdateFlutterCursor(kind);
+    FlutterWindowsView* view = engine_->view();
+    if (view != nullptr) {
+      view->UpdateFlutterCursor(kind);
+    }
     result->Success();
   } else {
     result->NotImplemented();

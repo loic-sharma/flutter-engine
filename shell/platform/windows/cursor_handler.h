@@ -13,11 +13,13 @@
 
 namespace flutter {
 
+class FlutterWindowsEngine;
+
 // Handler for the cursor system channel.
 class CursorHandler {
  public:
   explicit CursorHandler(flutter::BinaryMessenger* messenger,
-                         WindowBindingHandler* delegate);
+                         flutter::FlutterWindowsEngine* engine);
 
  private:
   // Called when a method is called on |channel_|;
@@ -28,8 +30,8 @@ class CursorHandler {
   // The MethodChannel used for communication with the Flutter engine.
   std::unique_ptr<flutter::MethodChannel<EncodableValue>> channel_;
 
-  // The delegate for cursor updates.
-  WindowBindingHandler* delegate_;
+  // The Flutter engine that will be notified for cursor updates.
+  FlutterWindowsEngine* engine_;
 };
 
 }  // namespace flutter
