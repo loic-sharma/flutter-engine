@@ -13,6 +13,7 @@
 #include "flutter/shell/platform/windows/keyboard_key_handler.h"
 #include "flutter/shell/platform/windows/keyboard_manager.h"
 #include "flutter/shell/platform/windows/testing/engine_modifier.h"
+#include "flutter/shell/platform/windows/testing/flutter_windows_engine_builder.h"
 #include "flutter/shell/platform/windows/testing/mock_window_binding_handler.h"
 #include "flutter/shell/platform/windows/testing/test_keyboard.h"
 
@@ -500,6 +501,7 @@ class KeyboardTester {
   static std::unique_ptr<FlutterWindowsEngine> GetTestEngine(
       MockKeyResponseController::EmbedderCallbackHandler
           embedder_callback_handler) {
+    FlutterWindowsEngineBuilder builder;
     FlutterDesktopEngineProperties properties = {};
     properties.assets_path = L"C:\\foo\\flutter_assets";
     properties.icu_data_path = L"C:\\foo\\icudtl.dat";

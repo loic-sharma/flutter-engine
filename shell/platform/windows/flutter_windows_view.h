@@ -102,12 +102,6 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
   // Sets the cursor directly from a cursor handle.
   void SetFlutterCursor(HCURSOR cursor);
 
-  // Invoked by the engine right before the engine is restarted.
-  //
-  // This should reset necessary states to as if the view has just been
-  // created. This is typically caused by a hot restart (Shift-R in CLI.)
-  void OnPreEngineRestart();
-
   // |WindowBindingHandlerDelegate|
   void OnWindowSizeChanged(size_t width, size_t height) override;
 
@@ -209,21 +203,6 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
   virtual ui::AXFragmentRootDelegateWin* GetAxFragmentRootDelegate() override;
 
  protected:
-  // Called to create keyboard key handler.
-  //
-  // The provided |dispatch_event| is where to inject events into the system,
-  // while |get_key_state| is where to acquire keyboard states. They will be
-  // the system APIs in production classes, but might be replaced with mock
-  // functions in unit tests.
-  virtual std::unique_ptr<KeyboardHandlerBase> CreateKeyboardKeyHandler(
-      BinaryMessenger* messenger,
-      KeyboardKeyEmbedderHandler::GetKeyStateHandler get_key_state,
-      KeyboardKeyEmbedderHandler::MapVirtualKeyToScanCode map_vk_to_scan);
-
-  // Called to create text input plugin.
-  virtual std::unique_ptr<TextInputPlugin> CreateTextInputPlugin(
-      BinaryMessenger* messenger);
-
   virtual void NotifyWinEventWrapper(ui::AXPlatformNodeWin* node,
                                      ax::mojom::Event event);
 
@@ -380,13 +359,13 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
   std::unordered_map<int32_t, std::unique_ptr<PointerState>> pointer_states_;
 
   // The plugin registrar managing internal plugins.
-  std::unique_ptr<PluginRegistrar> internal_plugin_registrar_;
+  //std::unique_ptr<PluginRegistrar> internal_plugin_registrar_;
 
   // Handlers for keyboard events from Windows.
-  std::unique_ptr<KeyboardHandlerBase> keyboard_key_handler_;
+  //std::unique_ptr<KeyboardHandlerBase> keyboard_key_handler_;
 
   // Handlers for text events from Windows.
-  std::unique_ptr<TextInputPlugin> text_input_plugin_;
+  //std::unique_ptr<TextInputPlugin> text_input_plugin_;
 
   // Currently configured WindowBindingHandler for view.
   std::unique_ptr<WindowBindingHandler> binding_handler_;

@@ -9,7 +9,12 @@
 
 #include "flutter/shell/platform/common/json_message_codec.h"
 #include "flutter/shell/platform/common/json_method_codec.h"
+#include "flutter/shell/platform/windows/testing/flutter_windows_engine_builder.h"
+#include "flutter/shell/platform/windows/testing/mock_window_binding_handler.h"
 #include "flutter/shell/platform/windows/testing/test_binary_messenger.h"
+#include "flutter/shell/platform/windows/testing/windows_test.h"
+#include "flutter/shell/platform/windows/flutter_windows_view.h"
+#include "flutter/shell/platform/windows/text_input_plugin_delegate.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -17,6 +22,8 @@ namespace flutter {
 namespace testing {
 
 namespace {
+using ::testing::Return;
+
 static constexpr char kScanCodeKey[] = "scanCode";
 static constexpr int kHandledScanCode = 20;
 static constexpr int kUnhandledScanCode = 21;
@@ -49,6 +56,39 @@ class MockTextInputPluginDelegate : public TextInputPluginDelegate {
 };
 
 }  // namespace
+
+class TextInputPluginTest : public WindowsTest {
+ protected:
+  FlutterWindowsEngine* engine() { return engine_.get(); }
+  FlutterWindowsView* view() { return view_.get(); }
+  MockWindowBindingHandler* window() { return window_; }
+
+  void use_headless_engine() {
+    FlutterWindowsEngineBuilder builder{GetContext()};
+
+    engine_ = builder.Build();
+  }
+
+  void use_engine_with_view() {
+    FlutterWindowsEngineBuilder builder{GetContext()};
+
+    auto window = std::make_unique<MockWindowBindingHandler>();
+
+    window_ = window.get();
+    EXPECT_CALL(*window_, SetView).Times(1);
+    EXPECT_CALL(*window_, GetRenderTarget).WillOnce(Return(nullptr));
+
+    engine_ = builder.Build();
+    view_ = std::make_unique<FlutterWindowsView>(std::move(window));
+
+    engine_->SetView(view_.get());
+  }
+
+ private:
+  std::unique_ptr<FlutterWindowsEngine> engine_;
+  std::unique_ptr<FlutterWindowsView> view_;
+  MockWindowBindingHandler* window_;
+};
 
 TEST(TextInputPluginTest, TextMethodsWorksWithEmptyModel) {
   auto handled_message = CreateResponse(true);

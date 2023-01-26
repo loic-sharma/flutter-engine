@@ -11,6 +11,7 @@
 #include <cstdint>
 
 #include "flutter/shell/platform/common/json_method_codec.h"
+#include "flutter/shell/platform/windows/text_input_plugin_delegate.h"
 
 static constexpr char kSetEditingStateMethod[] = "TextInput.setEditingState";
 static constexpr char kClearClientMethod[] = "TextInput.clearClient";
