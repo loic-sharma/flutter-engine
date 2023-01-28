@@ -31,74 +31,6 @@ namespace testing {
 namespace {
 static constexpr int32_t kDefaultPointerDeviceId = 0;
 
-// A key event handler that can be spied on while it forwards calls to the real
-// key event handler.
-class SpyKeyboardKeyHandler : public KeyboardHandlerBase {
- public:
-  SpyKeyboardKeyHandler(flutter::BinaryMessenger* messenger) {
-    real_implementation_ = std::make_unique<KeyboardKeyHandler>();
-    real_implementation_->AddDelegate(
-        std::make_unique<KeyboardKeyChannelHandler>(messenger));
-    ON_CALL(*this, KeyboardHook(_, _, _, _, _, _, _))
-        .WillByDefault(Invoke(real_implementation_.get(),
-                              &KeyboardKeyHandler::KeyboardHook));
-    ON_CALL(*this, SyncModifiersIfNeeded(_))
-        .WillByDefault(Invoke(real_implementation_.get(),
-                              &KeyboardKeyHandler::SyncModifiersIfNeeded));
-  }
-
-  MOCK_METHOD7(KeyboardHook,
-               void(int key,
-                    int scancode,
-                    int action,
-                    char32_t character,
-                    bool extended,
-                    bool was_down,
-                    KeyEventCallback callback));
-
-  MOCK_METHOD1(SyncModifiersIfNeeded, void(int modifiers_state));
-
- private:
-  std::unique_ptr<KeyboardKeyHandler> real_implementation_;
-};
-
-// A text input plugin that can be spied on while it forwards calls to the real
-// text input plugin.
-class SpyTextInputPlugin : public TextInputPlugin,
-                           public TextInputPluginDelegate {
- public:
-  SpyTextInputPlugin(flutter::BinaryMessenger* messenger)
-      : TextInputPlugin(messenger, this) {
-    real_implementation_ = std::make_unique<TextInputPlugin>(messenger, this);
-    ON_CALL(*this, KeyboardHook(_, _, _, _, _, _))
-        .WillByDefault(
-            Invoke(real_implementation_.get(), &TextInputPlugin::KeyboardHook));
-    ON_CALL(*this, TextHook(_))
-        .WillByDefault(
-            Invoke(real_implementation_.get(), &TextInputPlugin::TextHook));
-  }
-
-  MOCK_METHOD6(KeyboardHook,
-               void(int key,
-                    int scancode,
-                    int action,
-                    char32_t character,
-                    bool extended,
-                    bool was_down));
-  MOCK_METHOD1(TextHook, void(const std::u16string& text));
-  MOCK_METHOD0(ComposeBeginHook, void());
-  MOCK_METHOD0(ComposeCommitHook, void());
-  MOCK_METHOD0(ComposeEndHook, void());
-  MOCK_METHOD2(ComposeChangeHook,
-               void(const std::u16string& text, int cursor_pos));
-
-  virtual void OnCursorRectUpdated(const Rect& rect) {}
-  virtual void OnResetImeComposing() {}
-
- private:
-  std::unique_ptr<TextInputPlugin> real_implementation_;
-};
-
 class MockFlutterWindow : public FlutterWindow {
  public:
   MockFlutterWindow() : FlutterWindow(800, 600) {
@@ -162,32 +94,8 @@ class TestFlutterWindowsView : public FlutterWindowsView {
       : FlutterWindowsView(std::move(window_binding)) {}
   ~TestFlutterWindowsView() {}
 
-  SpyKeyboardKeyHandler* key_event_handler;
-  SpyTextInputPlugin* text_input_plugin;
-
   MOCK_METHOD2(NotifyWinEventWrapper,
                void(ui::AXPlatformNodeWin*, ax::mojom::Event));
-
- protected:
-  /*TODO
-  std::unique_ptr<KeyboardHandlerBase> CreateKeyboardKeyHandler(
-      flutter::BinaryMessenger* messenger,
-      flutter::KeyboardKeyEmbedderHandler::GetKeyStateHandler get_key_state,
-      KeyboardKeyEmbedderHandler::MapVirtualKeyToScanCode map_vk_to_scan)
-      override {
-    auto spy_key_event_handler =
-        std::make_unique<SpyKeyboardKeyHandler>(messenger);
-    key_event_handler = spy_key_event_handler.get();
-    return spy_key_event_handler;
-  }
-
-  std::unique_ptr<TextInputPlugin> CreateTextInputPlugin(
-      flutter::BinaryMessenger* messenger) override {
-    auto spy_key_event_handler =
-        std::make_unique<SpyTextInputPlugin>(messenger);
-    text_input_plugin = spy_key_event_handler.get();
-    return spy_key_event_handler;
-  }*/
 };
 
 // The static value to return as the "handled" value from the framework for key
@@ -199,7 +107,6 @@ static bool test_response = false;
 // overridden methods for sending platform messages, so that the engine can
 // respond as if the framework were connected.
 std::unique_ptr<FlutterWindowsEngine> GetTestEngine() {
-  // TODO: Move this to FlutterWindowsEngineBuilder too?
   FlutterDesktopEngineProperties properties = {};
   properties.assets_path = L"C:\\foo\\flutter_assets";
   properties.icu_data_path = L"C:\\foo\\icudtl.dat";

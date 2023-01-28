@@ -400,6 +400,7 @@ class KeyboardTest : public WindowsTest {
     window_->InjectKeyboardChanges(changes);
   }
 
+  // Simulates receiving a platform message from the framework.
   void InjectPlatformMessage(const char* channel,
                              const char* method,
                              const char* args) {
