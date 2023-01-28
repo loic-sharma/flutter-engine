@@ -8,6 +8,7 @@ namespace flutter {
 namespace testing {
 
 class TestFlutterWindowsEngine : public FlutterWindowsEngine {
+ public:
   TestFlutterWindowsEngine(
       const FlutterProjectBundle& project,
       KeyboardKeyEmbedderHandler::GetKeyStateHandler get_key_state,
@@ -67,6 +68,16 @@ void FlutterWindowsEngineBuilder::AddDartEntrypointArgument(std::string arg) {
   dart_entrypoint_arguments_.emplace_back(std::move(arg));
 }
 
+void FlutterWindowsEngineBuilder::SetGetKeyStateHandler(
+    KeyboardKeyEmbedderHandler::GetKeyStateHandler get_key_state) {
+  get_key_state_ = std::move(get_key_state);
+}
+
+void FlutterWindowsEngineBuilder::SetMapVirtualKeyToScanCode(
+    KeyboardKeyEmbedderHandler::MapVirtualKeyToScanCode map_vk_to_scan) {
+  map_vk_to_scan_ = std::move(map_vk_to_scan);
+}
+
 std::unique_ptr<FlutterWindowsEngine> FlutterWindowsEngineBuilder::Build() {
   std::vector<const char*> dart_args;
   dart_args.reserve(dart_entrypoint_arguments_.size());
@@ -85,8 +96,8 @@ std::unique_ptr<FlutterWindowsEngine> FlutterWindowsEngineBuilder::Build() {
 
   FlutterProjectBundle project(properties_);
 
-  return std::make_unique<TestFlutterWindowsEngine>(
-    project, get_key_state_, map_vk_to_scan_);
+  return std::make_unique<TestFlutterWindowsEngine>(project, get_key_state_,
+                                                    map_vk_to_scan_);
 }
 
 }  // namespace testing

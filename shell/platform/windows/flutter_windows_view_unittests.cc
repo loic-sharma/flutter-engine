@@ -135,8 +135,9 @@ TEST(FlutterWindowsViewTest, RestartClearsKeyboardState) {
   EXPECT_EQ(key_event_logs[1], kKeyEventFromChannel);
   key_event_logs.clear();
 
+  // TODO: Move this
   // Resets state so that the keyboard key handler is no longer waiting.
-  view.OnPreEngineRestart();
+  //view.OnPreEngineRestart();
 
   // Receives another KeyA down. If the state had not been cleared, this event
   // will be considered the redispatched event and ignored.

@@ -169,6 +169,7 @@ class TestFlutterWindowsView : public FlutterWindowsView {
                void(ui::AXPlatformNodeWin*, ax::mojom::Event));
 
  protected:
+  /*TODO
   std::unique_ptr<KeyboardHandlerBase> CreateKeyboardKeyHandler(
       flutter::BinaryMessenger* messenger,
       flutter::KeyboardKeyEmbedderHandler::GetKeyStateHandler get_key_state,
@@ -186,7 +187,7 @@ class TestFlutterWindowsView : public FlutterWindowsView {
         std::make_unique<SpyTextInputPlugin>(messenger);
     text_input_plugin = spy_key_event_handler.get();
     return spy_key_event_handler;
-  }
+  }*/
 };
 
 // The static value to return as the "handled" value from the framework for key
@@ -198,6 +199,7 @@ static bool test_response = false;
 // overridden methods for sending platform messages, so that the engine can
 // respond as if the framework were connected.
 std::unique_ptr<FlutterWindowsEngine> GetTestEngine() {
+  // TODO: Move this to FlutterWindowsEngineBuilder too?
   FlutterDesktopEngineProperties properties = {};
   properties.assets_path = L"C:\\foo\\flutter_assets";
   properties.icu_data_path = L"C:\\foo\\icudtl.dat";

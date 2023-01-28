@@ -24,6 +24,12 @@ class FlutterWindowsEngineBuilder {
 
   void AddDartEntrypointArgument(std::string arg);
 
+  void SetGetKeyStateHandler(
+      KeyboardKeyEmbedderHandler::GetKeyStateHandler get_key_state);
+
+  void SetMapVirtualKeyToScanCode(
+      KeyboardKeyEmbedderHandler::MapVirtualKeyToScanCode map_vk_to_scan);
+
   std::unique_ptr<FlutterWindowsEngine> Build();
 
   // Prevent copying.
