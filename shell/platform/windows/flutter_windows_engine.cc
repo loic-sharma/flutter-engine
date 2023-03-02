@@ -327,17 +327,17 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
     host->OnPreEngineRestart();
   };
-  args.update_semantics_callback = [](const FlutterSemanticsUpdate* update,
+  args.update_semantics_callback2 = [](const FlutterSemanticsUpdate2* update,
                                       void* user_data) {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
 
     for (size_t i = 0; i < update->nodes_count; i++) {
-      const FlutterSemanticsNode* node = &update->nodes[i];
+      const FlutterSemanticsNode2* node = update->nodes[i];
       host->accessibility_bridge_->AddFlutterSemanticsNodeUpdate(node);
     }
 
     for (size_t i = 0; i < update->custom_actions_count; i++) {
-      const FlutterSemanticsCustomAction* action = &update->custom_actions[i];
+      const FlutterSemanticsCustomAction2* action = update->custom_actions[i];
       host->accessibility_bridge_->AddFlutterSemanticsCustomActionUpdate(
           action);
     }
