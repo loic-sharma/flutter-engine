@@ -47,11 +47,15 @@ void AccessibilityBridge::AddFlutterSemanticsCustomActionUpdate(
       FromFlutterSemanticsCustomAction(action);
 }
 
+// TODO(loicsharma): Remove this as FlutterSemanticsNode is deprecated.
+// See: https://github.com/flutter/flutter/issues/121176
 void AccessibilityBridge::AddFlutterSemanticsNodeUpdate(
     const FlutterSemanticsNode* node) {
   pending_semantics_node_updates_[node->id] = FromFlutterSemanticsNode(node);
 }
 
+// TODO(loicsharma): Remove this as FlutterSemanticsNode is deprecated.
+// See: https://github.com/flutter/flutter/issues/121176
 void AccessibilityBridge::AddFlutterSemanticsCustomActionUpdate(
     const FlutterSemanticsCustomAction* action) {
   pending_semantics_custom_action_updates_[action->id] =
