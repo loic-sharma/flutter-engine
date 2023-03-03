@@ -328,7 +328,7 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
     host->OnPreEngineRestart();
   };
   args.update_semantics_callback2 = [](const FlutterSemanticsUpdate2* update,
-                                      void* user_data) {
+                                       void* user_data) {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
 
     for (size_t i = 0; i < update->nodes_count; i++) {
