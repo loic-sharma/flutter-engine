@@ -277,35 +277,40 @@ bool GPUSurfaceGLSkia::PresentSurface(const SurfaceFrame& frame,
       .presentation_time = frame.submit_info().presentation_time,
       .buffer_damage = frame.submit_info().buffer_damage,
   };
-  if (!delegate_->GLContextPresent(present_info)) {
-    return false;
-  }
-
-  if (delegate_->GLContextFBOResetAfterPresent()) {
-    auto current_size =
-        SkISize::Make(onscreen_surface_->width(), onscreen_surface_->height());
-
-    GLFrameInfo frame_info = {static_cast<uint32_t>(current_size.width()),
-                              static_cast<uint32_t>(current_size.height())};
-
-    // The FBO has changed, ask the delegate for the new FBO and do a surface
-    // re-wrap.
-    const GLFBOInfo fbo_info = delegate_->GLContextFBO(frame_info);
-    auto new_onscreen_surface =
-        WrapOnscreenSurface(context_.get(),  // GL context
-                            current_size,    // root surface size
-                            fbo_info.fbo_id  // window FBO ID
-        );
-
-    if (!new_onscreen_surface) {
+  {
+    TRACE_EVENT0("flutter", "GLContextPresent");
+    if (!delegate_->GLContextPresent(present_info)) {
       return false;
     }
-
-    onscreen_surface_ = std::move(new_onscreen_surface);
-    fbo_id_ = fbo_info.fbo_id;
-    existing_damage_ = fbo_info.existing_damage;
   }
 
+  {
+    TRACE_EVENT0("flutter", "GLContextFBOResetAfterPresent");
+    if (delegate_->GLContextFBOResetAfterPresent()) {
+      auto current_size = SkISize::Make(onscreen_surface_->width(),
+                                        onscreen_surface_->height());
+
+      GLFrameInfo frame_info = {static_cast<uint32_t>(current_size.width()),
+                                static_cast<uint32_t>(current_size.height())};
+
+      // The FBO has changed, ask the delegate for the new FBO and do a surface
+      // re-wrap.
+      const GLFBOInfo fbo_info = delegate_->GLContextFBO(frame_info);
+      auto new_onscreen_surface =
+          WrapOnscreenSurface(context_.get(),  // GL context
+                              current_size,    // root surface size
+                              fbo_info.fbo_id  // window FBO ID
+          );
+
+      if (!new_onscreen_surface) {
+        return false;
+      }
+
+      onscreen_surface_ = std::move(new_onscreen_surface);
+      fbo_id_ = fbo_info.fbo_id;
+      existing_damage_ = fbo_info.existing_damage;
+    }
+  }
   return true;
 }
 

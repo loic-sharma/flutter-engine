@@ -76,6 +76,12 @@ void PlatformConfiguration::DidCreateIsolate() {
   windows_.emplace(kImplicitViewId,
                    std::make_unique<Window>(
                        kImplicitViewId, ViewportMetrics{1.0, 0.0, 0.0, -1}));
+
+  // HACK HACK. Add a second view with ID 1 and a third view with ID 2.
+  windows_.emplace(
+      1, std::make_unique<Window>(1, ViewportMetrics{1.0, 0.0, 0.0, -1}));
+  windows_.emplace(
+      2, std::make_unique<Window>(2, ViewportMetrics{1.0, 0.0, 0.0, -1}));
 }
 
 void PlatformConfiguration::UpdateLocales(

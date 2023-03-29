@@ -127,6 +127,8 @@ bool RuntimeController::SetViewportMetrics(const ViewportMetrics& metrics) {
 
   if (auto* platform_configuration = GetPlatformConfigurationIfAvailable()) {
     platform_configuration->get_window(0)->UpdateWindowMetrics(metrics);
+    platform_configuration->get_window(1)->UpdateWindowMetrics(metrics);
+    platform_configuration->get_window(2)->UpdateWindowMetrics(metrics);
     return true;
   }
 
