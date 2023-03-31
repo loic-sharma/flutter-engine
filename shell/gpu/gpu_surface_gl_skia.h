@@ -22,11 +22,6 @@ namespace flutter {
 
 class GPUSurfaceGLSkia : public Surface {
  public:
-  static sk_sp<GrDirectContext> MakeGLContext(GPUSurfaceGLDelegate* delegate);
-
-  GPUSurfaceGLSkia(GPUSurfaceGLDelegate* delegate, bool render_to_surface);
-
-  // Creates a new GL surface reusing an existing GrDirectContext.
   GPUSurfaceGLSkia(const sk_sp<GrDirectContext>& gr_context,
                    GPUSurfaceGLDelegate* delegate,
                    bool render_to_surface);
@@ -38,22 +33,14 @@ class GPUSurfaceGLSkia : public Surface {
   bool IsValid() override;
 
   // |Surface|
-  std::unique_ptr<SurfaceFrame> AcquireFrame(const SkISize& size) override;
+  std::unique_ptr<SurfaceFrame> AcquireFrame(int64_t view_id,
+                                             const SkISize& size) override;
 
   // |Surface|
   SkMatrix GetRootTransformation() const override;
 
   // |Surface|
   GrDirectContext* GetContext() override;
-
-  // |Surface|
-  std::unique_ptr<GLContextResult> MakeRenderContextCurrent() override;
-
-  // |Surface|
-  bool ClearRenderContext() override;
-
-  // |Surface|
-  bool AllowsDrawingWhenGpuDisabled() const override;
 
  private:
   bool CreateOrUpdateSurfaces(const SkISize& size);
@@ -73,7 +60,6 @@ class GPUSurfaceGLSkia : public Surface {
   // still have an option of overriding this damage with their own in
   // `GLContextFrameBufferInfo`.
   std::optional<SkIRect> existing_damage_ = std::nullopt;
-  bool context_owner_ = false;
   // TODO(38466): Refactor GPU surface APIs take into account the fact that an
   // external view embedder may want to render to the root surface. This is a
   // hack to make avoid allocating resources for the root surface when an

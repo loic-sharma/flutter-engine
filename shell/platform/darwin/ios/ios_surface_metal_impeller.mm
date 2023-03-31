@@ -6,6 +6,7 @@
 
 #include "flutter/impeller/renderer/backend/metal/formats_mtl.h"
 #include "flutter/impeller/renderer/context.h"
+#include "flutter/shell/gpu/gpu_studio_metal_impeller.h"
 #include "flutter/shell/gpu/gpu_surface_metal_impeller.h"
 
 namespace flutter {
@@ -45,6 +46,15 @@ void IOSSurfaceMetalImpeller::UpdateStorageSizeIfNecessary() {
 }
 
 // |IOSSurface|
+std::unique_ptr<Studio> IOSSurfaceMetalImpeller::CreateGPUStudio(GrDirectContext*) {
+  impeller_context_->UpdateOffscreenLayerPixelFormat(
+      InferOffscreenLayerPixelFormat(impeller::FromMTLPixelFormat(layer_.get().pixelFormat)));
+  return std::make_unique<GPUStudioMetalImpeller>(this,              //
+                                                  impeller_context_  //
+  );
+}
+
+// |IOSSurface|
 std::unique_ptr<Surface> IOSSurfaceMetalImpeller::CreateGPUSurface(GrDirectContext*) {
   impeller_context_->UpdateOffscreenLayerPixelFormat(
       InferOffscreenLayerPixelFormat(impeller::FromMTLPixelFormat(layer_.get().pixelFormat)));
@@ -76,7 +86,8 @@ bool IOSSurfaceMetalImpeller::PresentDrawable(GrMTLHandle drawable) const {
 }
 
 // |GPUSurfaceMetalDelegate|
-GPUMTLTextureInfo IOSSurfaceMetalImpeller::GetMTLTexture(const SkISize& frame_info) const {
+GPUMTLTextureInfo IOSSurfaceMetalImpeller::GetMTLTexture(int64_t view_id,
+                                                         const SkISize& frame_info) const {
   FML_CHECK(false);
   return GPUMTLTextureInfo{
       .texture_id = -1,   //

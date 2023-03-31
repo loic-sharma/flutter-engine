@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <optional>
+#include <unordered_map>
 
 #include "flutter/common/settings.h"
 #include "flutter/common/task_runners.h"
@@ -15,6 +16,7 @@
 #include "flutter/flow/embedded_views.h"
 #include "flutter/flow/frame_timings.h"
 #include "flutter/flow/layers/layer_tree.h"
+#include "flutter/flow/studio.h"
 #include "flutter/flow/surface.h"
 #include "flutter/fml/closure.h"
 #include "flutter/fml/memory/weak_ptr.h"
@@ -138,21 +140,21 @@ class Rasterizer final : public SnapshotDelegate,
   ~Rasterizer();
 
   //----------------------------------------------------------------------------
-  /// @brief      Rasterizers may be created well before an on-screen surface is
+  /// @brief      Rasterizers may be created well before an on-screen studio is
   ///             available for rendering. Shells usually create a rasterizer in
-  ///             their constructors. Once an on-screen surface is available
+  ///             their constructors. Once an on-screen studio is available
   ///             however, one may be provided to the rasterizer using this
-  ///             call. No rendering may occur before this call. The surface is
+  ///             call. No rendering may occur before this call. The studio is
   ///             held till the balancing call to `Rasterizer::Teardown` is
-  ///             made. Calling a setup before tearing down the previous surface
+  ///             made. Calling a setup before tearing down the studio
   ///             (if this is not the first time the surface has been set up) is
   ///             user error.
   ///
   /// @see        `Rasterizer::Teardown`
   ///
-  /// @param[in]  surface  The on-screen render surface.
+  /// @param[in]  studio  The on-screen render studio.
   ///
-  void Setup(std::unique_ptr<Surface> surface);
+  void Setup(std::unique_ptr<Studio> studio);
 
   //----------------------------------------------------------------------------
   /// @brief      Releases the previously set up on-screen render surface and
@@ -187,36 +189,34 @@ class Rasterizer final : public SnapshotDelegate,
 
   fml::TaskRunnerAffineWeakPtr<SnapshotDelegate> GetSnapshotDelegate() const;
 
+  void AddSurface(int64_t view_id, std::unique_ptr<Surface> surface);
+
   //----------------------------------------------------------------------------
-  /// @brief      Sometimes, it may be necessary to render the same frame again
-  ///             without having to wait for the framework to build a whole new
-  ///             layer tree describing the same contents. One such case is when
-  ///             external textures (video or camera streams for example) are
-  ///             updated in an otherwise static layer tree. To support this use
-  ///             case, the rasterizer holds onto the last rendered layer tree.
   ///
   /// @bug        https://github.com/flutter/flutter/issues/33939
   ///
   /// @return     A pointer to the last layer or `nullptr` if this rasterizer
   ///             has never rendered a frame.
   ///
-  flutter::LayerTree* GetLastLayerTree();
+  bool HasLastLayerTree() const;
 
   //----------------------------------------------------------------------------
-  /// @brief      Draws a last layer tree to the render surface. This may seem
-  ///             entirely redundant at first glance. After all, on surface loss
-  ///             and re-acquisition, the framework generates a new layer tree.
-  ///             Otherwise, why render the same contents to the screen again?
-  ///             This is used as an optimization in cases where there are
-  ///             external textures (video or camera streams for example) in
+  /// @brief      Draws to all render surfaces their last layer trees. This may
+  ///             seem entirely redundant at first glance. After all, on surface
+  ///             loss and re-acquisition, the framework generates a new layer
+  ///             tree. Otherwise, why render the same contents to the screen
+  ///             again? This is used as an optimization in cases where there
+  ///             are external textures (video or camera streams for example) in
   ///             referenced in the layer tree. These textures may be updated at
   ///             a cadence different from that of the Flutter application.
   ///             Flutter can re-render the layer tree with just the updated
   ///             textures instead of waiting for the framework to do the work
   ///             to generate the layer tree describing the same contents.
   ///
-  void DrawLastLayerTree(
-      std::unique_ptr<FrameTimingsRecorder> frame_timings_recorder);
+  /// @return     The number of surfaces that are drawn this way.
+  int DrawLastLayerTree(
+      std::unique_ptr<FrameTimingsRecorder> frame_timings_recorder,
+      bool enable_leaf_layer_tracing = false);
 
   // |SnapshotDelegate|
   GrDirectContext* GetGrContext() override;
@@ -483,6 +483,48 @@ class Rasterizer final : public SnapshotDelegate,
   void DisableThreadMergerIfNeeded();
 
  private:
+  struct DoDrawResult {
+    RasterStatus raster_status = RasterStatus::kFailed;
+    int64_t resubmitted_view_id;
+    // Set when we need attempt to rasterize the layer tree again. This
+    // layer_tree has not successfully rasterized. This can happen due to the
+    // change in the thread configuration. This will be inserted to the front of
+    // the pipeline.
+    std::shared_ptr<flutter::LayerTree> resubmitted_layer_tree;
+    std::unique_ptr<FrameTimingsRecorder> resubmitted_recorder;
+  };
+
+  struct SurfaceRecord {
+    SurfaceRecord(int64_t view_id, std::unique_ptr<Surface> surface)
+        : view_id(view_id), surface(std::move(surface)) {}
+
+    int64_t view_id;
+
+    std::unique_ptr<Surface> surface;
+    // This is the information for the last successfully drawing.
+    //
+    // Sometimes, it may be necessary to render the same frame again without
+    // having to wait for the framework to build a whole new layer tree
+    // describing the same contents. One such case is when external textures
+    // (video or camera streams for example) are updated in an otherwise static
+    // layer tree. To support this use case, the rasterizer holds onto the last
+    // rendered layer tree.
+    std::shared_ptr<flutter::LayerTree> last_tree;
+  };
+
+  SurfaceRecord* GetSurface(int64_t view_id) {
+    auto found_surface = surfaces_.find(view_id);
+    if (found_surface == surfaces_.end()) {
+      return nullptr;
+    }
+    return &found_surface->second;
+  }
+
+  SurfaceRecord* GetFirstSurface() {
+    // TODO(dkwingsmt)
+    return GetSurface(0ll);
+  }
+
   // |SnapshotDelegate|
   std::unique_ptr<GpuImageResult> MakeSkiaGpuImage(
       sk_sp<DisplayList> display_list,
@@ -502,9 +544,7 @@ class Rasterizer final : public SnapshotDelegate,
   fml::Milliseconds GetFrameBudget() const override;
 
   // |SnapshotController::Delegate|
-  const std::unique_ptr<Surface>& GetSurface() const override {
-    return surface_;
-  }
+  Studio* GetStudio() const override { return studio_.get(); }
 
   // |SnapshotController::Delegate|
   const std::unique_ptr<SnapshotSurfaceProducer>& GetSnapshotSurfaceProducer()
@@ -524,15 +564,22 @@ class Rasterizer final : public SnapshotDelegate,
       GrDirectContext* surface_context,
       bool compressed);
 
-  RasterStatus DoDraw(
+  DoDrawResult DoDraw(
+      int64_t view_id,
       std::unique_ptr<FrameTimingsRecorder> frame_timings_recorder,
       std::shared_ptr<flutter::LayerTree> layer_tree);
 
   RasterStatus DrawToSurface(FrameTimingsRecorder& frame_timings_recorder,
-                             flutter::LayerTree& layer_tree);
+                             flutter::LayerTree* layer_tree,
+                             SurfaceRecord* surface_record);
 
   RasterStatus DrawToSurfaceUnsafe(FrameTimingsRecorder& frame_timings_recorder,
-                                   flutter::LayerTree& layer_tree);
+                                   flutter::LayerTree* layer_tree,
+                                   SurfaceRecord* surface_record);
+
+  Screenshot ScreenshotLayerTree(ScreenshotType type,
+                                 bool base64_encode,
+                                 SurfaceRecord& surface_record);
 
   void FireNextFrameCallbackIfPresent();
 
@@ -541,16 +588,13 @@ class Rasterizer final : public SnapshotDelegate,
 
   Delegate& delegate_;
   MakeGpuImageBehavior gpu_image_behavior_;
-  std::unique_ptr<Surface> surface_;
+  std::unique_ptr<Studio> studio_;
+  std::unordered_map<int64_t, SurfaceRecord> surfaces_;
   std::unique_ptr<SnapshotSurfaceProducer> snapshot_surface_producer_;
   std::unique_ptr<flutter::CompositorContext> compositor_context_;
-  // This is the last successfully rasterized layer tree.
-  std::shared_ptr<flutter::LayerTree> last_layer_tree_;
   // Set when we need attempt to rasterize the layer tree again. This layer_tree
   // has not successfully rasterized. This can happen due to the change in the
   // thread configuration. This will be inserted to the front of the pipeline.
-  std::shared_ptr<flutter::LayerTree> resubmitted_layer_tree_;
-  std::unique_ptr<FrameTimingsRecorder> resubmitted_recorder_;
   fml::closure next_frame_callback_;
   bool user_override_resource_cache_bytes_;
   std::optional<size_t> max_cache_bytes_;

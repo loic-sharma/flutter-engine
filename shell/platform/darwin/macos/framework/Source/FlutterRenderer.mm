@@ -14,21 +14,13 @@
 
 static FlutterMetalTexture OnGetNextDrawableForDefaultView(FlutterEngine* engine,
                                                            const FlutterFrameInfo* frameInfo) {
-  // TODO(dkwingsmt): This callback only supports single-view, therefore it only
-  // operates on the default view. To support multi-view, we need a new callback
-  // that also receives a view ID, or pass the ID via FlutterFrameInfo.
-  uint64_t viewId = kFlutterDefaultViewId;
   CGSize size = CGSizeMake(frameInfo->size.width, frameInfo->size.height);
-  return [engine.renderer createTextureForView:viewId size:size];
+  return [engine.renderer createTextureForView:frameInfo->view_id size:size];
 }
 
 static bool OnPresentDrawableOfDefaultView(FlutterEngine* engine,
                                            const FlutterMetalTexture* texture) {
-  // TODO(dkwingsmt): This callback only supports single-view, therefore it only
-  // operates on the default view. To support multi-view, we need a new callback
-  // that also receives a view ID.
-  uint64_t viewId = kFlutterDefaultViewId;
-  return [engine.renderer present:viewId texture:texture];
+  return [engine.renderer present:texture];
 }
 
 static bool OnAcquireExternalTexture(FlutterEngine* engine,
@@ -46,6 +38,8 @@ static bool OnAcquireExternalTexture(FlutterEngine* engine,
   FlutterViewEngineProvider* _viewProvider;
 
   FlutterDarwinContextMetalSkia* _darwinMetalContext;
+
+  NSMutableDictionary<NSNumber*, NSNumber*>* _texture_to_view;
 }
 
 - (instancetype)initWithFlutterEngine:(nonnull FlutterEngine*)flutterEngine {
@@ -66,6 +60,7 @@ static bool OnAcquireExternalTexture(FlutterEngine* engine,
 
     _darwinMetalContext = [[FlutterDarwinContextMetalSkia alloc] initWithMTLDevice:_device
                                                                       commandQueue:_commandQueue];
+    _texture_to_view = [NSMutableDictionary dictionary];
   }
   return self;
 }
@@ -95,11 +90,13 @@ static bool OnAcquireExternalTexture(FlutterEngine* engine,
     // FlutterMetalTexture has texture `null`, therefore is discarded.
     return FlutterMetalTexture{};
   }
-  return [view.surfaceManager surfaceForSize:size].asFlutterMetalTexture;
+  FlutterMetalTexture texture = [view.surfaceManager surfaceForSize:size].asFlutterMetalTexture;
+  texture.view_id = viewId;
+  return texture;
 }
 
-- (BOOL)present:(uint64_t)viewId texture:(const FlutterMetalTexture*)texture {
-  FlutterView* view = [_viewProvider viewForId:viewId];
+- (BOOL)present:(const FlutterMetalTexture*)texture {
+  FlutterView* view = [_viewProvider viewForId:texture->view_id];
   if (view == nil) {
     return NO;
   }

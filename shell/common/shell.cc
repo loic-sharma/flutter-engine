@@ -744,11 +744,21 @@ DartVM* Shell::GetDartVM() {
   return &vm_;
 }
 
+constexpr int64_t kFlutterDefaultViewId = 0ll;
+
 // |PlatformView::Delegate|
-void Shell::OnPlatformViewCreated(std::unique_ptr<Surface> surface) {
+void Shell::OnPlatformViewCreated() {
   TRACE_EVENT0("flutter", "Shell::OnPlatformViewCreated");
   FML_DCHECK(is_setup_);
   FML_DCHECK(task_runners_.GetPlatformTaskRunner()->RunsTasksOnCurrentThread());
+
+  std::unique_ptr<Studio> studio = platform_view_->CreateStudio();
+  std::unique_ptr<Surface> surface = platform_view_->CreateSurface();
+  if (studio == nullptr || surface == nullptr) {
+    // TODO(dkwingsmt): This case is observed in windows unit tests. Anyway,
+    // we're probably not creating the surface in this callback eventually.
+    return;
+  }
 
   // Prevent any request to change the thread configuration for raster and
   // platform queues while the platform view is being created.
@@ -775,15 +785,16 @@ void Shell::OnPlatformViewCreated(std::unique_ptr<Surface> surface) {
       !task_runners_.GetRasterTaskRunner()->RunsTasksOnCurrentThread();
 
   fml::AutoResetWaitableEvent latch;
-  auto raster_task =
-      fml::MakeCopyable([&waiting_for_first_frame = waiting_for_first_frame_,
-                         rasterizer = rasterizer_->GetWeakPtr(),  //
-                         surface = std::move(surface)]() mutable {
+  auto raster_task = fml::MakeCopyable(
+      [&waiting_for_first_frame = waiting_for_first_frame_,
+       rasterizer = rasterizer_->GetWeakPtr(),  //
+       studio = std::move(studio), surface = std::move(surface)]() mutable {
         if (rasterizer) {
           // Enables the thread merger which may be used by the external view
           // embedder.
           rasterizer->EnableThreadMergerIfNeeded();
-          rasterizer->Setup(std::move(surface));
+          rasterizer->Setup(std::move(studio));
+          rasterizer->AddSurface(kFlutterDefaultViewId, std::move(surface));
         }
 
         waiting_for_first_frame.store(true);
@@ -1885,23 +1896,23 @@ bool Shell::OnServiceProtocolRenderFrameWithRasterStats(
     rapidjson::Document* response) {
   FML_DCHECK(task_runners_.GetRasterTaskRunner()->RunsTasksOnCurrentThread());
 
-  if (auto last_layer_tree = rasterizer_->GetLastLayerTree()) {
+  // When rendering the last layer tree, we do not need to build a frame,
+  // invariants in FrameTimingRecorder enforce that raster timings can not be
+  // set before build-end.
+  auto frame_timings_recorder = std::make_unique<FrameTimingsRecorder>();
+  const auto now = fml::TimePoint::Now();
+  frame_timings_recorder->RecordVsync(now, now);
+  frame_timings_recorder->RecordBuildStart(now);
+  frame_timings_recorder->RecordBuildEnd(now);
+
+  int success_count =
+      rasterizer_->DrawLastLayerTree(std::move(frame_timings_recorder),
+                                     /* enable_leaf_layer_tracing=*/true);
+
+  if (success_count > 0) {
     auto& allocator = response->GetAllocator();
     response->SetObject();
     response->AddMember("type", "RenderFrameWithRasterStats", allocator);
-
-    // When rendering the last layer tree, we do not need to build a frame,
-    // invariants in FrameTimingRecorder enforce that raster timings can not be
-    // set before build-end.
-    auto frame_timings_recorder = std::make_unique<FrameTimingsRecorder>();
-    const auto now = fml::TimePoint::Now();
-    frame_timings_recorder->RecordVsync(now, now);
-    frame_timings_recorder->RecordBuildStart(now);
-    frame_timings_recorder->RecordBuildEnd(now);
-
-    last_layer_tree->enable_leaf_layer_tracing(true);
-    rasterizer_->DrawLastLayerTree(std::move(frame_timings_recorder));
-    last_layer_tree->enable_leaf_layer_tracing(false);
 
     rapidjson::Value snapshots;
     snapshots.SetArray();
@@ -1970,6 +1981,27 @@ bool Shell::OnServiceProtocolReloadAssetFonts(
   response->AddMember("type", "Success", allocator);
 
   return true;
+}
+
+void Shell::AddRenderSurface(int64_t view_id) {
+  TRACE_EVENT0("flutter", "Shell::AddRenderSurface");
+  FML_DCHECK(is_setup_);
+  FML_DCHECK(task_runners_.GetPlatformTaskRunner()->RunsTasksOnCurrentThread());
+
+  std::unique_ptr<Surface> surface = platform_view_->CreateSurface();
+  fml::AutoResetWaitableEvent latch;
+  task_runners_.GetRasterTaskRunner()->PostTask(
+      fml::MakeCopyable([&latch,                                  //
+                         rasterizer = rasterizer_->GetWeakPtr(),  //
+                         surface = std::move(surface),            //
+                         view_id                                  //
+  ]() mutable {
+        if (rasterizer) {
+          rasterizer->AddSurface(view_id, std::move(surface));
+        }
+        latch.Signal();
+      }));
+  latch.Wait();
 }
 
 Rasterizer::Screenshot Shell::Screenshot(

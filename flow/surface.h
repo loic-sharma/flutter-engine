@@ -35,21 +35,12 @@ class Surface {
 
   virtual bool IsValid() = 0;
 
-  virtual std::unique_ptr<SurfaceFrame> AcquireFrame(const SkISize& size) = 0;
+  virtual std::unique_ptr<SurfaceFrame> AcquireFrame(int64_t view_id,
+                                                     const SkISize& size) = 0;
 
   virtual SkMatrix GetRootTransformation() const = 0;
 
   virtual GrDirectContext* GetContext() = 0;
-
-  virtual std::unique_ptr<GLContextResult> MakeRenderContextCurrent();
-
-  virtual bool ClearRenderContext();
-
-  virtual bool AllowsDrawingWhenGpuDisabled() const;
-
-  virtual bool EnableRasterCache() const;
-
-  virtual impeller::AiksContext* GetAiksContext() const;
 
   /// Capture the `SurfaceData` currently present in the surface.
   ///

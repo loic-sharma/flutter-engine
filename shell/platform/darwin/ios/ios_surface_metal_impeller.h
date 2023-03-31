@@ -39,6 +39,9 @@ class SK_API_AVAILABLE_CA_METAL_LAYER IOSSurfaceMetalImpeller final
   void UpdateStorageSizeIfNecessary() override;
 
   // |IOSSurface|
+  std::unique_ptr<Studio> CreateGPUStudio(GrDirectContext* gr_context) override;
+
+  // |IOSSurface|
   std::unique_ptr<Surface> CreateGPUSurface(GrDirectContext* gr_context) override;
 
   // |GPUSurfaceMetalDelegate|
@@ -48,7 +51,7 @@ class SK_API_AVAILABLE_CA_METAL_LAYER IOSSurfaceMetalImpeller final
   bool PresentDrawable(GrMTLHandle drawable) const override;
 
   // |GPUSurfaceMetalDelegate|
-  GPUMTLTextureInfo GetMTLTexture(const SkISize& frame_info) const override;
+  GPUMTLTextureInfo GetMTLTexture(int64_t view_id, const SkISize& frame_info) const override;
 
   // |GPUSurfaceMetalDelegate|
   bool PresentTexture(GPUMTLTextureInfo texture) const override;

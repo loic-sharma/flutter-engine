@@ -4,7 +4,6 @@
 
 #include "flutter/shell/gpu/gpu_surface_gl_skia.h"
 
-#include "flutter/common/graphics/persistent_cache.h"
 #include "flutter/fml/base32.h"
 #include "flutter/fml/logging.h"
 #include "flutter/fml/size.h"
@@ -28,45 +27,6 @@
 #define GPU_GL_RGB565 0x8D62
 
 namespace flutter {
-
-// Default maximum number of bytes of GPU memory of budgeted resources in the
-// cache.
-// The shell will dynamically increase or decrease this cache based on the
-// viewport size, unless a user has specifically requested a size on the Skia
-// system channel.
-static const size_t kGrCacheMaxByteSize = 24 * (1 << 20);
-
-sk_sp<GrDirectContext> GPUSurfaceGLSkia::MakeGLContext(
-    GPUSurfaceGLDelegate* delegate) {
-  auto context_switch = delegate->GLContextMakeCurrent();
-  if (!context_switch->GetResult()) {
-    FML_LOG(ERROR)
-        << "Could not make the context current to set up the Gr context.";
-    return nullptr;
-  }
-
-  const auto options =
-      MakeDefaultContextOptions(ContextType::kRender, GrBackendApi::kOpenGL);
-
-  auto context = GrDirectContext::MakeGL(delegate->GetGLInterface(), options);
-
-  if (!context) {
-    FML_LOG(ERROR) << "Failed to set up Skia Gr context.";
-    return nullptr;
-  }
-
-  context->setResourceCacheLimit(kGrCacheMaxByteSize);
-
-  PersistentCache::GetCacheForProcess()->PrecompileKnownSkSLs(context.get());
-
-  return context;
-}
-
-GPUSurfaceGLSkia::GPUSurfaceGLSkia(GPUSurfaceGLDelegate* delegate,
-                                   bool render_to_surface)
-    : GPUSurfaceGLSkia(MakeGLContext(delegate), delegate, render_to_surface) {
-  context_owner_ = true;
-}
 
 GPUSurfaceGLSkia::GPUSurfaceGLSkia(const sk_sp<GrDirectContext>& gr_context,
                                    GPUSurfaceGLDelegate* delegate,
@@ -101,9 +61,6 @@ GPUSurfaceGLSkia::~GPUSurfaceGLSkia() {
 
   onscreen_surface_ = nullptr;
   fbo_id_ = 0;
-  if (context_owner_) {
-    context_->releaseResourcesAndAbandonContext();
-  }
   context_ = nullptr;
 
   delegate_->GLContextClearCurrent();
@@ -208,6 +165,7 @@ SkMatrix GPUSurfaceGLSkia::GetRootTransformation() const {
 
 // |Surface|
 std::unique_ptr<SurfaceFrame> GPUSurfaceGLSkia::AcquireFrame(
+    int64_t view_id,
     const SkISize& size) {
   if (delegate_ == nullptr) {
     return nullptr;
@@ -328,21 +286,6 @@ sk_sp<SkSurface> GPUSurfaceGLSkia::AcquireRenderSurface(
 // |Surface|
 GrDirectContext* GPUSurfaceGLSkia::GetContext() {
   return context_.get();
-}
-
-// |Surface|
-std::unique_ptr<GLContextResult> GPUSurfaceGLSkia::MakeRenderContextCurrent() {
-  return delegate_->GLContextMakeCurrent();
-}
-
-// |Surface|
-bool GPUSurfaceGLSkia::ClearRenderContext() {
-  return delegate_->GLContextClearCurrent();
-}
-
-// |Surface|
-bool GPUSurfaceGLSkia::AllowsDrawingWhenGpuDisabled() const {
-  return delegate_->AllowsDrawingWhenGpuDisabled();
 }
 
 }  // namespace flutter

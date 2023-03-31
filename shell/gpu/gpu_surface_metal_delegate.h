@@ -50,6 +50,17 @@ enum class MTLRenderTargetType { kMTLTexture, kCAMetalLayer };
 ///
 class GPUSurfaceMetalDelegate {
  public:
+  class SkSLPrecompiler {
+   public:
+    SkSLPrecompiler();
+    void PrecompileKnownSkSLsIfNecessary(GrDirectContext* current_context);
+
+   private:
+    GrDirectContext* precompiled_sksl_context_;
+
+    FML_DISALLOW_COPY_AND_ASSIGN(SkSLPrecompiler);
+  };
+
   //------------------------------------------------------------------------------
   /// @brief Construct a new GPUSurfaceMetalDelegate object with the specified
   /// render_target type.
@@ -80,7 +91,8 @@ class GPUSurfaceMetalDelegate {
   /// @brief Returns the handle to the MTLTexture to render to. This is only
   /// called when the specified render target type is `kMTLTexture`.
   ///
-  virtual GPUMTLTextureInfo GetMTLTexture(const SkISize& frame_info) const = 0;
+  virtual GPUMTLTextureInfo GetMTLTexture(int64_t view_id,
+                                          const SkISize& frame_info) const = 0;
 
   //------------------------------------------------------------------------------
   /// @brief Presents the texture with `texture_id` to the "screen".

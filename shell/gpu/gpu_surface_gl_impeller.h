@@ -35,28 +35,14 @@ class GPUSurfaceGLImpeller final : public Surface {
   fml::WeakPtrFactory<GPUSurfaceGLImpeller> weak_factory_;
 
   // |Surface|
-  std::unique_ptr<SurfaceFrame> AcquireFrame(const SkISize& size) override;
+  std::unique_ptr<SurfaceFrame> AcquireFrame(int64_t view_id,
+                                             const SkISize& size) override;
 
   // |Surface|
   SkMatrix GetRootTransformation() const override;
 
   // |Surface|
   GrDirectContext* GetContext() override;
-
-  // |Surface|
-  std::unique_ptr<GLContextResult> MakeRenderContextCurrent() override;
-
-  // |Surface|
-  bool ClearRenderContext() override;
-
-  // |Surface|
-  bool AllowsDrawingWhenGpuDisabled() const override;
-
-  // |Surface|
-  bool EnableRasterCache() const override;
-
-  // |Surface|
-  impeller::AiksContext* GetAiksContext() const override;
 
   FML_DISALLOW_COPY_AND_ASSIGN(GPUSurfaceGLImpeller);
 };

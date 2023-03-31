@@ -62,7 +62,7 @@ using ::testing::Return;
 
 namespace {
 class MockPlatformViewDelegate : public PlatformView::Delegate {
-  MOCK_METHOD1(OnPlatformViewCreated, void(std::unique_ptr<Surface> surface));
+  MOCK_METHOD0(OnPlatformViewCreated, void());
 
   MOCK_METHOD0(OnPlatformViewDestroyed, void());
 
@@ -117,14 +117,9 @@ class MockPlatformViewDelegate : public PlatformView::Delegate {
                     AssetResolver::AssetResolverType type));
 };
 
-class MockSurface : public Surface {
+class MockStudio : public Studio {
  public:
   MOCK_METHOD0(IsValid, bool());
-
-  MOCK_METHOD1(AcquireFrame,
-               std::unique_ptr<SurfaceFrame>(const SkISize& size));
-
-  MOCK_CONST_METHOD0(GetRootTransformation, SkMatrix());
 
   MOCK_METHOD0(GetContext, GrDirectContext*());
 
@@ -133,12 +128,26 @@ class MockSurface : public Surface {
   MOCK_METHOD0(ClearRenderContext, bool());
 };
 
+class MockSurface : public Surface {
+ public:
+  MOCK_METHOD0(IsValid, bool());
+
+  MOCK_METHOD0(GetContext, GrDirectContext*());
+
+  MOCK_METHOD2(AcquireFrame,
+               std::unique_ptr<SurfaceFrame>(int64_t view_id,
+                                             const SkISize& size));
+
+  MOCK_CONST_METHOD0(GetRootTransformation, SkMatrix());
+};
+
 class MockPlatformView : public PlatformView {
  public:
   MockPlatformView(MockPlatformViewDelegate& delegate,
                    const TaskRunners& task_runners)
       : PlatformView(delegate, task_runners) {}
-  MOCK_METHOD0(CreateRenderingSurface, std::unique_ptr<Surface>());
+  MOCK_METHOD0(CreateRenderingStudio, std::unique_ptr<Studio>());
+  MOCK_METHOD1(CreateRenderingSurface, std::unique_ptr<Surface>(int64_t));
   MOCK_CONST_METHOD0(GetPlatformMessageHandler,
                      std::shared_ptr<PlatformMessageHandler>());
 };
@@ -147,7 +156,8 @@ class TestPlatformView : public PlatformView {
  public:
   TestPlatformView(Shell& shell, const TaskRunners& task_runners)
       : PlatformView(shell, task_runners) {}
-  MOCK_METHOD0(CreateRenderingSurface, std::unique_ptr<Surface>());
+  MOCK_METHOD0(CreateRenderingStudio, std::unique_ptr<Studio>());
+  MOCK_METHOD1(CreateRenderingSurface, std::unique_ptr<Surface>(int64_t));
 };
 
 class MockPlatformMessageHandler : public PlatformMessageHandler {
@@ -265,7 +275,7 @@ static bool RasterizerHasLayerTree(Shell* shell) {
   fml::TaskRunner::RunNowOrPostTask(
       shell->GetTaskRunners().GetRasterTaskRunner(),
       [shell, &latch, &has_layer_tree]() {
-        has_layer_tree = shell->GetRasterizer()->GetLastLayerTree() != nullptr;
+        has_layer_tree = shell->GetRasterizer()->HasLastLayerTree();
         latch.Signal();
       });
   latch.Wait();
@@ -1596,17 +1606,23 @@ TEST_F(ShellTest, MultipleFluttersSetResourceCacheBytes) {
   Shell::CreateCallback<PlatformView> platform_view_create_callback =
       [task_runners, main_context](flutter::Shell& shell) {
         auto result = std::make_unique<TestPlatformView>(shell, task_runners);
-        ON_CALL(*result, CreateRenderingSurface())
-            .WillByDefault(::testing::Invoke([main_context] {
+        ON_CALL(*result, CreateRenderingSurface(0ll))
+            .WillByDefault(::testing::Invoke([] {
               auto surface = std::make_unique<MockSurface>();
-              ON_CALL(*surface, GetContext())
-                  .WillByDefault(Return(main_context.get()));
               ON_CALL(*surface, IsValid()).WillByDefault(Return(true));
-              ON_CALL(*surface, MakeRenderContextCurrent())
+              return surface;
+            }));
+        ON_CALL(*result, CreateRenderingStudio())
+            .WillByDefault(::testing::Invoke([main_context] {
+              auto studio = std::make_unique<MockStudio>();
+              ON_CALL(*studio, GetContext())
+                  .WillByDefault(Return(main_context.get()));
+              ON_CALL(*studio, IsValid()).WillByDefault(Return(true));
+              ON_CALL(*studio, MakeRenderContextCurrent())
                   .WillByDefault(::testing::Invoke([] {
                     return std::make_unique<GLContextDefaultResult>(true);
                   }));
-              return surface;
+              return studio;
             }));
         return result;
       };
@@ -3115,9 +3131,12 @@ TEST_F(ShellTest, Spawn) {
             [&platform_view_delegate](Shell& shell) {
               auto result = std::make_unique<MockPlatformView>(
                   platform_view_delegate, shell.GetTaskRunners());
-              ON_CALL(*result, CreateRenderingSurface())
+              ON_CALL(*result, CreateRenderingSurface(0ll))
                   .WillByDefault(::testing::Invoke(
                       [] { return std::make_unique<MockSurface>(); }));
+              ON_CALL(*result, CreateRenderingStudio())
+                  .WillByDefault(::testing::Invoke(
+                      [] { return std::make_unique<MockStudio>(); }));
               return result;
             },
             [](Shell& shell) { return std::make_unique<Rasterizer>(shell); });
@@ -3227,9 +3246,12 @@ TEST_F(ShellTest, SpawnWithDartEntrypointArgs) {
             [&platform_view_delegate](Shell& shell) {
               auto result = std::make_unique<MockPlatformView>(
                   platform_view_delegate, shell.GetTaskRunners());
-              ON_CALL(*result, CreateRenderingSurface())
+              ON_CALL(*result, CreateRenderingSurface(0ll))
                   .WillByDefault(::testing::Invoke(
                       [] { return std::make_unique<MockSurface>(); }));
+              ON_CALL(*result, CreateRenderingStudio())
+                  .WillByDefault(::testing::Invoke(
+                      [] { return std::make_unique<MockStudio>(); }));
               return result;
             },
             [](Shell& shell) { return std::make_unique<Rasterizer>(shell); });
@@ -3290,9 +3312,12 @@ TEST_F(ShellTest, IOManagerIsSharedBetweenParentAndSpawnedShell) {
         [&platform_view_delegate](Shell& shell) {
           auto result = std::make_unique<MockPlatformView>(
               platform_view_delegate, shell.GetTaskRunners());
-          ON_CALL(*result, CreateRenderingSurface())
+          ON_CALL(*result, CreateRenderingSurface(0ll))
               .WillByDefault(::testing::Invoke(
                   [] { return std::make_unique<MockSurface>(); }));
+          ON_CALL(*result, CreateRenderingStudio())
+              .WillByDefault(::testing::Invoke(
+                  [] { return std::make_unique<MockStudio>(); }));
           return result;
         },
         [](Shell& shell) { return std::make_unique<Rasterizer>(shell); });
@@ -3344,9 +3369,12 @@ TEST_F(ShellTest, IOManagerInSpawnedShellIsNotNullAfterParentShellDestroyed) {
         [&platform_view_delegate](Shell& shell) {
           auto result = std::make_unique<MockPlatformView>(
               platform_view_delegate, shell.GetTaskRunners());
-          ON_CALL(*result, CreateRenderingSurface())
+          ON_CALL(*result, CreateRenderingSurface(0ll))
               .WillByDefault(::testing::Invoke(
                   [] { return std::make_unique<MockSurface>(); }));
+          ON_CALL(*result, CreateRenderingStudio())
+              .WillByDefault(::testing::Invoke(
+                  [] { return std::make_unique<MockStudio>(); }));
           return result;
         },
         [](Shell& shell) { return std::make_unique<Rasterizer>(shell); });
@@ -3392,9 +3420,12 @@ TEST_F(ShellTest, ImageGeneratorRegistryNotNullAfterParentShellDestroyed) {
         [&platform_view_delegate](Shell& shell) {
           auto result = std::make_unique<MockPlatformView>(
               platform_view_delegate, shell.GetTaskRunners());
-          ON_CALL(*result, CreateRenderingSurface())
+          ON_CALL(*result, CreateRenderingSurface(0ll))
               .WillByDefault(::testing::Invoke(
                   [] { return std::make_unique<MockSurface>(); }));
+          ON_CALL(*result, CreateRenderingStudio())
+              .WillByDefault(::testing::Invoke(
+                  [] { return std::make_unique<MockStudio>(); }));
           return result;
         },
         [](Shell& shell) { return std::make_unique<Rasterizer>(shell); });
@@ -3890,9 +3921,12 @@ TEST_F(ShellTest, SpawnWorksWithOnError) {
               auto result =
                   std::make_unique<::testing::NiceMock<MockPlatformView>>(
                       platform_view_delegate, shell.GetTaskRunners());
-              ON_CALL(*result, CreateRenderingSurface())
+              ON_CALL(*result, CreateRenderingSurface(0ll))
+                  .WillByDefault(::testing::Invoke(
+                      [] { return std::make_unique<MockSurface>(); }));
+              ON_CALL(*result, CreateRenderingStudio())
                   .WillByDefault(::testing::Invoke([] {
-                    return std::make_unique<::testing::NiceMock<MockSurface>>();
+                    return std::make_unique<::testing::NiceMock<MockStudio>>();
                   }));
               return result;
             },

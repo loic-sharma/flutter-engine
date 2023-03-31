@@ -464,6 +464,7 @@ typedef struct {
   size_t struct_size;
   /// The size of the surface that will be backed by the fbo.
   FlutterUIntSize size;
+  int64_t view_id;
 } FlutterFrameInfo;
 
 /// Callback for when a frame buffer object is requested.
@@ -653,6 +654,7 @@ typedef struct {
   /// The callback invoked by the engine when it no longer needs this backing
   /// store.
   VoidCallback destruction_callback;
+  int64_t view_id;
 } FlutterMetalTexture;
 
 /// Callback for when a metal texture is requested.
@@ -2244,6 +2246,12 @@ FlutterEngineResult FlutterEngineRunInitialized(
     FLUTTER_API_SYMBOL(FlutterEngine) engine);
 
 FLUTTER_EXPORT
+FlutterEngineResult FlutterEngineAddRenderSurface(
+    FLUTTER_API_SYMBOL(FlutterEngine) engine,
+    void* user_data,
+    int64_t view_id);
+
+FLUTTER_EXPORT
 FlutterEngineResult FlutterEngineSendWindowMetricsEvent(
     FLUTTER_API_SYMBOL(FlutterEngine) engine,
     const FlutterWindowMetricsEvent* event);
@@ -2817,6 +2825,10 @@ typedef FlutterEngineResult (*FlutterEngineDeinitializeFnPtr)(
     FLUTTER_API_SYMBOL(FlutterEngine) engine);
 typedef FlutterEngineResult (*FlutterEngineRunInitializedFnPtr)(
     FLUTTER_API_SYMBOL(FlutterEngine) engine);
+typedef FlutterEngineResult (*FlutterEngineAddRenderSurfaceFnPtr)(
+    FLUTTER_API_SYMBOL(FlutterEngine) engine,
+    void* user_data,
+    int64_t view_id);
 typedef FlutterEngineResult (*FlutterEngineSendWindowMetricsEventFnPtr)(
     FLUTTER_API_SYMBOL(FlutterEngine) engine,
     const FlutterWindowMetricsEvent* event);
@@ -2926,6 +2938,7 @@ typedef struct {
   FlutterEngineInitializeFnPtr Initialize;
   FlutterEngineDeinitializeFnPtr Deinitialize;
   FlutterEngineRunInitializedFnPtr RunInitialized;
+  FlutterEngineAddRenderSurfaceFnPtr AddRenderSurface;
   FlutterEngineSendWindowMetricsEventFnPtr SendWindowMetricsEvent;
   FlutterEngineSendPointerEventFnPtr SendPointerEvent;
   FlutterEngineSendKeyEventFnPtr SendKeyEvent;

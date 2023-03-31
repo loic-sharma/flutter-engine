@@ -9,6 +9,7 @@
 #include "flutter/impeller/renderer/backend/gles/proc_table_gles.h"
 #include "flutter/impeller/toolkit/egl/context.h"
 #include "flutter/impeller/toolkit/egl/surface.h"
+#include "flutter/shell/gpu/gpu_studio_gl_impeller.h"
 #include "flutter/shell/gpu/gpu_surface_gl_impeller.h"
 #include "impeller/entity/gles/entity_shaders_gles.h"
 #include "impeller/scene/shaders/gles/scene_shaders_gles.h"
@@ -187,6 +188,19 @@ bool AndroidSurfaceGLImpeller::IsValid() const {
 }
 
 // |AndroidSurface|
+std::unique_ptr<Studio> AndroidSurfaceGLImpeller::CreateGPUStudio(
+    GrDirectContext* gr_context) {
+  auto studio =
+      std::make_unique<GPUStudioGLImpeller>(this,              // delegate
+                                            impeller_context_  // context
+      );
+  if (!studio->IsValid()) {
+    return nullptr;
+  }
+  return studio;
+}
+
+// |AndroidSurface|
 std::unique_ptr<Surface> AndroidSurfaceGLImpeller::CreateGPUSurface(
     GrDirectContext* gr_context) {
   auto surface =
@@ -238,7 +252,7 @@ bool AndroidSurfaceGLImpeller::SetNativeWindow(
 }
 
 // |AndroidSurface|
-std::unique_ptr<Surface> AndroidSurfaceGLImpeller::CreateSnapshotSurface() {
+std::unique_ptr<Studio> AndroidSurfaceGLImpeller::CreateSnapshotStudio() {
   FML_UNREACHABLE();
 }
 

@@ -44,6 +44,7 @@ bool GPUSurfaceVulkanImpeller::IsValid() {
 
 // |Surface|
 std::unique_ptr<SurfaceFrame> GPUSurfaceVulkanImpeller::AcquireFrame(
+    int64_t view_id,
     const SkISize& size) {
   if (!IsValid()) {
     FML_LOG(ERROR) << "Vulkan surface was invalid.";
@@ -107,23 +108,6 @@ SkMatrix GPUSurfaceVulkanImpeller::GetRootTransformation() const {
 GrDirectContext* GPUSurfaceVulkanImpeller::GetContext() {
   // Impeller != Skia.
   return nullptr;
-}
-
-// |Surface|
-std::unique_ptr<GLContextResult>
-GPUSurfaceVulkanImpeller::MakeRenderContextCurrent() {
-  // This backend has no such concept.
-  return std::make_unique<GLContextDefaultResult>(true);
-}
-
-// |Surface|
-bool GPUSurfaceVulkanImpeller::EnableRasterCache() const {
-  return false;
-}
-
-// |Surface|
-impeller::AiksContext* GPUSurfaceVulkanImpeller::GetAiksContext() const {
-  return aiks_context_.get();
 }
 
 }  // namespace flutter

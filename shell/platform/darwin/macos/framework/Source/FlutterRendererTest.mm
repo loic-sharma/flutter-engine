@@ -65,6 +65,7 @@ TEST(FlutterRenderer, PresentDelegatesToFlutterView) {
 
   FlutterMetalTexture texture = {
       .user_data = (__bridge void*)surfaceMock,
+      .view_id = 0ll,
   };
 
   [[surfaceManagerMock expect] present:[OCMArg checkWithBlock:^(id obj) {
@@ -73,7 +74,7 @@ TEST(FlutterRenderer, PresentDelegatesToFlutterView) {
                                }]
                                 notify:nil];
 
-  [renderer present:kFlutterDefaultViewId texture:&texture];
+  [renderer present:&texture];
   [surfaceManagerMock verify];
 }
 

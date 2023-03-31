@@ -4,6 +4,7 @@
 
 #import "flutter/shell/platform/darwin/ios/ios_surface_metal_skia.h"
 
+#include "flutter/shell/gpu/gpu_studio_metal_skia.h"
 #include "flutter/shell/gpu/gpu_surface_metal_delegate.h"
 #include "flutter/shell/gpu/gpu_surface_metal_skia.h"
 #include "flutter/shell/platform/darwin/ios/ios_context_metal_skia.h"
@@ -24,6 +25,7 @@ IOSSurfaceMetalSkia::IOSSurfaceMetalSkia(const fml::scoped_nsobject<CAMetalLayer
   auto darwin_context = metal_context->GetDarwinContext().get();
   command_queue_ = darwin_context.commandQueue;
   device_ = darwin_context.device;
+  sksl_precompiler_ = std::make_shared<GPUSurfaceMetalDelegate::SkSLPrecompiler>();
 }
 
 // |IOSSurface|
@@ -40,12 +42,20 @@ void IOSSurfaceMetalSkia::UpdateStorageSizeIfNecessary() {
 }
 
 // |IOSSurface|
+std::unique_ptr<Studio> IOSSurfaceMetalSkia::CreateGPUStudio(GrDirectContext* context) {
+  FML_DCHECK(context);
+  return std::make_unique<GPUStudioMetalSkia>(this,                // delegate
+                                              sk_ref_sp(context),  // context
+                                              sksl_precompiler_);
+}
+
+// |IOSSurface|
 std::unique_ptr<Surface> IOSSurfaceMetalSkia::CreateGPUSurface(GrDirectContext* context) {
   FML_DCHECK(context);
-  return std::make_unique<GPUSurfaceMetalSkia>(this,                               // delegate
-                                               sk_ref_sp(context),                 // context
-                                               GetContext()->GetMsaaSampleCount()  // sample count
-  );
+  return std::make_unique<GPUSurfaceMetalSkia>(this,                                // delegate
+                                               sk_ref_sp(context),                  // context
+                                               GetContext()->GetMsaaSampleCount(),  // sample count
+                                               sksl_precompiler_);
 }
 
 // |GPUSurfaceMetalDelegate|
@@ -88,7 +98,8 @@ bool IOSSurfaceMetalSkia::PresentDrawable(GrMTLHandle drawable) const {
 }
 
 // |GPUSurfaceMetalDelegate|
-GPUMTLTextureInfo IOSSurfaceMetalSkia::GetMTLTexture(const SkISize& frame_info) const {
+GPUMTLTextureInfo IOSSurfaceMetalSkia::GetMTLTexture(int64_t view_id,
+                                                     const SkISize& frame_info) const {
   FML_CHECK(false) << "render to texture not supported on ios";
   return {.texture_id = -1, .texture = nullptr};
 }

@@ -29,6 +29,7 @@ class ShellTestPlatformViewMetal final : public ShellTestPlatformView,
 
  private:
   const std::unique_ptr<DarwinContextMetal> metal_context_;
+  std::shared_ptr<GPUSurfaceMetalDelegate::SkSLPrecompiler> sksl_precompiler_;
   const CreateVsyncWaiter create_vsync_waiter_;
   const std::shared_ptr<ShellTestVsyncClock> vsync_clock_;
   const std::shared_ptr<ShellTestExternalViewEmbedder>
@@ -47,7 +48,10 @@ class ShellTestPlatformViewMetal final : public ShellTestPlatformView,
   PointerDataDispatcherMaker GetDispatcherMaker() override;
 
   // |PlatformView|
-  std::unique_ptr<Surface> CreateRenderingSurface() override;
+  std::unique_ptr<Studio> CreateRenderingStudio() override;
+
+  // |PlatformView|
+  std::unique_ptr<Surface> CreateRenderingSurface(int64_t view_id) override;
 
   // |GPUSurfaceMetalDelegate|
   GPUCAMetalLayerHandle GetCAMetalLayer(
@@ -57,7 +61,8 @@ class ShellTestPlatformViewMetal final : public ShellTestPlatformView,
   bool PresentDrawable(GrMTLHandle drawable) const override;
 
   // |GPUSurfaceMetalDelegate|
-  GPUMTLTextureInfo GetMTLTexture(const SkISize& frame_info) const override;
+  GPUMTLTextureInfo GetMTLTexture(int64_t view_id,
+                                  const SkISize& frame_info) const override;
 
   // |GPUSurfaceMetalDelegate|
   bool PresentTexture(GPUMTLTextureInfo texture) const override;

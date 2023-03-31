@@ -28,6 +28,9 @@ class AndroidSurfaceGLImpeller final : public GPUSurfaceGLDelegate,
   bool IsValid() const override;
 
   // |AndroidSurface|
+  std::unique_ptr<Studio> CreateGPUStudio(GrDirectContext* gr_context) override;
+
+  // |AndroidSurface|
   std::unique_ptr<Surface> CreateGPUSurface(
       GrDirectContext* gr_context) override;
 
@@ -47,7 +50,7 @@ class AndroidSurfaceGLImpeller final : public GPUSurfaceGLDelegate,
   bool SetNativeWindow(fml::RefPtr<AndroidNativeWindow> window) override;
 
   // |AndroidSurface|
-  std::unique_ptr<Surface> CreateSnapshotSurface() override;
+  std::unique_ptr<Studio> CreateSnapshotStudio() override;
 
   // |AndroidSurface|
   std::shared_ptr<impeller::Context> GetImpellerContext() override;

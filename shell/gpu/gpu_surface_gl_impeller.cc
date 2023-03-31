@@ -51,6 +51,7 @@ bool GPUSurfaceGLImpeller::IsValid() {
 
 // |Surface|
 std::unique_ptr<SurfaceFrame> GPUSurfaceGLImpeller::AcquireFrame(
+    int64_t view_id,
     const SkISize& size) {
   if (!IsValid()) {
     FML_LOG(ERROR) << "OpenGL surface was invalid.";
@@ -137,31 +138,6 @@ SkMatrix GPUSurfaceGLImpeller::GetRootTransformation() const {
 GrDirectContext* GPUSurfaceGLImpeller::GetContext() {
   // Impeller != Skia.
   return nullptr;
-}
-
-// |Surface|
-std::unique_ptr<GLContextResult>
-GPUSurfaceGLImpeller::MakeRenderContextCurrent() {
-  return delegate_->GLContextMakeCurrent();
-}
-
-// |Surface|
-bool GPUSurfaceGLImpeller::ClearRenderContext() {
-  return delegate_->GLContextClearCurrent();
-}
-
-bool GPUSurfaceGLImpeller::AllowsDrawingWhenGpuDisabled() const {
-  return delegate_->AllowsDrawingWhenGpuDisabled();
-}
-
-// |Surface|
-bool GPUSurfaceGLImpeller::EnableRasterCache() const {
-  return false;
-}
-
-// |Surface|
-impeller::AiksContext* GPUSurfaceGLImpeller::GetAiksContext() const {
-  return aiks_context_.get();
 }
 
 }  // namespace flutter
