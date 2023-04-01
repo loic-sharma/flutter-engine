@@ -226,16 +226,65 @@ RasterStatus Rasterizer::Draw(
   LayerTreePipeline::Consumer consumer =
       [this, &draw_result,
        &discard_callback](std::unique_ptr<LayerTreeItem> item) {
-        std::shared_ptr<LayerTree> layer_tree = std::move(item->layer_tree);
         std::unique_ptr<FrameTimingsRecorder> frame_timings_recorder =
             std::move(item->frame_timings_recorder);
-        int64_t view_id = item->view_id;
-        if (discard_callback(*layer_tree.get())) {
-          draw_result.raster_status = RasterStatus::kDiscarded;
-        } else {
-          draw_result = DoDraw(view_id, std::move(frame_timings_recorder),
-                               std::move(layer_tree));
+
+        // TODO: We should record the start time for each layer tree.
+        // Currently this records the start time for the first layer tree.
+        frame_timings_recorder->RecordRasterStart(fml::TimePoint::Now());
+
+        for (auto item : item->layer_trees) {
+          int64_t view_id = item.first;
+          std::shared_ptr<LayerTree> layer_tree = std::move(item.second);
+          // TODO: Discard checks the layer tree's size matches the view's size.
+          // This needs to be updated for multi-view.
+          if (discard_callback(*layer_tree.get())) {
+            draw_result.raster_status = RasterStatus::kDiscarded;
+          } else {
+            draw_result = DoDraw(view_id, *frame_timings_recorder.get(),
+                                 std::move(layer_tree));
+          }
         }
+
+        // TODO: We want to record raster end for each layer tree.
+        // Currently this records the end time for the last layer tree.
+        frame_timings_recorder->RecordRasterEnd(
+            &compositor_context_->raster_cache());
+
+// SceneDisplayLag events are disabled on Fuchsia.
+// see: https://github.com/flutter/flutter/issues/56598
+#if !defined(OS_FUCHSIA)
+        const fml::TimePoint raster_finish_time =
+            frame_timings_recorder->GetRasterEndTime();
+        fml::TimePoint frame_target_time =
+            frame_timings_recorder->GetVsyncTargetTime();
+        if (raster_finish_time > frame_target_time) {
+          fml::TimePoint latest_frame_target_time =
+              delegate_.GetLatestFrameTargetTime();
+          const auto frame_budget_millis = delegate_.GetFrameBudget().count();
+          if (latest_frame_target_time < raster_finish_time) {
+            latest_frame_target_time =
+                latest_frame_target_time +
+                fml::TimeDelta::FromMillisecondsF(frame_budget_millis);
+          }
+          const auto frame_lag =
+              (latest_frame_target_time - frame_target_time).ToMillisecondsF();
+          const int vsync_transitions_missed =
+              round(frame_lag / frame_budget_millis);
+          fml::tracing::TraceEventAsyncComplete(
+              "flutter",                    // category
+              "SceneDisplayLag",            // name
+              raster_finish_time,           // begin_time
+              latest_frame_target_time,     // end_time
+              "frame_target_time",          // arg_key_1
+              frame_target_time,            // arg_val_1
+              "current_frame_target_time",  // arg_key_2
+              latest_frame_target_time,     // arg_val_2
+              "vsync_transitions_missed",   // arg_key_3
+              vsync_transitions_missed      // arg_val_3
+          );
+        }
+#endif
       };
 
   PipelineConsumeResult consume_result = pipeline->Consume(consumer);
@@ -247,6 +296,10 @@ RasterStatus Rasterizer::Draw(
 
   bool should_resubmit_frame = ShouldResubmitFrame(draw_result.raster_status);
   if (should_resubmit_frame) {
+    // TODO: Handle frame resubmission.
+    FML_LOG(ERROR) << "TODO: Support resubmitting multiple layer trees";
+
+    /*
     auto resubmitted_layer_tree_item = std::make_unique<LayerTreeItem>(
         draw_result.resubmitted_view_id,
         std::move(draw_result.resubmitted_layer_tree),
@@ -257,6 +310,7 @@ RasterStatus Rasterizer::Draw(
     if (pipeline_result.success) {
       consume_result = PipelineConsumeResult::MoreAvailable;
     }
+    */
   } else if (draw_result.raster_status == RasterStatus::kEnqueuePipeline) {
     consume_result = PipelineConsumeResult::MoreAvailable;
   }
@@ -409,9 +463,9 @@ fml::Milliseconds Rasterizer::GetFrameBudget() const {
 
 Rasterizer::DoDrawResult Rasterizer::DoDraw(
     int64_t view_id,
-    std::unique_ptr<FrameTimingsRecorder> frame_timings_recorder,
+    FrameTimingsRecorder& frame_timings_recorder,
     std::shared_ptr<flutter::LayerTree> layer_tree) {
-  TRACE_EVENT_WITH_FRAME_NUMBER(frame_timings_recorder, "flutter",
+  TRACE_EVENT_WITH_FRAME_NUMBER(&frame_timings_recorder, "flutter",
                                 "Rasterizer::DoDraw");
   FML_DCHECK(delegate_.GetTaskRunners()
                  .GetRasterTaskRunner()
@@ -428,7 +482,7 @@ Rasterizer::DoDrawResult Rasterizer::DoDraw(
   persistent_cache->ResetStoredNewShaders();
 
   RasterStatus raster_status =
-      DrawToSurface(*frame_timings_recorder, layer_tree.get(), surface_record);
+      DrawToSurface(frame_timings_recorder, layer_tree.get(), surface_record);
   if (raster_status == RasterStatus::kSuccess) {
     surface_record->last_tree = std::move(layer_tree);
   } else if (ShouldResubmitFrame(raster_status)) {
@@ -436,7 +490,7 @@ Rasterizer::DoDrawResult Rasterizer::DoDraw(
         .raster_status = raster_status,
         .resubmitted_view_id = view_id,
         .resubmitted_layer_tree = std::move(layer_tree),
-        .resubmitted_recorder = frame_timings_recorder->CloneUntil(
+        .resubmitted_recorder = frame_timings_recorder.CloneUntil(
             FrameTimingsRecorder::State::kBuildEnd),
     };
   } else if (raster_status == RasterStatus::kDiscarded) {
@@ -445,51 +499,13 @@ Rasterizer::DoDrawResult Rasterizer::DoDraw(
     };
   }
 
+  // TODO: Evaluate everything below. Should it be done once per frame?
   if (persistent_cache->IsDumpingSkp() &&
       persistent_cache->StoredNewShaders()) {
     auto screenshot = ScreenshotLayerTree(ScreenshotType::SkiaPicture, false,
                                           *surface_record);
     persistent_cache->DumpSkp(*screenshot.data);
   }
-
-  // TODO(liyuqian): in Fuchsia, the rasterization doesn't finish when
-  // Rasterizer::DoDraw finishes. Future work is needed to adapt the timestamp
-  // for Fuchsia to capture SceneUpdateContext::ExecutePaintTasks.
-  delegate_.OnFrameRasterized(frame_timings_recorder->GetRecordedTime());
-
-// SceneDisplayLag events are disabled on Fuchsia.
-// see: https://github.com/flutter/flutter/issues/56598
-#if !defined(OS_FUCHSIA)
-  const fml::TimePoint raster_finish_time =
-      frame_timings_recorder->GetRasterEndTime();
-  fml::TimePoint frame_target_time =
-      frame_timings_recorder->GetVsyncTargetTime();
-  if (raster_finish_time > frame_target_time) {
-    fml::TimePoint latest_frame_target_time =
-        delegate_.GetLatestFrameTargetTime();
-    const auto frame_budget_millis = delegate_.GetFrameBudget().count();
-    if (latest_frame_target_time < raster_finish_time) {
-      latest_frame_target_time =
-          latest_frame_target_time +
-          fml::TimeDelta::FromMillisecondsF(frame_budget_millis);
-    }
-    const auto frame_lag =
-        (latest_frame_target_time - frame_target_time).ToMillisecondsF();
-    const int vsync_transitions_missed = round(frame_lag / frame_budget_millis);
-    fml::tracing::TraceEventAsyncComplete(
-        "flutter",                    // category
-        "SceneDisplayLag",            // name
-        raster_finish_time,           // begin_time
-        latest_frame_target_time,     // end_time
-        "frame_target_time",          // arg_key_1
-        frame_target_time,            // arg_val_1
-        "current_frame_target_time",  // arg_key_2
-        latest_frame_target_time,     // arg_val_2
-        "vsync_transitions_missed",   // arg_key_3
-        vsync_transitions_missed      // arg_val_3
-    );
-  }
-#endif
 
   // Pipeline pressure is applied from a couple of places:
   // rasterizer: When there are more items as of the time of Consume.
@@ -675,10 +691,6 @@ RasterStatus Rasterizer::DrawToSurfaceUnsafe(
     if (raster_status != RasterStatus::kResubmit) {
       compositor_context_->raster_cache().EndFrame();
     }
-
-    frame_timings_recorder.RecordRasterEnd(
-        &compositor_context_->raster_cache());
-    FireNextFrameCallbackIfPresent();
 
     if (studio_->GetContext()) {
       studio_->GetContext()->performDeferredCleanup(kSkiaCleanupExpiration);
