@@ -215,6 +215,11 @@ class PlatformDispatcher {
     _onMetricsChangedZone = Zone.current;
   }
 
+  void _addView(Object id) {
+    assert(!_views.containsKey(id));
+    _views[id] = FlutterView._(id, this);
+  }
+
   // Called from the engine, via hooks.dart
   //
   // Updates the metrics of the window with the given id.
