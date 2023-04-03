@@ -43,6 +43,8 @@ void PlatformConfiguration::DidCreateIsolate() {
 
   on_error_.Set(tonic::DartState::Current(),
                 Dart_GetField(library, tonic::ToDart("_onError")));
+  add_view_.Set(tonic::DartState::Current(),
+                Dart_GetField(library, tonic::ToDart("_addView")));
   update_locales_.Set(tonic::DartState::Current(),
                       Dart_GetField(library, tonic::ToDart("_updateLocales")));
   update_user_settings_data_.Set(
@@ -76,6 +78,19 @@ void PlatformConfiguration::DidCreateIsolate() {
   windows_.emplace(kImplicitViewId,
                    std::make_unique<Window>(
                        kImplicitViewId, ViewportMetrics{1.0, 0.0, 0.0, -1}));
+}
+
+void PlatformConfiguration::AddView(int64_t view_id) {
+  std::shared_ptr<tonic::DartState> dart_state = add_view_.dart_state().lock();
+  if (!dart_state) {
+    return;
+  }
+  tonic::DartState::Scope scope(dart_state);
+  tonic::CheckAndHandleError(tonic::DartInvokeField(add_view_.value(),
+                                                    "_addView",
+                                                    {
+                                                        tonic::ToDart(view_id),
+                                                    }));
 }
 
 void PlatformConfiguration::UpdateLocales(

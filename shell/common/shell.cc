@@ -1987,6 +1987,9 @@ void Shell::AddRenderSurface(int64_t view_id) {
   TRACE_EVENT0("flutter", "Shell::AddRenderSurface");
   FML_DCHECK(is_setup_);
   FML_DCHECK(task_runners_.GetPlatformTaskRunner()->RunsTasksOnCurrentThread());
+  if (!engine_) {
+    return;
+  }
 
   std::unique_ptr<Surface> surface = platform_view_->CreateSurface();
   fml::AutoResetWaitableEvent latch;
@@ -2002,6 +2005,7 @@ void Shell::AddRenderSurface(int64_t view_id) {
         latch.Signal();
       }));
   latch.Wait();
+  engine_->AddView(view_id);
 }
 
 void Shell::RemoveRenderSurface(int64_t view_id) {
