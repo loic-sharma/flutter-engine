@@ -753,7 +753,7 @@ void Shell::OnPlatformViewCreated() {
   FML_DCHECK(task_runners_.GetPlatformTaskRunner()->RunsTasksOnCurrentThread());
 
   std::unique_ptr<Studio> studio = platform_view_->CreateStudio();
-  std::unique_ptr<Surface> surface = platform_view_->CreateSurface();
+  std::unique_ptr<Surface> surface = platform_view_->CreateSurface(kFlutterDefaultViewId);
   if (studio == nullptr || surface == nullptr) {
     // TODO(dkwingsmt): This case is observed in windows unit tests. Anyway,
     // we're probably not creating the surface in this callback eventually.
@@ -1991,7 +1991,7 @@ void Shell::AddRenderSurface(int64_t view_id) {
     return;
   }
 
-  std::unique_ptr<Surface> surface = platform_view_->CreateSurface();
+  std::unique_ptr<Surface> surface = platform_view_->CreateSurface(view_id);
   fml::AutoResetWaitableEvent latch;
   task_runners_.GetRasterTaskRunner()->PostTask(
       fml::MakeCopyable([&latch,                                  //
