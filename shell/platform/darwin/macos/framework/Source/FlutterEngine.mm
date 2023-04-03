@@ -160,6 +160,13 @@ constexpr char kTextPlainFormat[] = "text/plain";
  */
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result;
 
+/**
+ * Generate a new unique view ID.
+ *
+ * IDs start from kFlutterDefaultViewId.
+ */
+- (uint64_t)generateViewId;
+
 @end
 
 #pragma mark -
@@ -685,15 +692,20 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 
 #pragma mark - Framework-internal methods
 
-- (void)addViewController:(FlutterViewController*)controller {
-  [self registerViewController:controller forId:kFlutterDefaultViewId];
+- (bool)addViewController:(FlutterViewController*)controller {
+  uint64_t viewId = [self generateViewId];
+  [self registerViewController:controller forId:viewId];
+  FlutterEngineResult result = _embedderAPI.AddRenderSurface(_engine, viewId);
+  return result == kSuccess;
 }
 
-- (void)removeViewController:(nonnull FlutterViewController*)viewController {
+- (bool)removeViewController:(nonnull FlutterViewController*)viewController {
   NSAssert([viewController attached] && viewController.engine == self,
            @"The given view controller is not associated with this engine.");
+  FlutterEngineResult result = _embedderAPI.RemoveRenderSurface(_engine, viewController.viewId);
   [self deregisterViewControllerForId:viewController.viewId];
   [self shutDownIfNeeded];
+  return result == kSuccess;
 }
 
 - (BOOL)running {
@@ -820,6 +832,12 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 }
 
 #pragma mark - Private methods
+
+- (uint64_t)generateViewId {
+  uint64_t result = _nextViewId;
+  _nextViewId += 1;
+  return result;
+}
 
 - (void)sendUserLocales {
   if (!self.running) {
