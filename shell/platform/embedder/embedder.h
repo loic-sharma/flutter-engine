@@ -2248,7 +2248,11 @@ FlutterEngineResult FlutterEngineRunInitialized(
 FLUTTER_EXPORT
 FlutterEngineResult FlutterEngineAddRenderSurface(
     FLUTTER_API_SYMBOL(FlutterEngine) engine,
-    void* user_data,
+    int64_t view_id);
+
+FLUTTER_EXPORT
+FlutterEngineResult FlutterEngineRemoveRenderSurface(
+    FLUTTER_API_SYMBOL(FlutterEngine) engine,
     int64_t view_id);
 
 FLUTTER_EXPORT
@@ -2827,7 +2831,9 @@ typedef FlutterEngineResult (*FlutterEngineRunInitializedFnPtr)(
     FLUTTER_API_SYMBOL(FlutterEngine) engine);
 typedef FlutterEngineResult (*FlutterEngineAddRenderSurfaceFnPtr)(
     FLUTTER_API_SYMBOL(FlutterEngine) engine,
-    void* user_data,
+    int64_t view_id);
+typedef FlutterEngineResult (*FlutterEngineRemoveRenderSurfaceFnPtr)(
+    FLUTTER_API_SYMBOL(FlutterEngine) engine,
     int64_t view_id);
 typedef FlutterEngineResult (*FlutterEngineSendWindowMetricsEventFnPtr)(
     FLUTTER_API_SYMBOL(FlutterEngine) engine,
@@ -2939,6 +2945,7 @@ typedef struct {
   FlutterEngineDeinitializeFnPtr Deinitialize;
   FlutterEngineRunInitializedFnPtr RunInitialized;
   FlutterEngineAddRenderSurfaceFnPtr AddRenderSurface;
+  FlutterEngineRemoveRenderSurfaceFnPtr RemoveRenderSurface;
   FlutterEngineSendWindowMetricsEventFnPtr SendWindowMetricsEvent;
   FlutterEngineSendPointerEventFnPtr SendPointerEvent;
   FlutterEngineSendKeyEventFnPtr SendKeyEvent;

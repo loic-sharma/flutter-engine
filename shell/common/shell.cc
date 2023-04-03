@@ -2004,6 +2004,26 @@ void Shell::AddRenderSurface(int64_t view_id) {
   latch.Wait();
 }
 
+void Shell::RemoveRenderSurface(int64_t view_id) {
+  TRACE_EVENT0("flutter", "Shell::RemoveRenderSurface");
+  FML_DCHECK(is_setup_);
+  FML_DCHECK(task_runners_.GetPlatformTaskRunner()->RunsTasksOnCurrentThread());
+
+  fml::AutoResetWaitableEvent latch;
+  // platform_view_->RemoveSurface(view_id); // TODO
+  task_runners_.GetRasterTaskRunner()->PostTask(
+      [&latch,                                  //
+       rasterizer = rasterizer_->GetWeakPtr(),  //
+       view_id                                  //
+  ]() mutable {
+        if (rasterizer) {
+          rasterizer->RemoveSurface(view_id);
+        }
+        latch.Signal();
+      });
+  latch.Wait();
+}
+
 Rasterizer::Screenshot Shell::Screenshot(
     Rasterizer::ScreenshotType screenshot_type,
     bool base64_encode) {
