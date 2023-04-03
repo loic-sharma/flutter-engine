@@ -544,6 +544,8 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
   NSEnumerator* viewControllerEnumerator = [_viewControllers objectEnumerator];
   FlutterViewController* nextViewController;
   while ((nextViewController = [viewControllerEnumerator nextObject])) {
+    FlutterEngineResult result = _embedderAPI.AddRenderSurface(_engine, nextViewController.viewId);
+    NSAssert(result == kSuccess, @"Failed to add view %lld.", nextViewController.viewId);
     [self updateWindowMetricsForViewController:nextViewController];
   }
 
@@ -695,8 +697,11 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 - (bool)addViewController:(FlutterViewController*)controller {
   uint64_t viewId = [self generateViewId];
   [self registerViewController:controller forId:viewId];
-  FlutterEngineResult result = _embedderAPI.AddRenderSurface(_engine, viewId);
-  return result == kSuccess;
+  if (_engine != nullptr) {
+    FlutterEngineResult result = _embedderAPI.AddRenderSurface(_engine, viewId);
+    return result == kSuccess;
+  }
+  return true;
 }
 
 - (bool)removeViewController:(nonnull FlutterViewController*)viewController {
