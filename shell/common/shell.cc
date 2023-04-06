@@ -753,7 +753,8 @@ void Shell::OnPlatformViewCreated() {
   FML_DCHECK(task_runners_.GetPlatformTaskRunner()->RunsTasksOnCurrentThread());
 
   std::unique_ptr<Studio> studio = platform_view_->CreateStudio();
-  std::unique_ptr<Surface> surface = platform_view_->CreateSurface(kFlutterDefaultViewId);
+  std::unique_ptr<Surface> surface =
+      platform_view_->CreateSurface(kFlutterDefaultViewId);
   if (studio == nullptr || surface == nullptr) {
     // TODO(dkwingsmt): This case is observed in windows unit tests. Anyway,
     // we're probably not creating the surface in this callback eventually.

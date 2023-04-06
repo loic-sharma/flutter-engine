@@ -96,7 +96,8 @@ std::unique_ptr<Surface> PlatformView::CreateSurface(int64_t view_id) {
   auto* platform_view = this;
   fml::ManualResetWaitableEvent latch;
   fml::TaskRunner::RunNowOrPostTask(
-      task_runners_.GetRasterTaskRunner(), [platform_view, &surface, &latch, view_id]() {
+      task_runners_.GetRasterTaskRunner(),
+      [platform_view, &surface, &latch, view_id]() {
         surface = platform_view->CreateRenderingSurface(view_id);
         if (!surface || !surface->IsValid()) {
           surface.reset();
