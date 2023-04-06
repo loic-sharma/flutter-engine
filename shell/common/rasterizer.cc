@@ -235,7 +235,7 @@ RasterStatus Rasterizer::Draw(
 
         // TODO: We should record the start time for each layer tree.
         // Currently this records the start time for the first layer tree.
-        frame_timings_recorder->RecordRasterStart(fml::TimePoint::Now());
+        // Frame_timings_recorder->RecordRasterStart(fml::TimePoint::Now());
 
         for (auto item : item->layer_trees) {
           int64_t view_id = item.first;
@@ -250,10 +250,10 @@ RasterStatus Rasterizer::Draw(
           }
         }
 
-        // TODO: We want to record raster end for each layer tree.
-        // Currently this records the end time for the last layer tree.
-        frame_timings_recorder->RecordRasterEnd(
-            &compositor_context_->raster_cache());
+    // TODO: We want to record raster end for each layer tree.
+    // Currently this records the end time for the last layer tree.
+    // frame_timings_recorder->RecordRasterEnd(
+    //     &compositor_context_->raster_cache());
 
 // SceneDisplayLag events are disabled on Fuchsia.
 // see: https://github.com/flutter/flutter/issues/56598
@@ -695,6 +695,8 @@ RasterStatus Rasterizer::DrawToSurfaceUnsafe(
     if (raster_status != RasterStatus::kResubmit) {
       compositor_context_->raster_cache().EndFrame();
     }
+    frame_timings_recorder.RecordRasterEnd(
+        &compositor_context_->raster_cache());
 
     if (studio_->GetContext()) {
       studio_->GetContext()->performDeferredCleanup(kSkiaCleanupExpiration);

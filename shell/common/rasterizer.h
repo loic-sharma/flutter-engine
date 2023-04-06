@@ -566,10 +566,9 @@ class Rasterizer final : public SnapshotDelegate,
       GrDirectContext* surface_context,
       bool compressed);
 
-  DoDrawResult DoDraw(
-      int64_t view_id,
-      FrameTimingsRecorder& frame_timings_recorder,
-      std::shared_ptr<flutter::LayerTree> layer_tree);
+  DoDrawResult DoDraw(int64_t view_id,
+                      FrameTimingsRecorder& frame_timings_recorder,
+                      std::shared_ptr<flutter::LayerTree> layer_tree);
 
   RasterStatus DrawToSurface(FrameTimingsRecorder& frame_timings_recorder,
                              flutter::LayerTree* layer_tree,
