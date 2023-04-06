@@ -218,6 +218,7 @@ class PlatformDispatcher {
   void _addView(Object id) {
     assert(!_views.containsKey(id));
     _views[id] = FlutterView._(id, this);
+    _viewConfigurations[id] = const _ViewConfiguration();
   }
 
   // Called from the engine, via hooks.dart

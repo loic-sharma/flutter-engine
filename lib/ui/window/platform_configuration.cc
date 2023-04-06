@@ -80,17 +80,21 @@ void PlatformConfiguration::DidCreateIsolate() {
                        kImplicitViewId, ViewportMetrics{1.0, 0.0, 0.0, -1}));
 }
 
+constexpr int64_t kFlutterDefaultViewId = 0ll;
+
 void PlatformConfiguration::AddView(int64_t view_id) {
+  if (view_id == kFlutterDefaultViewId) {
+    return;
+  }
   std::shared_ptr<tonic::DartState> dart_state = add_view_.dart_state().lock();
   if (!dart_state) {
     return;
   }
   tonic::DartState::Scope scope(dart_state);
-  tonic::CheckAndHandleError(tonic::DartInvokeField(add_view_.value(),
-                                                    "_addView",
-                                                    {
-                                                        tonic::ToDart(view_id),
-                                                    }));
+  tonic::CheckAndHandleError(
+      tonic::DartInvoke(add_view_.Get(), {
+                                             tonic::ToDart(view_id),
+                                         }));
 }
 
 void PlatformConfiguration::UpdateLocales(
