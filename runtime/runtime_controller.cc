@@ -315,6 +315,11 @@ void RuntimeController::ScheduleFrame() {
 }
 
 // |PlatformConfigurationClient|
+void RuntimeController::ForceFrame() {
+  client_.ForceFrame();
+}
+
+// |PlatformConfigurationClient|
 void RuntimeController::Render(Scene* scene) {
   client_.Render(scene->takeLayerTree());
 }

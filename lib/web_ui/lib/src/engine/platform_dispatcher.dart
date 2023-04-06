@@ -680,6 +680,16 @@ class EnginePlatformDispatcher extends ui.PlatformDispatcher {
     scheduleFrameCallback!();
   }
 
+  void forceFrame() {
+    // TODO!!! Callback
+    // Callback in lib\web_ui\lib\src\engine\initialization.dart
+    // What should we do here?
+    if (scheduleFrameCallback == null) {
+      throw Exception('scheduleFrameCallback must be initialized first.');
+    }
+    scheduleFrameCallback!();
+  }
+
   /// Updates the application's rendering on the GPU with the newly provided
   /// [Scene]. This function must be called within the scope of the
   /// [onBeginFrame] or [onDrawFrame] callbacks being invoked. If this function

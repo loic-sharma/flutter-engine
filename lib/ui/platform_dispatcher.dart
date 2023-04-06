@@ -321,8 +321,8 @@ class PlatformDispatcher {
   /// [FlutterView.render] method.
   ///
   /// When possible, this is driven by the hardware VSync signal of the attached
-  /// screen with the highest VSync rate. This is only called if
-  /// [PlatformDispatcher.scheduleFrame] has been called since the last time
+  /// screen with the highest VSync rate. This is usually called if
+  /// [PlatformDispatcher.scheduleFrame] was called after the last time
   /// this callback was invoked.
   FrameCallback? get onBeginFrame => _onBeginFrame;
   FrameCallback? _onBeginFrame;
@@ -740,6 +740,24 @@ class PlatformDispatcher {
 
   @Native<Void Function()>(symbol: 'PlatformConfigurationNativeApi::ScheduleFrame')
   external static void _scheduleFrame();
+
+  /// Forces the engine to invoke the [onBeginFrame] and [onDrawFrame] callbacks
+  /// immediately.
+  ///
+  /// When possible, use [scheduleFrame] instead to synchronize with the VSync
+  /// and prevent screen tearing.
+  ///
+  /// This must not be called if a frame is already in progress.
+  ///
+  /// See also:
+  ///
+  /// * [scheduleFrame], which is the preferred way to begin a frame.
+  /// * [SchedulerBinding], the Flutter framework class which manages the
+  ///   scheduling of frames.
+  void forceFrame() => _forceFrame();
+
+  @Native<Void Function()>(symbol: 'PlatformConfigurationNativeApi::ForceFrame')
+  external static void _forceFrame();
 
   /// Additional accessibility features that may be enabled by the platform.
   AccessibilityFeatures get accessibilityFeatures => _configuration.accessibilityFeatures;

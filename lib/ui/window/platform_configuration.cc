@@ -204,6 +204,12 @@ void PlatformConfiguration::DispatchSemanticsAction(int32_t node_id,
 
 void PlatformConfiguration::BeginFrame(fml::TimePoint frameTime,
                                        uint64_t frame_number) {
+  FML_CHECK(!in_frame_);
+  in_frame_ = true;
+  fml::ScopedCleanupClosure exit_frame([&]() {
+    in_frame_ = false;
+  });
+
   std::shared_ptr<tonic::DartState> dart_state =
       begin_frame_.dart_state().lock();
   if (!dart_state) {
@@ -411,6 +417,11 @@ Dart_Handle PlatformConfigurationNativeApi::GetPersistentIsolateData() {
 void PlatformConfigurationNativeApi::ScheduleFrame() {
   UIDartState::ThrowIfUIOperationsProhibited();
   UIDartState::Current()->platform_configuration()->client()->ScheduleFrame();
+}
+
+void PlatformConfigurationNativeApi::ForceFrame() {
+  UIDartState::ThrowIfUIOperationsProhibited();
+  UIDartState::Current()->platform_configuration()->client()->ForceFrame();
 }
 
 void PlatformConfigurationNativeApi::UpdateSemantics(SemanticsUpdate* update) {

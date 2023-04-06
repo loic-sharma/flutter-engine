@@ -96,6 +96,8 @@ abstract class SingletonFlutterWindow extends FlutterView {
 
   void scheduleFrame() => platformDispatcher.scheduleFrame();
 
+  void forceFrame() => platformDispatcher.forceFrame();
+
   @override
   void render(Scene scene) => platformDispatcher.render(scene, this);
 

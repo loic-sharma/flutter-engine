@@ -75,6 +75,12 @@ class PlatformConfigurationClient {
   virtual void ScheduleFrame() = 0;
 
   //--------------------------------------------------------------------------
+  /// @brief      Forces the engine to render a frame immediately. This must
+  ///             must not be called while a frame is already being rendered.
+  ///
+  virtual void ForceFrame() = 0;
+
+  //--------------------------------------------------------------------------
   /// @brief      Updates the client's rendering on the GPU with the newly
   ///             provided Scene.
   ///
@@ -447,6 +453,8 @@ class PlatformConfiguration final {
 
   std::unordered_map<int64_t, std::unique_ptr<Window>> windows_;
 
+  bool in_frame_ = false;
+
   // ID starts at 1 because an ID of 0 indicates that no response is expected.
   int next_response_id_ = 1;
   std::unordered_map<int, fml::RefPtr<PlatformMessageResponse>>
@@ -484,6 +492,8 @@ class PlatformConfigurationNativeApi {
   static std::string DefaultRouteName();
 
   static void ScheduleFrame();
+
+  static void ForceFrame();
 
   static void Render(Scene* scene);
 

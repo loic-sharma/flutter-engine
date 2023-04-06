@@ -54,6 +54,8 @@ class Animator final {
 
   void RequestFrame(bool regenerate_layer_tree = true);
 
+  void ForceFrame();
+
   void Render(std::shared_ptr<flutter::LayerTree> layer_tree);
 
   const std::weak_ptr<VsyncWaiter> GetVsyncWaiter() const;
@@ -98,7 +100,7 @@ class Animator final {
   TaskRunners task_runners_;
   std::shared_ptr<VsyncWaiter> waiter_;
 
-  std::unique_ptr<FrameTimingsRecorder> frame_timings_recorder_;
+  std::unique_ptr<FrameTimingsRecorder> frame_timings_recorder_ = nullptr;
   uint64_t frame_request_number_ = 1;
   fml::TimeDelta dart_frame_deadline_;
   std::shared_ptr<LayerTreePipeline> layer_tree_pipeline_;

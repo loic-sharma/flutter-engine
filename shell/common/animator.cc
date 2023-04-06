@@ -132,7 +132,16 @@ void Animator::Render(std::shared_ptr<flutter::LayerTree> layer_tree) {
   has_rendered_ = true;
   last_layer_tree_size_ = layer_tree->frame_size();
 
+  // In the future, calling render outside the lifetime of a frame
+  // will be ignored. Currently, the framework calls render
+  // outside the lifetime of a frame when it needs to render without
+  // waiting for a vsync. This is used at the app's initial launch
+  // or during hot reload. These scenarios will be updated to force
+  // a frame instead.
+  // See: https://github.com/flutter/flutter/issues/125008
   if (!frame_timings_recorder_) {
+    FML_LOG(WARNING) << "Animator::Render called outside of frame";
+
     // Framework can directly call render with a built scene.
     frame_timings_recorder_ = std::make_unique<FrameTimingsRecorder>();
     const fml::TimePoint placeholder_time = fml::TimePoint::Now();
@@ -226,6 +235,15 @@ void Animator::RequestFrame(bool regenerate_layer_tree) {
         self->AwaitVSync();
       });
   frame_scheduled_ = true;
+}
+
+void Animator::ForceFrame() {
+  std::unique_ptr<FrameTimingsRecorder> frame_timings_recorder = std::make_unique<FrameTimingsRecorder>();
+  const fml::TimePoint placeholder_time = fml::TimePoint::Now();
+  frame_timings_recorder->RecordVsync(placeholder_time, placeholder_time);
+  frame_timings_recorder->RecordBuildStart(placeholder_time);
+
+  BeginFrame(std::move(frame_timings_recorder));
 }
 
 void Animator::AwaitVSync() {
