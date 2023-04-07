@@ -27,9 +27,11 @@ SurfaceFrame::SurfaceFrame(sk_sp<SkSurface> surface,
       context_result_(std::move(context_result)) {
   FML_DCHECK(submit_callback_);
   if (surface_) {
+    printf("SurfaceFrame surface\n");
     adapter_.set_canvas(surface_->getCanvas());
     canvas_ = &adapter_;
   } else if (display_list_fallback) {
+    printf("SurfaceFrame display_list_fallback\n");
     FML_DCHECK(!frame_size.isEmpty());
     dl_builder_ = sk_make_sp<DisplayListBuilder>(SkRect::Make(frame_size));
     canvas_ = dl_builder_.get();

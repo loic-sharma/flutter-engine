@@ -242,11 +242,14 @@ void SceneBuilder::addPicture(double dx,
   // Explicitly check for display_list, since the picture object might have
   // been disposed but not collected yet, but the display list is null.
   if (picture->display_list()) {
+    printf("SceneBuilder Add DisplayListLayer\n");
     auto layer = std::make_unique<flutter::DisplayListLayer>(
         SkPoint::Make(SafeNarrow(dx), SafeNarrow(dy)),
         UIDartState::CreateGPUObject(picture->display_list()), !!(hints & 1),
         !!(hints & 2));
     AddLayer(std::move(layer));
+  } else {
+    printf("SceneBuilder Add nothing\n");
   }
 }
 
@@ -262,6 +265,7 @@ void SceneBuilder::addTexture(double dx,
       SkPoint::Make(SafeNarrow(dx), SafeNarrow(dy)),
       SkSize::Make(SafeNarrow(width), SafeNarrow(height)), textureId, freeze,
       sampling);
+  printf("SceneBuilder Add TextureLayer\n");
   AddLayer(std::move(layer));
 }
 
@@ -273,6 +277,7 @@ void SceneBuilder::addPlatformView(double dx,
   auto layer = std::make_unique<flutter::PlatformViewLayer>(
       SkPoint::Make(SafeNarrow(dx), SafeNarrow(dy)),
       SkSize::Make(SafeNarrow(width), SafeNarrow(height)), viewId);
+  printf("SceneBuilder Add PlatformViewLayer\n");
   AddLayer(std::move(layer));
 }
 
@@ -283,6 +288,7 @@ void SceneBuilder::addPerformanceOverlay(uint64_t enabledOptions,
                                          double bottom) {
   SkRect rect = SkRect::MakeLTRB(SafeNarrow(left), SafeNarrow(top),
                                  SafeNarrow(right), SafeNarrow(bottom));
+  printf("SceneBuilder Add PerformanceOverlayLayer\n");
   auto layer =
       std::make_unique<flutter::PerformanceOverlayLayer>(enabledOptions);
   layer->set_paint_bounds(rect);

@@ -959,6 +959,8 @@ static std::unique_ptr<flutter::EmbedderRenderTarget>
 CreateEmbedderRenderTarget(const FlutterCompositor* compositor,
                            const FlutterBackingStoreConfig& config,
                            GrDirectContext* context) {
+  printf("CreateEmbedderRenderTarget\n");
+  fflush(stdout);
   FlutterBackingStore backing_store = {};
   backing_store.struct_size = sizeof(backing_store);
 
@@ -1069,12 +1071,12 @@ InferExternalViewEmbedderFromArgs(const FlutterCompositor* compositor) {
           };
 
   flutter::EmbedderExternalViewEmbedder::PresentCallback present_callback =
-      [c_present_callback,
-       user_data = compositor->user_data](const auto& layers) {
+      [c_present_callback, user_data = compositor->user_data](
+          const auto& layers, int64_t window_view_id) {
         TRACE_EVENT0("flutter", "FlutterCompositorPresentLayers");
         return c_present_callback(
             const_cast<const FlutterLayer**>(layers.data()), layers.size(),
-            user_data);
+            window_view_id, user_data);
       };
 
   return {std::make_unique<flutter::EmbedderExternalViewEmbedder>(

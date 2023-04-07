@@ -216,6 +216,8 @@ int Rasterizer::DrawLastLayerTree(
 RasterStatus Rasterizer::Draw(
     const std::shared_ptr<LayerTreePipeline>& pipeline,
     LayerTreeDiscardCallback discard_callback) {
+  printf("========Draw\n");
+  fflush(stdout);
   TRACE_EVENT0("flutter", "GPURasterizer::Draw");
   if (raster_thread_merger_ &&
       !raster_thread_merger_->IsOnRasterizingThread()) {
@@ -237,6 +239,8 @@ RasterStatus Rasterizer::Draw(
         // Currently this records the start time for the first layer tree.
         // Frame_timings_recorder->RecordRasterStart(fml::TimePoint::Now());
 
+        frame_timings_recorder->RecordRasterStart(fml::TimePoint::Now());
+
         for (auto item : item->layer_trees) {
           int64_t view_id = item.first;
           std::shared_ptr<LayerTree> layer_tree = std::move(item.second);
@@ -248,7 +252,18 @@ RasterStatus Rasterizer::Draw(
             draw_result = DoDraw(view_id, *frame_timings_recorder.get(),
                                  std::move(layer_tree));
           }
+
+          bool should_resubmit_frame =
+              ShouldResubmitFrame(draw_result.raster_status);
+          if (external_view_embedder_ &&
+              external_view_embedder_->GetUsedThisFrame()) {
+            external_view_embedder_->SetUsedThisFrame(false);
+            external_view_embedder_->EndFrame(should_resubmit_frame,
+                                              raster_thread_merger_);
+          }
         }
+        frame_timings_recorder->RecordRasterEnd(
+            &compositor_context_->raster_cache());
 
     // TODO: We want to record raster end for each layer tree.
     // Currently this records the end time for the last layer tree.
@@ -320,11 +335,13 @@ RasterStatus Rasterizer::Draw(
   }
 
   // EndFrame should perform cleanups for the external_view_embedder.
-  if (external_view_embedder_ && external_view_embedder_->GetUsedThisFrame()) {
-    external_view_embedder_->SetUsedThisFrame(false);
-    external_view_embedder_->EndFrame(should_resubmit_frame,
-                                      raster_thread_merger_);
-  }
+  // if (external_view_embedder_ && external_view_embedder_->GetUsedThisFrame())
+  // {
+  //   printf("external_view_embedder cleanup\n");fflush(stdout);
+  //   external_view_embedder_->SetUsedThisFrame(false);
+  //   external_view_embedder_->EndFrame(should_resubmit_frame,
+  //                                     raster_thread_merger_);
+  // }
 
   // Consume as many pipeline items as possible. But yield the event loop
   // between successive tries.
@@ -588,8 +605,6 @@ RasterStatus Rasterizer::DrawToSurfaceUnsafe(
     embedder_root_canvas = external_view_embedder_->GetRootCanvas();
   }
 
-  frame_timings_recorder.RecordRasterStart(fml::TimePoint::Now());
-
   // On Android, the external view embedder deletes surfaces in `BeginFrame`.
   //
   // Deleting a surface also clears the GL context. Therefore, acquire the
@@ -597,8 +612,6 @@ RasterStatus Rasterizer::DrawToSurfaceUnsafe(
   auto frame =
       surface->AcquireFrame(surface_record->view_id, layer_tree->frame_size());
   if (frame == nullptr) {
-    frame_timings_recorder.RecordRasterEnd(
-        &compositor_context_->raster_cache());
     return RasterStatus::kFailed;
   }
 
@@ -655,6 +668,8 @@ RasterStatus Rasterizer::DrawToSurfaceUnsafe(
       ignore_raster_cache = false;
     }
 
+    printf("compositor_frame->Raster\n");
+    fflush(stdout);
     RasterStatus raster_status =
         compositor_frame->Raster(*layer_tree,          // layer tree
                                  ignore_raster_cache,  // ignore raster cache
@@ -662,6 +677,8 @@ RasterStatus Rasterizer::DrawToSurfaceUnsafe(
         );
     if (raster_status == RasterStatus::kFailed ||
         raster_status == RasterStatus::kSkipAndRetry) {
+      printf("compositor_frame->Raster failed\n");
+      fflush(stdout);
       return raster_status;
     }
 
@@ -684,8 +701,8 @@ RasterStatus Rasterizer::DrawToSurfaceUnsafe(
     if (external_view_embedder_ &&
         (!raster_thread_merger_ || raster_thread_merger_->IsMerged())) {
       FML_DCHECK(!frame->IsSubmitted());
-      external_view_embedder_->SubmitFrame(studio_->GetContext(),
-                                           std::move(frame));
+      external_view_embedder_->SubmitFrame(
+          studio_->GetContext(), std::move(frame), surface_record->view_id);
     } else {
       frame->Submit();
     }
@@ -695,8 +712,6 @@ RasterStatus Rasterizer::DrawToSurfaceUnsafe(
     if (raster_status != RasterStatus::kResubmit) {
       compositor_context_->raster_cache().EndFrame();
     }
-    frame_timings_recorder.RecordRasterEnd(
-        &compositor_context_->raster_cache());
 
     if (studio_->GetContext()) {
       studio_->GetContext()->performDeferredCleanup(kSkiaCleanupExpiration);

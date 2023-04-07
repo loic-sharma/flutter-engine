@@ -123,6 +123,7 @@ RasterStatus CompositorContext::ScopedFrame::Raster(
     flutter::LayerTree& layer_tree,
     bool ignore_raster_cache,
     FrameDamage* frame_damage) {
+  printf("ScopedFrame::Raster\n");
   TRACE_EVENT0("flutter", "CompositorContext::ScopedFrame::Raster");
 
   std::optional<SkRect> clip_rect =
@@ -135,14 +136,17 @@ RasterStatus CompositorContext::ScopedFrame::Raster(
   bool needs_save_layer = root_needs_readback && !surface_supports_readback();
   PostPrerollResult post_preroll_result = PostPrerollResult::kSuccess;
   if (view_embedder_ && raster_thread_merger_) {
+    printf("view_embedder_->PostPrerollAction\n");
     post_preroll_result =
         view_embedder_->PostPrerollAction(raster_thread_merger_);
   }
 
   if (post_preroll_result == PostPrerollResult::kResubmitFrame) {
+    printf("Resubmit!\n");
     return RasterStatus::kResubmit;
   }
   if (post_preroll_result == PostPrerollResult::kSkipAndRetryFrame) {
+    printf("SkipAndRetry!\n");
     return RasterStatus::kSkipAndRetry;
   }
 
@@ -151,11 +155,13 @@ RasterStatus CompositorContext::ScopedFrame::Raster(
   // Clearing canvas after preroll reduces one render target switch when preroll
   // paints some raster cache.
   if (canvas()) {
+    printf("has canvas\n");
     if (clip_rect) {
       canvas()->ClipRect(*clip_rect);
     }
 
     if (needs_save_layer) {
+      printf("needs_save_layer\n");
       TRACE_EVENT0("flutter", "Canvas::saveLayer");
       SkRect bounds = SkRect::Make(layer_tree.frame_size());
       DlPaint paint;
@@ -164,6 +170,7 @@ RasterStatus CompositorContext::ScopedFrame::Raster(
     }
     canvas()->Clear(DlColor::kTransparent());
   }
+  printf("Paint\n");
   layer_tree.Paint(*this, ignore_raster_cache);
   // The canvas()->Restore() is taken care of by the DlAutoCanvasRestore
   return RasterStatus::kSuccess;

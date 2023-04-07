@@ -154,7 +154,10 @@ void LayerTree::Paint(CompositorContext::ScopedFrame& frame,
   }
 
   if (root_layer_->needs_painting(context)) {
+    printf("needs_painting\n");
     root_layer_->Paint(context);
+  } else {
+    printf("no needs_painting\n");
   }
 }
 

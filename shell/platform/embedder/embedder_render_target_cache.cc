@@ -20,13 +20,19 @@ EmbedderRenderTargetCache::GetExistingTargetsInCache(
   for (const auto& view : pending_views) {
     const auto& external_view = view.second;
     if (!external_view->HasEngineRenderedContents()) {
+      printf("A view has no EngineRenderedContents.\n");
+      fflush(stdout);
       continue;
     }
     auto& compatible_targets =
         cached_render_targets_[external_view->CreateRenderTargetDescriptor()];
     if (compatible_targets.empty()) {
+      printf("Searching target unmatched.\n");
+      fflush(stdout);
       unmatched_identifiers.insert(view.first);
     } else {
+      printf("Searching target found!\n");
+      fflush(stdout);
       std::unique_ptr<EmbedderRenderTarget> target =
           std::move(compatible_targets.top());
       compatible_targets.pop();

@@ -31,7 +31,8 @@ void DisplayListEmbedderViewSlice::render_into(DlCanvas* canvas) {
 }
 
 void ExternalViewEmbedder::SubmitFrame(GrDirectContext* context,
-                                       std::unique_ptr<SurfaceFrame> frame) {
+                                       std::unique_ptr<SurfaceFrame> frame,
+                                       int64_t window_view_id) {
   frame->Submit();
 };
 

@@ -39,6 +39,10 @@ EmbedderExternalView::~EmbedderExternalView() = default;
 
 EmbedderExternalView::RenderTargetDescriptor
 EmbedderExternalView::CreateRenderTargetDescriptor() const {
+  auto id = view_identifier_.platform_view_id;
+  printf("Searching target (%lld, %d %d)\n", id.has_value() ? id.value() : -1,
+         render_surface_size_.width(), render_surface_size_.height());
+  fflush(stdout);
   return {view_identifier_, render_surface_size_};
 }
 

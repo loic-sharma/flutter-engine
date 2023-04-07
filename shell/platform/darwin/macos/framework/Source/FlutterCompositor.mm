@@ -19,13 +19,12 @@ FlutterCompositor::FlutterCompositor(id<FlutterViewProvider> view_provider,
 
 bool FlutterCompositor::CreateBackingStore(const FlutterBackingStoreConfig* config,
                                            FlutterBackingStore* backing_store_out) {
-  // TODO(dkwingsmt): This class only supports single-view for now. As more
-  // classes are gradually converted to multi-view, it should get the view ID
-  // from somewhere.
-  FlutterView* view = [view_provider_ viewForId:kFlutterDefaultViewId];
+  FlutterView* view = [view_provider_ viewForId:config->view_id];
   if (!view) {
+    NSLog(@"Create: Failed to find %lld", config->view_id);
     return false;
   }
+  NSLog(@"Creating backing store for %lld", config->view_id);
 
   CGSize size = CGSizeMake(config->size.width, config->size.height);
   FlutterSurface* surface = [view.surfaceManager surfaceForSize:size];
@@ -42,8 +41,10 @@ bool FlutterCompositor::Present(uint64_t view_id,
                                 size_t layers_count) {
   FlutterView* view = [view_provider_ viewForId:view_id];
   if (!view) {
+    NSLog(@"Present: Failed to find %lld", view_id);
     return false;
   }
+  NSLog(@"Presenting to %lld", view_id);
 
   NSMutableArray* surfaces = [NSMutableArray array];
   for (size_t i = 0; i < layers_count; i++) {

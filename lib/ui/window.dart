@@ -290,6 +290,7 @@ class FlutterView {
   /// * [RendererBinding], the Flutter framework class which manages layout and
   ///   painting.
   void render(Scene scene) {
+    print('Dart rendering to #${viewId as int}');
     _render(viewId as int, scene);
   }
 

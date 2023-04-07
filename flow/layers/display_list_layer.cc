@@ -23,8 +23,12 @@ DisplayListLayer::DisplayListLayer(const SkPoint& offset,
   if (display_list_.skia_object() != nullptr) {
     bounds_ = display_list_.skia_object()->bounds().makeOffset(offset_.x(),
                                                                offset_.y());
+    printf("DisplayListLayer: Bounds LTRB(%f, %f, %f, %f)\n", bounds_.left(),
+           bounds_.top(), bounds_.right(), bounds_.bottom());
     display_list_raster_cache_item_ = DisplayListRasterCacheItem::Make(
         display_list_.skia_object(), offset_, is_complex, will_change);
+  } else {
+    printf("DisplayListLayer: Skia object is null\n");
   }
 }
 
@@ -105,6 +109,7 @@ void DisplayListLayer::Preroll(PrerollContext* context) {
 }
 
 void DisplayListLayer::Paint(PaintContext& context) const {
+  printf("DisplayListLayer::Paint\n");
   FML_DCHECK(display_list_.skia_object());
   FML_DCHECK(needs_painting(context));
 
@@ -112,6 +117,7 @@ void DisplayListLayer::Paint(PaintContext& context) const {
   mutator.translate(offset_.x(), offset_.y());
 
   if (context.raster_cache) {
+    printf("has raster_cache\n");
     // Always apply the integral transform in the presence of a raster cache
     // whether or not we successfully draw from the cache
     mutator.integralTransform();
@@ -159,6 +165,7 @@ void DisplayListLayer::Paint(PaintContext& context) const {
   }
 
   auto display_list = display_list_.skia_object();
+  printf("DrawDisplayList op_count %u\n", display_list->op_count());
   context.canvas->DrawDisplayList(display_list, opacity);
 }
 

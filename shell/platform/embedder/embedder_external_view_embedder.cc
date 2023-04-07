@@ -46,6 +46,8 @@ void EmbedderExternalViewEmbedder::Reset() {
 
 // |ExternalViewEmbedder|
 void EmbedderExternalViewEmbedder::CancelFrame() {
+  printf("EmbedderExternalViewEmbedder::CancelFrame\n");
+  fflush(stdout);
   Reset();
 }
 
@@ -55,6 +57,8 @@ void EmbedderExternalViewEmbedder::BeginFrame(
     GrDirectContext* context,
     double device_pixel_ratio,
     fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {
+  printf("EmbedderExternalViewEmbedder::BeginFrame\n");
+  fflush(stdout);
   Reset();
 
   pending_frame_size_ = frame_size;
@@ -73,6 +77,8 @@ void EmbedderExternalViewEmbedder::BeginFrame(
 void EmbedderExternalViewEmbedder::PrerollCompositeEmbeddedView(
     int64_t view_id,
     std::unique_ptr<EmbeddedViewParams> params) {
+  printf("EmbedderExternalViewEmbedder::PrerollCompositeEmbeddedView\n");
+  fflush(stdout);
   auto vid = EmbedderExternalView::ViewIdentifier(view_id);
   FML_DCHECK(pending_views_.count(vid) == 0);
 
@@ -111,13 +117,17 @@ DlCanvas* EmbedderExternalViewEmbedder::CompositeEmbeddedView(int64_t view_id) {
 }
 
 static FlutterBackingStoreConfig MakeBackingStoreConfig(
-    const SkISize& backing_store_size) {
+    const SkISize& backing_store_size,
+    int64_t window_view_id) {
+  printf("EmbedderExternalViewEmbedder::MakeBackingStoreConfig\n");
+  fflush(stdout);
   FlutterBackingStoreConfig config = {};
 
   config.struct_size = sizeof(config);
 
   config.size.width = backing_store_size.width();
   config.size.height = backing_store_size.height();
+  config.view_id = window_view_id;
 
   return config;
 }
@@ -125,7 +135,11 @@ static FlutterBackingStoreConfig MakeBackingStoreConfig(
 // |ExternalViewEmbedder|
 void EmbedderExternalViewEmbedder::SubmitFrame(
     GrDirectContext* context,
-    std::unique_ptr<SurfaceFrame> frame) {
+    std::unique_ptr<SurfaceFrame> frame,
+    int64_t window_view_id) {
+  printf("EmbedderExternalViewEmbedder::SubmitFrame #%lld (pending %lu)\n",
+         window_view_id, pending_views_.size());
+  fflush(stdout);
   auto [matched_render_targets, pending_keys] =
       render_target_cache_.GetExistingTargetsInCache(pending_views_);
 
@@ -164,7 +178,7 @@ void EmbedderExternalViewEmbedder::SubmitFrame(
     const auto render_surface_size = external_view->GetRenderSurfaceSize();
 
     const auto backing_store_config =
-        MakeBackingStoreConfig(render_surface_size);
+        MakeBackingStoreConfig(render_surface_size, window_view_id);
 
     // This is where the embedder will create render targets for us. Control
     // flow to the embedder makes the engine susceptible to having the embedder
@@ -243,7 +257,7 @@ void EmbedderExternalViewEmbedder::SubmitFrame(
     // Flush the layer description down to the embedder for presentation.
     //
     // @warning: Embedder may trample on our OpenGL context here.
-    presented_layers.InvokePresentCallback(present_callback_);
+    presented_layers.InvokePresentCallback(present_callback_, window_view_id);
   }
 
   // See why this is necessary in the comment where this collection in realized.
