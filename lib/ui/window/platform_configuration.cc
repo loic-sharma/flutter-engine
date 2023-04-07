@@ -22,8 +22,6 @@
 namespace flutter {
 namespace {
 
-constexpr int kImplicitViewId = 0;
-
 Dart_Handle ToByteData(const fml::Mapping& buffer) {
   return tonic::DartByteData::Create(buffer.GetMapping(), buffer.GetSize());
 }
@@ -37,6 +35,8 @@ PlatformConfiguration::PlatformConfiguration(
     : client_(client) {}
 
 PlatformConfiguration::~PlatformConfiguration() {}
+
+constexpr int64_t kFlutterDefaultViewId = 0ll;
 
 void PlatformConfiguration::DidCreateIsolate() {
   Dart_Handle library = Dart_LookupLibrary(tonic::ToDart("dart:ui"));
@@ -72,29 +72,33 @@ void PlatformConfiguration::DidCreateIsolate() {
   report_timings_.Set(tonic::DartState::Current(),
                       Dart_GetField(library, tonic::ToDart("_reportTimings")));
 
-  // TODO(loicsharma): This should only be created if the embedder enables the
-  // implicit view.
-  // See: https://github.com/flutter/flutter/issues/120306
-  windows_.emplace(kImplicitViewId,
-                   std::make_unique<Window>(
-                       kImplicitViewId, ViewportMetrics{1.0, 0.0, 0.0, -1}));
+  library_.Set(tonic::DartState::Current(),
+               Dart_LookupLibrary(tonic::ToDart("dart:ui")));
+  // TODO(dkwingsmt): We need to add view here, otherwise the app won't start.
+  // I suspect it's because the Dart runtime is created later than the view is
+  // added. We probably need the initial state fetching feature to resolve
+  // this.
+  AddView(kFlutterDefaultViewId);
 }
 
-constexpr int64_t kFlutterDefaultViewId = 0ll;
-
 void PlatformConfiguration::AddView(int64_t view_id) {
-  if (view_id == kFlutterDefaultViewId) {
-    return;
-  }
+  // TODO(dkwingsmt): How do I access the current dart state after
+  // DidCreateIsolate?
+  windows_.emplace(
+      view_id, std::make_unique<Window>(library_, view_id,
+                                        ViewportMetrics{1.0, 0.0, 0.0, -1}));
   std::shared_ptr<tonic::DartState> dart_state = add_view_.dart_state().lock();
   if (!dart_state) {
     return;
   }
-  tonic::DartState::Scope scope(dart_state);
-  tonic::CheckAndHandleError(
-      tonic::DartInvoke(add_view_.Get(), {
-                                             tonic::ToDart(view_id),
-                                         }));
+  bool is_existing_implicit_view = view_id == kFlutterDefaultViewId;
+  if (!is_existing_implicit_view) {
+    tonic::DartState::Scope scope(dart_state);
+    tonic::CheckAndHandleError(
+        tonic::DartInvoke(add_view_.Get(), {
+                                               tonic::ToDart(view_id),
+                                           }));
+  }
 }
 
 void PlatformConfiguration::UpdateLocales(
