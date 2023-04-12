@@ -222,6 +222,7 @@ RasterStatus Rasterizer::Draw(
   if (raster_thread_merger_ &&
       !raster_thread_merger_->IsOnRasterizingThread()) {
     // we yield and let this frame be serviced on the right thread.
+    printf("Yielded\n");
     return RasterStatus::kYielded;
   }
   FML_DCHECK(delegate_.GetTaskRunners()
@@ -232,6 +233,7 @@ RasterStatus Rasterizer::Draw(
   LayerTreePipeline::Consumer consumer =
       [this, &draw_result,
        &discard_callback](std::unique_ptr<LayerTreeItem> item) {
+        printf("Start consumer (%lu trees)\n", item->layer_trees.size());fflush(stdout);
         std::unique_ptr<FrameTimingsRecorder> frame_timings_recorder =
             std::move(item->frame_timings_recorder);
 
@@ -261,6 +263,7 @@ RasterStatus Rasterizer::Draw(
             external_view_embedder_->EndFrame(should_resubmit_frame,
                                               raster_thread_merger_);
           }
+          break; // TODO(dkwingsmt): debugging
         }
         frame_timings_recorder->RecordRasterEnd(
             &compositor_context_->raster_cache());
@@ -308,6 +311,7 @@ RasterStatus Rasterizer::Draw(
 
   PipelineConsumeResult consume_result = pipeline->Consume(consumer);
   if (consume_result == PipelineConsumeResult::NoneAvailable) {
+    printf("None available\n");
     return RasterStatus::kFailed;
   }
   // if the raster status is to resubmit the frame, we push the frame to the
@@ -486,6 +490,7 @@ Rasterizer::DoDrawResult Rasterizer::DoDraw(
     int64_t view_id,
     FrameTimingsRecorder& frame_timings_recorder,
     std::shared_ptr<flutter::LayerTree> layer_tree) {
+  printf("Rasterizer::DoDraw\n");fflush(stdout);
   TRACE_EVENT_WITH_FRAME_NUMBER(&frame_timings_recorder, "flutter",
                                 "Rasterizer::DoDraw");
   FML_DCHECK(delegate_.GetTaskRunners()

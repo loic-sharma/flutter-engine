@@ -694,7 +694,7 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
   [self registerViewController:controller forId:viewId];
   if (_engine != nullptr) {
     FlutterEngineResult result = _embedderAPI.AddRenderSurface(_engine, viewId);
-    [self updateWindowMetricsForViewController:controller];
+    [controller loadView];
     return result == kSuccess;
   }
   return true;
@@ -769,12 +769,6 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 }
 
 - (void)updateWindowMetricsForViewController:(FlutterViewController*)viewController {
-  if (viewController.viewId != kFlutterDefaultViewId) {
-    // TODO(dkwingsmt): The embedder API only supports single-view for now. As
-    // embedder APIs are converted to multi-view, this method should support any
-    // views.
-    return;
-  }
   if (!_engine || !viewController || !viewController.viewLoaded) {
     return;
   }
@@ -793,7 +787,8 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
       .left = static_cast<size_t>(scaledBounds.origin.x),
       .top = static_cast<size_t>(scaledBounds.origin.y),
   };
-  _embedderAPI.SendWindowMetricsEvent(_engine, &windowMetricsEvent);
+  NSLog(@"# SendWindowMetricsEvent(%lld, LTHW(%f, %f, %f, %f))", viewController.viewId, scaledBounds.origin.x, scaledBounds.origin.y, scaledSize.width, scaledSize.height);
+  _embedderAPI.SendWindowMetricsEvent(_engine, viewController.viewId, &windowMetricsEvent);
 }
 
 - (void)sendPointerEvent:(const FlutterPointerEvent&)event {

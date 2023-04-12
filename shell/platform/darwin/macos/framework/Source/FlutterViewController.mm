@@ -418,6 +418,7 @@ static void CommonInit(FlutterViewController* controller, FlutterEngine* engine)
   if (!_engine.running) {
     [self launchEngine];
   }
+  [_engine updateWindowMetricsForViewController:self];
   [self listenForMetaModifiedKeyUpEvents];
 }
 

@@ -2260,6 +2260,7 @@ FlutterEngineResult FlutterEngineRemoveRenderSurface(
 FLUTTER_EXPORT
 FlutterEngineResult FlutterEngineSendWindowMetricsEvent(
     FLUTTER_API_SYMBOL(FlutterEngine) engine,
+    int64_t view_id,
     const FlutterWindowMetricsEvent* event);
 
 FLUTTER_EXPORT
@@ -2839,6 +2840,7 @@ typedef FlutterEngineResult (*FlutterEngineRemoveRenderSurfaceFnPtr)(
     int64_t view_id);
 typedef FlutterEngineResult (*FlutterEngineSendWindowMetricsEventFnPtr)(
     FLUTTER_API_SYMBOL(FlutterEngine) engine,
+    int64_t view_id,
     const FlutterWindowMetricsEvent* event);
 typedef FlutterEngineResult (*FlutterEngineSendPointerEventFnPtr)(
     FLUTTER_API_SYMBOL(FlutterEngine) engine,

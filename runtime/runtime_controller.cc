@@ -112,8 +112,12 @@ std::unique_ptr<RuntimeController> RuntimeController::Clone() const {
   );
 }
 
+constexpr int64_t kFlutterDefaultViewId = 0ll;
+
 bool RuntimeController::FlushRuntimeStateToIsolate() {
-  return SetViewportMetrics(platform_data_.viewport_metrics) &&
+  // TODO(dkwingsmt)
+  return SetViewportMetrics(kFlutterDefaultViewId,
+                            platform_data_.viewport_metrics) &&
          SetLocales(platform_data_.locale_data) &&
          SetSemanticsEnabled(platform_data_.semantics_enabled) &&
          SetAccessibilityFeatures(
@@ -131,11 +135,12 @@ bool RuntimeController::AddView(int64_t view_id) {
   return false;
 }
 
-bool RuntimeController::SetViewportMetrics(const ViewportMetrics& metrics) {
+bool RuntimeController::SetViewportMetrics(int64_t view_id,
+                                           const ViewportMetrics& metrics) {
   platform_data_.viewport_metrics = metrics;
 
   if (auto* platform_configuration = GetPlatformConfigurationIfAvailable()) {
-    platform_configuration->get_window(0)->UpdateWindowMetrics(metrics);
+    platform_configuration->get_window(view_id)->UpdateWindowMetrics(metrics);
     return true;
   }
 

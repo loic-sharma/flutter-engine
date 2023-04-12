@@ -685,7 +685,7 @@ class Engine final : public RuntimeDelegate, PointerDataDispatcher::Delegate {
   ///
   /// @param[in]  metrics  The metrics
   ///
-  void SetViewportMetrics(const ViewportMetrics& metrics);
+  void SetViewportMetrics(int64_t view_id, const ViewportMetrics& metrics);
 
   //----------------------------------------------------------------------------
   /// @brief      Notifies the engine that the embedder has sent it a message.
