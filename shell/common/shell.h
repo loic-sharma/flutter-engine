@@ -472,7 +472,7 @@ class Shell final : public PlatformView::Delegate,
   std::mutex resize_mutex_;
 
   // used to discard wrong size layer tree produced during interactive resizing
-  SkISize expected_frame_size_ = SkISize::MakeEmpty();
+  std::unordered_map<int64_t, SkISize> expected_frame_sizes_;
 
   // Used to communicate the right frame bounds via service protocol.
   double device_pixel_ratio_ = 0.0;
@@ -733,6 +733,8 @@ class Shell final : public PlatformView::Delegate,
   // Creates an asset bundle from the original settings asset path or
   // directory.
   std::unique_ptr<DirectoryAssetBundle> RestoreOriginalAssetResolver();
+
+  SkISize ExpectedFrameSize(int64_t view_id);
 
   // For accessing the Shell via the raster thread, necessary for various
   // rasterizer callbacks.

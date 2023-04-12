@@ -248,7 +248,7 @@ RasterStatus Rasterizer::Draw(
           std::shared_ptr<LayerTree> layer_tree = std::move(item.second);
           // TODO: Discard checks the layer tree's size matches the view's size.
           // This needs to be updated for multi-view.
-          if (discard_callback(*layer_tree.get())) {
+          if (discard_callback(view_id, *layer_tree.get())) {
             draw_result.raster_status = RasterStatus::kDiscarded;
           } else {
             draw_result = DoDraw(view_id, *frame_timings_recorder.get(),

@@ -970,8 +970,7 @@ void Shell::OnPlatformViewSetViewportMetrics(int64_t view_id,
 
   {
     std::scoped_lock<std::mutex> lock(resize_mutex_);
-    expected_frame_size_ =
-        SkISize::Make(metrics.physical_width, metrics.physical_height);
+    expected_frame_sizes_[view_id] = SkISize::Make(metrics.physical_width, metrics.physical_height);
     device_pixel_ratio_ = metrics.device_pixel_ratio;
   }
 }
@@ -1177,10 +1176,11 @@ void Shell::OnAnimatorUpdateLatestFrameTargetTime(
 void Shell::OnAnimatorDraw(std::shared_ptr<LayerTreePipeline> pipeline) {
   FML_DCHECK(is_setup_);
 
-  auto discard_callback = [this](flutter::LayerTree& tree) {
+  auto discard_callback = [this](int64_t view_id, flutter::LayerTree& tree) {
     std::scoped_lock<std::mutex> lock(resize_mutex_);
-    return !expected_frame_size_.isEmpty() &&
-           tree.frame_size() != expected_frame_size_;
+    auto expected_frame_size = ExpectedFrameSize(view_id);
+    return !expected_frame_size.isEmpty() &&
+           tree.frame_size() != expected_frame_size;
   };
 
   task_runners_.GetRasterTaskRunner()->PostTask(fml::MakeCopyable(
@@ -1931,7 +1931,8 @@ bool Shell::OnServiceProtocolRenderFrameWithRasterStats(
 
     response->AddMember("snapshots", snapshots, allocator);
 
-    const auto& frame_size = expected_frame_size_;
+    // TODO(dkwingsmt)
+    const auto& frame_size = ExpectedFrameSize(kFlutterDefaultViewId);
     response->AddMember("frame_width", frame_size.width(), allocator);
     response->AddMember("frame_height", frame_size.height(), allocator);
 
@@ -2153,6 +2154,14 @@ Shell::GetPlatformMessageHandler() const {
 
 const std::weak_ptr<VsyncWaiter> Shell::GetVsyncWaiter() const {
   return engine_->GetVsyncWaiter();
+}
+
+SkISize Shell::ExpectedFrameSize(int64_t view_id) {
+  auto found = expected_frame_sizes_.find(view_id);
+  if (found == expected_frame_sizes_.end()) {
+    return SkISize::MakeEmpty();
+  }
+  return found->second;
 }
 
 }  // namespace flutter
