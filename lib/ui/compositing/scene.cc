@@ -32,8 +32,7 @@ void Scene::create(Dart_Handle scene_handle,
                    bool checkerboardRasterCacheImages,
                    bool checkerboardOffscreenLayers) {
   auto scene = fml::MakeRefCounted<Scene>(
-      view_id,
-      std::move(rootLayer), rasterizerTracingThreshold,
+      view_id, std::move(rootLayer), rasterizerTracingThreshold,
       checkerboardRasterCacheImages, checkerboardOffscreenLayers);
   scene->AssociateWithDartWrapper(scene_handle);
 }

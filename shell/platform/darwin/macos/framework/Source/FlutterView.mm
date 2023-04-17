@@ -22,7 +22,7 @@
 - (instancetype)initWithMTLDevice:(id<MTLDevice>)device
                      commandQueue:(id<MTLCommandQueue>)commandQueue
                   reshapeListener:(id<FlutterViewReshapeListener>)reshapeListener
-                  viewId:(int64_t)viewId {
+                           viewId:(int64_t)viewId {
   self = [super initWithFrame:NSZeroRect];
   if (self) {
     [self setWantsLayer:YES];
@@ -53,11 +53,11 @@
 
 - (void)reshaped {
   CGSize scaledSize = [self convertSizeToBacking:self.bounds.size];
-  [[FlutterView sharedThreadSynchronizer]
-      beginResizeForView:_viewId size:scaledSize
-                            notify:^{
-                              [_reshapeListener viewDidReshape:self];
-                            }];
+  [[FlutterView sharedThreadSynchronizer] beginResizeForView:_viewId
+                                                        size:scaledSize
+                                                      notify:^{
+                                                        [_reshapeListener viewDidReshape:self];
+                                                      }];
 }
 
 - (void)setBackgroundColor:(NSColor*)color {

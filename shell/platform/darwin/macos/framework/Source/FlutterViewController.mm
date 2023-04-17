@@ -802,7 +802,7 @@ static void CommonInit(FlutterViewController* controller, FlutterEngine* engine)
   return [[FlutterView alloc] initWithMTLDevice:device
                                    commandQueue:commandQueue
                                 reshapeListener:self
-                                viewId:_viewId];
+                                         viewId:_viewId];
 }
 
 - (void)onKeyboardLayoutChanged {

@@ -61,7 +61,9 @@
   _beginResizeWaiting = NO;
 }
 
-- (void)beginResizeForView:(int64_t)viewId size:(CGSize)size notify:(nonnull dispatch_block_t)notify {
+- (void)beginResizeForView:(int64_t)viewId
+                      size:(CGSize)size
+                    notify:(nonnull dispatch_block_t)notify {
   std::unique_lock<std::mutex> lock(_mutex);
 
   if (![self allViewsHaveFrame] || _shuttingDown) {
@@ -83,8 +85,7 @@
       break;
     }
     const CGSize& contentSize = _contentSizes[viewId];
-    if (CGSizeEqualToSize(contentSize, size) ||
-        CGSizeEqualToSize(contentSize, CGSizeZero)) {
+    if (CGSizeEqualToSize(contentSize, size) || CGSizeEqualToSize(contentSize, CGSizeZero)) {
       break;
     }
     _condBlockBeginResize.wait(lock);
@@ -94,7 +95,9 @@
   _beginResizeWaiting = NO;
 }
 
-- (void)performCommitForView:(int64_t)viewId size:(CGSize)size notify:(nonnull dispatch_block_t)notify {
+- (void)performCommitForView:(int64_t)viewId
+                        size:(CGSize)size
+                      notify:(nonnull dispatch_block_t)notify {
   fml::AutoResetWaitableEvent event;
   {
     std::unique_lock<std::mutex> lock(_mutex);

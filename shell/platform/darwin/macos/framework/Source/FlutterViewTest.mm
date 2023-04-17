@@ -28,6 +28,6 @@ TEST(FlutterView, ShouldInheritContentsScaleReturnsYes) {
   FlutterView* view = [[FlutterView alloc] initWithMTLDevice:device
                                                 commandQueue:queue
                                              reshapeListener:listener
-                                             viewId:kDefaultViewId];
+                                                      viewId:kDefaultViewId];
   EXPECT_EQ([view layer:view.layer shouldInheritContentsScale:3.0 fromWindow:view.window], YES);
 }

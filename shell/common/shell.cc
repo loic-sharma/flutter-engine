@@ -970,7 +970,8 @@ void Shell::OnPlatformViewSetViewportMetrics(int64_t view_id,
 
   {
     std::scoped_lock<std::mutex> lock(resize_mutex_);
-    expected_frame_sizes_[view_id] = SkISize::Make(metrics.physical_width, metrics.physical_height);
+    expected_frame_sizes_[view_id] =
+        SkISize::Make(metrics.physical_width, metrics.physical_height);
     device_pixel_ratio_ = metrics.device_pixel_ratio;
   }
 }

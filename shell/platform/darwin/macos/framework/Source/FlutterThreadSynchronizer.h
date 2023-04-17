@@ -15,7 +15,9 @@
  * Called from platform thread. Blocks until commit with given size (or empty)
  * is requested.
  */
-- (void)beginResizeForView:(int64_t)viewId size:(CGSize)size notify:(nonnull dispatch_block_t)notify;
+- (void)beginResizeForView:(int64_t)viewId
+                      size:(CGSize)size
+                    notify:(nonnull dispatch_block_t)notify;
 
 /**
  * Called from raster thread. Schedules the given block on platform thread
@@ -26,7 +28,9 @@
  *
  * The notify block is guaranteed to be called within a core animation transaction.
  */
-- (void)performCommitForView:(int64_t)viewId size:(CGSize)size notify:(nonnull dispatch_block_t)notify;
+- (void)performCommitForView:(int64_t)viewId
+                        size:(CGSize)size
+                      notify:(nonnull dispatch_block_t)notify;
 
 - (void)registerView:(int64_t)viewId;
 
