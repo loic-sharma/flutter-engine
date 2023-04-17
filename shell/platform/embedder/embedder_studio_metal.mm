@@ -90,7 +90,6 @@ GPUMTLTextureInfo EmbedderStudioMetal::GetMTLTexture(int64_t view_id,
 }
 
 bool EmbedderStudioMetal::PresentTexture(GPUMTLTextureInfo texture) const {
-  printf("EmbedderStudioMetal::PresentTexture 0x%llx\n", (uint64_t)texture.texture);
   return metal_dispatch_table_.present(texture);
 }
 

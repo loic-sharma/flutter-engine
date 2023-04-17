@@ -111,7 +111,6 @@ std::unique_ptr<SurfaceFrame> GPUSurfaceMetalSkia::AcquireFrame(int64_t view_id,
 
 std::unique_ptr<SurfaceFrame> GPUSurfaceMetalSkia::AcquireFrameFromCAMetalLayer(
     const SkISize& frame_info) {
-  printf("GPUSurfaceMetalSkia::AcquireFrameFromCAMetalLayer\n");
   auto layer = delegate_->GetCAMetalLayer(frame_info);
   if (!layer) {
     FML_LOG(ERROR) << "Invalid CAMetalLayer given by the embedder.";
@@ -194,7 +193,6 @@ std::unique_ptr<SurfaceFrame> GPUSurfaceMetalSkia::AcquireFrameFromCAMetalLayer(
 std::unique_ptr<SurfaceFrame> GPUSurfaceMetalSkia::AcquireFrameFromMTLTexture(
     int64_t view_id,
     const SkISize& frame_info) {
-  printf("GPUSurfaceMetalSkia::AcquireFrameFromMTLTexture\n");
   GPUMTLTextureInfo texture = delegate_->GetMTLTexture(view_id, frame_info);
   id<MTLTexture> mtl_texture = (id<MTLTexture>)(texture.texture);
 

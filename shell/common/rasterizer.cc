@@ -216,13 +216,11 @@ int Rasterizer::DrawLastLayerTree(
 RasterStatus Rasterizer::Draw(
     const std::shared_ptr<LayerTreePipeline>& pipeline,
     LayerTreeDiscardCallback discard_callback) {
-  printf("========Draw\n");
   fflush(stdout);
   TRACE_EVENT0("flutter", "GPURasterizer::Draw");
   if (raster_thread_merger_ &&
       !raster_thread_merger_->IsOnRasterizingThread()) {
     // we yield and let this frame be serviced on the right thread.
-    printf("Yielded\n");
     return RasterStatus::kYielded;
   }
   FML_DCHECK(delegate_.GetTaskRunners()
@@ -233,7 +231,6 @@ RasterStatus Rasterizer::Draw(
   LayerTreePipeline::Consumer consumer =
       [this, &draw_result,
        &discard_callback](std::unique_ptr<LayerTreeItem> item) {
-        printf("Start consumer (%lu trees)\n", item->layer_trees.size());fflush(stdout);
         std::unique_ptr<FrameTimingsRecorder> frame_timings_recorder =
             std::move(item->frame_timings_recorder);
 
@@ -310,7 +307,6 @@ RasterStatus Rasterizer::Draw(
 
   PipelineConsumeResult consume_result = pipeline->Consume(consumer);
   if (consume_result == PipelineConsumeResult::NoneAvailable) {
-    printf("None available\n");
     return RasterStatus::kFailed;
   }
   // if the raster status is to resubmit the frame, we push the frame to the
@@ -336,15 +332,6 @@ RasterStatus Rasterizer::Draw(
   } else if (draw_result.raster_status == RasterStatus::kEnqueuePipeline) {
     consume_result = PipelineConsumeResult::MoreAvailable;
   }
-
-  // EndFrame should perform cleanups for the external_view_embedder.
-  // if (external_view_embedder_ && external_view_embedder_->GetUsedThisFrame())
-  // {
-  //   printf("external_view_embedder cleanup\n");fflush(stdout);
-  //   external_view_embedder_->SetUsedThisFrame(false);
-  //   external_view_embedder_->EndFrame(should_resubmit_frame,
-  //                                     raster_thread_merger_);
-  // }
 
   // Consume as many pipeline items as possible. But yield the event loop
   // between successive tries.
@@ -489,7 +476,6 @@ Rasterizer::DoDrawResult Rasterizer::DoDraw(
     int64_t view_id,
     FrameTimingsRecorder& frame_timings_recorder,
     std::shared_ptr<flutter::LayerTree> layer_tree) {
-  printf("Rasterizer::DoDraw\n");fflush(stdout);
   TRACE_EVENT_WITH_FRAME_NUMBER(&frame_timings_recorder, "flutter",
                                 "Rasterizer::DoDraw");
   FML_DCHECK(delegate_.GetTaskRunners()
@@ -672,8 +658,6 @@ RasterStatus Rasterizer::DrawToSurfaceUnsafe(
       ignore_raster_cache = false;
     }
 
-    printf("compositor_frame->Raster\n");
-    fflush(stdout);
     RasterStatus raster_status =
         compositor_frame->Raster(*layer_tree,          // layer tree
                                  ignore_raster_cache,  // ignore raster cache
@@ -681,8 +665,6 @@ RasterStatus Rasterizer::DrawToSurfaceUnsafe(
         );
     if (raster_status == RasterStatus::kFailed ||
         raster_status == RasterStatus::kSkipAndRetry) {
-      printf("compositor_frame->Raster failed\n");
-      fflush(stdout);
       return raster_status;
     }
 

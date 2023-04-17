@@ -46,8 +46,6 @@ void EmbedderExternalViewEmbedder::Reset() {
 
 // |ExternalViewEmbedder|
 void EmbedderExternalViewEmbedder::CancelFrame() {
-  printf("EmbedderExternalViewEmbedder::CancelFrame\n");
-  fflush(stdout);
   Reset();
 }
 
@@ -57,8 +55,6 @@ void EmbedderExternalViewEmbedder::BeginFrame(
     GrDirectContext* context,
     double device_pixel_ratio,
     fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {
-  printf("EmbedderExternalViewEmbedder::BeginFrame\n");
-  fflush(stdout);
   Reset();
 
   pending_frame_size_ = frame_size;
@@ -77,8 +73,6 @@ void EmbedderExternalViewEmbedder::BeginFrame(
 void EmbedderExternalViewEmbedder::PrerollCompositeEmbeddedView(
     int64_t view_id,
     std::unique_ptr<EmbeddedViewParams> params) {
-  printf("EmbedderExternalViewEmbedder::PrerollCompositeEmbeddedView\n");
-  fflush(stdout);
   auto vid = EmbedderExternalView::ViewIdentifier(view_id);
   FML_DCHECK(pending_views_.count(vid) == 0);
 
@@ -119,8 +113,6 @@ DlCanvas* EmbedderExternalViewEmbedder::CompositeEmbeddedView(int64_t view_id) {
 static FlutterBackingStoreConfig MakeBackingStoreConfig(
     const SkISize& backing_store_size,
     int64_t window_view_id) {
-  printf("EmbedderExternalViewEmbedder::MakeBackingStoreConfig\n");
-  fflush(stdout);
   FlutterBackingStoreConfig config = {};
 
   config.struct_size = sizeof(config);
@@ -137,9 +129,6 @@ void EmbedderExternalViewEmbedder::SubmitFrame(
     GrDirectContext* context,
     std::unique_ptr<SurfaceFrame> frame,
     int64_t window_view_id) {
-  printf("EmbedderExternalViewEmbedder::SubmitFrame #%lld (pending %lu)\n",
-         window_view_id, pending_views_.size());
-  fflush(stdout);
   auto [matched_render_targets, pending_keys] =
       render_target_cache_.GetExistingTargetsInCache(pending_views_);
 

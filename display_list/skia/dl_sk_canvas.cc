@@ -216,8 +216,6 @@ SkRect DlSkCanvasAdapter::GetLocalClipBounds() const {
 /// of the current clip bounds. This method may conservatively return
 /// false if it cannot make the determination.
 bool DlSkCanvasAdapter::QuickReject(const SkRect& bounds) const {
-  printf("QuickReject bounds LTRB(%f, %f, %f, %f)\n", bounds.left(),
-         bounds.top(), bounds.right(), bounds.bottom());
   return delegate_->quickReject(bounds);
 }
 

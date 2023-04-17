@@ -788,7 +788,6 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
       .left = static_cast<size_t>(scaledBounds.origin.x),
       .top = static_cast<size_t>(scaledBounds.origin.y),
   };
-  NSLog(@"# SendWindowMetricsEvent(%lld, LTHW(%f, %f, %f, %f))", viewController.viewId, scaledBounds.origin.x, scaledBounds.origin.y, scaledSize.width, scaledSize.height);
   _embedderAPI.SendWindowMetricsEvent(_engine, viewController.viewId, &windowMetricsEvent);
 }
 

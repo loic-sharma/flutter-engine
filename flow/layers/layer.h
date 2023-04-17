@@ -232,7 +232,6 @@ class Layer {
   // of the indicated PaintContext object.
   bool needs_painting(PaintContext& context) const {
     if (subtree_has_platform_view_) {
-      printf("Since subtree_has_platform_view_\n");
       // Workaround for the iOS embedder. The iOS embedder expects that
       // if we preroll it, then we will later call its Paint() method.
       // Now that we preroll all layers without any culling, we may
@@ -242,8 +241,6 @@ class Layer {
       // See https://github.com/flutter/flutter/issues/81419
       return true;
     }
-    printf("Since %d %d\n", context.state_stack.painting_is_nop(),
-           context.state_stack.content_culled(paint_bounds_));
     return !context.state_stack.painting_is_nop() &&
            !context.state_stack.content_culled(paint_bounds_);
   }

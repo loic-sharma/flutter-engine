@@ -959,8 +959,6 @@ static std::unique_ptr<flutter::EmbedderRenderTarget>
 CreateEmbedderRenderTarget(const FlutterCompositor* compositor,
                            const FlutterBackingStoreConfig& config,
                            GrDirectContext* context) {
-  printf("CreateEmbedderRenderTarget\n");
-  fflush(stdout);
   FlutterBackingStore backing_store = {};
   backing_store.struct_size = sizeof(backing_store);
 

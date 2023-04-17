@@ -59,7 +59,6 @@ void Animator::EnqueueTraceFlowId(uint64_t trace_flow_id) {
 
 void Animator::BeginFrame(
     std::unique_ptr<FrameTimingsRecorder> frame_timings_recorder) {
-  printf("Animator::BeginFrame\n");fflush(stdout);
   TRACE_EVENT_ASYNC_END0("flutter", "Frame Request Pending",
                          frame_request_number_);
   frame_request_number_++;
@@ -80,14 +79,12 @@ void Animator::BeginFrame(
   pending_frame_semaphore_.Signal();
 
   if (!producer_continuation_) {
-    printf("!producer_continuation_\n");fflush(stdout);
     // We may already have a valid pipeline continuation in case a previous
     // begin frame did not result in an Animator::Render. Simply reuse that
     // instead of asking the pipeline for a fresh continuation.
     producer_continuation_ = layer_tree_pipeline_->Produce();
 
     if (!producer_continuation_) {
-      printf("!producer_continuation_ 2\n");fflush(stdout);
       // If we still don't have valid continuation, the pipeline is currently
       // full because the consumer is being too slow. Try again at the next
       // frame interval.
@@ -133,8 +130,6 @@ void Animator::BeginFrame(
     }
 
     delegate_.OnAnimatorDraw(layer_tree_pipeline_);
-  } else {
-    printf("!has rendered\n");fflush(stdout);
   }
 
   if (!frame_scheduled_ && has_rendered_) {
@@ -159,8 +154,6 @@ void Animator::BeginFrame(
           }
         },
         kNotifyIdleTaskWaitTime);
-  } else {
-    printf("!second\n");fflush(stdout);
   }
 }
 
