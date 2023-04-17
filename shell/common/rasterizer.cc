@@ -263,7 +263,6 @@ RasterStatus Rasterizer::Draw(
             external_view_embedder_->EndFrame(should_resubmit_frame,
                                               raster_thread_merger_);
           }
-          break; // TODO(dkwingsmt): debugging
         }
         frame_timings_recorder->RecordRasterEnd(
             &compositor_context_->raster_cache());

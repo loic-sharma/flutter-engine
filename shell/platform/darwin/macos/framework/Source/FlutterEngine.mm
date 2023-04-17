@@ -703,6 +703,7 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 - (bool)removeViewController:(nonnull FlutterViewController*)viewController {
   NSAssert([viewController attached] && viewController.engine == self,
            @"The given view controller is not associated with this engine.");
+  [[FlutterView sharedThreadSynchronizer] deregisterView:viewController.viewId];
   FlutterEngineResult result = _embedderAPI.RemoveRenderSurface(_engine, viewController.viewId);
   [self deregisterViewControllerForId:viewController.viewId];
   [self shutDownIfNeeded];
@@ -914,6 +915,7 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
   }
 
   NSEnumerator* viewControllerEnumerator = [_viewControllers objectEnumerator];
+  [[FlutterView sharedThreadSynchronizer] shutdown];
   FlutterViewController* nextViewController;
   while ((nextViewController = [viewControllerEnumerator nextObject])) {
     [nextViewController.flutterView shutdown];

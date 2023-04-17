@@ -31,6 +31,7 @@
 - (nullable instancetype)initWithMTLDevice:(nonnull id<MTLDevice>)device
                               commandQueue:(nonnull id<MTLCommandQueue>)commandQueue
                            reshapeListener:(nonnull id<FlutterViewReshapeListener>)reshapeListener
+                                  viewId:(int64_t)viewId
     NS_DESIGNATED_INITIALIZER;
 
 - (nullable instancetype)initWithFrame:(NSRect)frameRect
@@ -59,6 +60,8 @@
  * with.
  */
 - (void)setBackgroundColor:(nonnull NSColor*)color;
+
++ (nonnull FlutterThreadSynchronizer*)sharedThreadSynchronizer;
 
 @end
 
