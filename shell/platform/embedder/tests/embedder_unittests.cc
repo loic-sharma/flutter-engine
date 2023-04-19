@@ -924,8 +924,9 @@ TEST_F(EmbedderTest, NoLayerCreatedForTransparentOverlayOnTopOfPlatformLayer) {
   event.physical_view_inset_right = 0.0;
   event.physical_view_inset_bottom = 0.0;
   event.physical_view_inset_left = 0.0;
-  ASSERT_EQ(FlutterEngineSendWindowMetricsEvent(engine.get(), kDefaultViewId, &event),
-            kSuccess);
+  ASSERT_EQ(
+      FlutterEngineSendWindowMetricsEvent(engine.get(), kDefaultViewId, &event),
+      kSuccess);
   ASSERT_TRUE(engine.is_valid());
 
   latch.Wait();
@@ -1046,8 +1047,9 @@ TEST_F(EmbedderTest, NoLayerCreatedForNoOverlayOnTopOfPlatformLayer) {
   event.physical_view_inset_right = 0.0;
   event.physical_view_inset_bottom = 0.0;
   event.physical_view_inset_left = 0.0;
-  ASSERT_EQ(FlutterEngineSendWindowMetricsEvent(engine.get(), kDefaultViewId, &event),
-            kSuccess);
+  ASSERT_EQ(
+      FlutterEngineSendWindowMetricsEvent(engine.get(), kDefaultViewId, &event),
+      kSuccess);
   ASSERT_TRUE(engine.is_valid());
 
   latch.Wait();
