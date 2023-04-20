@@ -42,15 +42,20 @@ Scene::Scene(int64_t view_id,
              uint32_t rasterizerTracingThreshold,
              bool checkerboardRasterCacheImages,
              bool checkerboardOffscreenLayers) {
-  auto viewport_metrics = UIDartState::Current()
+  Window* window = UIDartState::Current()
                               ->platform_configuration()
-                              ->get_window(view_id)
-                              ->viewport_metrics();
-
-  layer_tree_ = std::make_shared<LayerTree>(
-      SkISize::Make(viewport_metrics.physical_width,
+                              ->get_window(view_id);
+  if (window != nullptr) {
+    auto viewport_metrics = window->viewport_metrics();
+    layer_tree_ = std::make_shared<LayerTree>(
+        SkISize::Make(viewport_metrics.physical_width,
                     viewport_metrics.physical_height),
-      static_cast<float>(viewport_metrics.device_pixel_ratio));
+        static_cast<float>(viewport_metrics.device_pixel_ratio));
+  } else {
+    // TODO(dkwingsmt)
+    layer_tree_ = std::make_shared<LayerTree>(SkISize::Make(0, 0), 1);
+  }
+
   layer_tree_->set_root_layer(std::move(rootLayer));
   layer_tree_->set_rasterizer_tracing_threshold(rasterizerTracingThreshold);
   layer_tree_->set_checkerboard_raster_cache_images(
