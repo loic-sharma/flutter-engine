@@ -6,6 +6,7 @@
 #import "flutter/shell/platform/darwin/macos/framework/Source/FlutterViewController_Internal.h"
 
 #include <Carbon/Carbon.h>
+#import <objc/message.h>
 
 #import "flutter/shell/platform/darwin/common/framework/Headers/FlutterChannels.h"
 #import "flutter/shell/platform/darwin/common/framework/Headers/FlutterCodecs.h"
@@ -163,6 +164,8 @@ NSData* currentKeyboardLayoutData() {
 
 - (void)setBackgroundColor:(NSColor*)color;
 
+- (BOOL)performKeyEquivalent:(NSEvent*)event;
+
 @end
 
 /**
@@ -239,6 +242,37 @@ NSData* currentKeyboardLayoutData() {
 
 @end
 
+#pragma mark - NSEvent (KeyEquivalentMarker) protocol
+
+@interface NSEvent (KeyEquivalentMarker)
+
+// Internally marks that the event was received through performKeyEquivalent:.
+// When text editing is active, keyboard events that have modifier keys pressed
+// are received through performKeyEquivalent: instead of keyDown:. If such event
+// is passed to TextInputContext but doesn't result in a text editing action it
+// needs to be forwarded by FlutterKeyboardManager to the next responder.
+- (void)markAsKeyEquivalent;
+
+// Returns YES if the event is marked as a key equivalent.
+- (BOOL)isKeyEquivalent;
+
+@end
+
+@implementation NSEvent (KeyEquivalentMarker)
+
+// This field doesn't need a value because only its address is used as a unique identifier.
+static char markerKey;
+
+- (void)markAsKeyEquivalent {
+  objc_setAssociatedObject(self, &markerKey, @true, OBJC_ASSOCIATION_RETAIN);
+}
+
+- (BOOL)isKeyEquivalent {
+  return [objc_getAssociatedObject(self, &markerKey) boolValue] == YES;
+}
+
+@end
+
 #pragma mark - Private dependant functions
 
 namespace {
@@ -258,12 +292,15 @@ void OnKeyboardLayoutChanged(CFNotificationCenterRef center,
 
 @implementation FlutterViewWrapper {
   FlutterView* _flutterView;
+  FlutterViewController* _controller;
 }
 
-- (instancetype)initWithFlutterView:(FlutterView*)view {
+- (instancetype)initWithFlutterView:(FlutterView*)view
+                         controller:(FlutterViewController*)controller {
   self = [super initWithFrame:NSZeroRect];
   if (self) {
     _flutterView = view;
+    _controller = controller;
     view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     [self addSubview:view];
   }
@@ -272,6 +309,24 @@ void OnKeyboardLayoutChanged(CFNotificationCenterRef center,
 
 - (void)setBackgroundColor:(NSColor*)color {
   [_flutterView setBackgroundColor:color];
+}
+
+- (BOOL)performKeyEquivalent:(NSEvent*)event {
+  if ([_controller isDispatchingKeyEvent:event]) {
+    // When NSWindow is nextResponder, keyboard manager will send to it
+    // unhandled events (through [NSWindow keyDown:]). If event has both
+    // control and cmd modifiers set (i.e. cmd+control+space - emoji picker)
+    // NSWindow will then send this event as performKeyEquivalent: to first
+    // responder, which might be FlutterTextInputPlugin. If that's the case, the
+    // plugin must not handle the event, otherwise the emoji picker would not
+    // work (due to first responder returning YES from performKeyEquivalent:)
+    // and there would be an infinite loop, because FlutterViewController will
+    // send the event back to [keyboardManager handleEvent:].
+    return NO;
+  }
+  [event markAsKeyEquivalent];
+  [_flutterView keyDown:event];
+  return YES;
 }
 
 - (NSArray*)accessibilityChildren {
@@ -328,17 +383,14 @@ static void CommonInit(FlutterViewController* controller, FlutterEngine* engine)
     engine = [[FlutterEngine alloc] initWithName:@"io.flutter"
                                          project:controller->_project
                           allowHeadlessExecution:NO];
+    engine.viewController = controller;
+  } else {
+    [engine addViewController:controller];
   }
-  NSCAssert(controller.engine == nil,
-            @"The FlutterViewController is unexpectedly attached to "
-            @"engine %@ before initialization.",
-            controller.engine);
-  [engine addViewController:controller];
   NSCAssert(controller.engine != nil,
             @"The FlutterViewController unexpectedly stays unattached after initialization. "
             @"In unit tests, this is likely because either the FlutterViewController or "
-            @"the FlutterEngine is mocked. Please subclass these classes instead.",
-            controller.engine, controller.viewId);
+            @"the FlutterEngine is mocked. Please subclass these classes instead.");
   controller->_mouseTrackingMode = FlutterMouseTrackingModeInKeyWindow;
   controller->_textInputPlugin = [[FlutterTextInputPlugin alloc] initWithViewController:controller];
   [controller initializeKeyboard];
@@ -405,7 +457,8 @@ static void CommonInit(FlutterViewController* controller, FlutterEngine* engine)
   if (_backgroundColor != nil) {
     [flutterView setBackgroundColor:_backgroundColor];
   }
-  FlutterViewWrapper* wrapperView = [[FlutterViewWrapper alloc] initWithFlutterView:flutterView];
+  FlutterViewWrapper* wrapperView = [[FlutterViewWrapper alloc] initWithFlutterView:flutterView
+                                                                         controller:self];
   self.view = wrapperView;
   _flutterView = flutterView;
 }
@@ -422,6 +475,10 @@ static void CommonInit(FlutterViewController* controller, FlutterEngine* engine)
     [self launchEngine];
   }
   [self listenForMetaModifiedKeyUpEvents];
+}
+
+- (void)viewDidAppear {
+  [_engine updateWindowMetricsForViewController:self];
 }
 
 - (void)viewWillDisappear {
@@ -800,7 +857,8 @@ static void CommonInit(FlutterViewController* controller, FlutterEngine* engine)
                                           commandQueue:(id<MTLCommandQueue>)commandQueue {
   return [[FlutterView alloc] initWithMTLDevice:device
                                    commandQueue:commandQueue
-                                reshapeListener:self];
+                                reshapeListener:self
+                                         viewId:_viewId];
 }
 
 - (void)onKeyboardLayoutChanged {

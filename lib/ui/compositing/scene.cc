@@ -26,24 +26,25 @@ namespace flutter {
 IMPLEMENT_WRAPPERTYPEINFO(ui, Scene);
 
 void Scene::create(Dart_Handle scene_handle,
+                   int64_t view_id,
                    std::shared_ptr<flutter::Layer> rootLayer,
                    uint32_t rasterizerTracingThreshold,
                    bool checkerboardRasterCacheImages,
                    bool checkerboardOffscreenLayers) {
   auto scene = fml::MakeRefCounted<Scene>(
-      std::move(rootLayer), rasterizerTracingThreshold,
+      view_id, std::move(rootLayer), rasterizerTracingThreshold,
       checkerboardRasterCacheImages, checkerboardOffscreenLayers);
   scene->AssociateWithDartWrapper(scene_handle);
 }
 
-Scene::Scene(std::shared_ptr<flutter::Layer> rootLayer,
+Scene::Scene(int64_t view_id,
+             std::shared_ptr<flutter::Layer> rootLayer,
              uint32_t rasterizerTracingThreshold,
              bool checkerboardRasterCacheImages,
              bool checkerboardOffscreenLayers) {
-  // Currently only supports a single window.
   auto viewport_metrics = UIDartState::Current()
                               ->platform_configuration()
-                              ->get_window(0)
+                              ->get_window(view_id)
                               ->viewport_metrics();
 
   layer_tree_ = std::make_shared<LayerTree>(

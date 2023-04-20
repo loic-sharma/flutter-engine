@@ -186,6 +186,12 @@ std::unique_ptr<Shell> Shell::CreateShellOnPlatformThread(
                     !settings.skia_deterministic_rendering_on_cpu),
                 is_gpu_disabled));
 
+  // Create the platform view on the platform thread (this thread).
+  auto platform_view = on_create_platform_view(*shell.get());
+  if (!platform_view || !platform_view->GetWeakPtr()) {
+    return nullptr;
+  }
+
   // Create the rasterizer on the raster thread.
   std::promise<std::unique_ptr<Rasterizer>> rasterizer_promise;
   auto rasterizer_future = rasterizer_promise.get_future();
@@ -193,22 +199,19 @@ std::unique_ptr<Shell> Shell::CreateShellOnPlatformThread(
       snapshot_delegate_promise;
   auto snapshot_delegate_future = snapshot_delegate_promise.get_future();
   fml::TaskRunner::RunNowOrPostTask(
-      task_runners.GetRasterTaskRunner(), [&rasterizer_promise,  //
-                                           &snapshot_delegate_promise,
-                                           on_create_rasterizer,  //
-                                           shell = shell.get()    //
+      task_runners.GetRasterTaskRunner(),
+      [&rasterizer_promise,  //
+       &snapshot_delegate_promise,
+       on_create_rasterizer,                                   //
+       shell = shell.get(),                                    //
+       impeller_context = platform_view->GetImpellerContext()  //
   ]() {
         TRACE_EVENT0("flutter", "ShellSetupGPUSubsystem");
         std::unique_ptr<Rasterizer> rasterizer(on_create_rasterizer(*shell));
+        rasterizer->SetImpellerContext(impeller_context);
         snapshot_delegate_promise.set_value(rasterizer->GetSnapshotDelegate());
         rasterizer_promise.set_value(std::move(rasterizer));
       });
-
-  // Create the platform view on the platform thread (this thread).
-  auto platform_view = on_create_platform_view(*shell.get());
-  if (!platform_view || !platform_view->GetWeakPtr()) {
-    return nullptr;
-  }
 
   // Ask the platform view for the vsync waiter. This will be used by the engine
   // to create the animator.
@@ -753,8 +756,7 @@ void Shell::OnPlatformViewCreated() {
   FML_DCHECK(task_runners_.GetPlatformTaskRunner()->RunsTasksOnCurrentThread());
 
   std::unique_ptr<Studio> studio = platform_view_->CreateStudio();
-  std::unique_ptr<Surface> surface = platform_view_->CreateSurface();
-  if (studio == nullptr || surface == nullptr) {
+  if (studio == nullptr) {
     // TODO(dkwingsmt): This case is observed in windows unit tests. Anyway,
     // we're probably not creating the surface in this callback eventually.
     return;
@@ -786,9 +788,13 @@ void Shell::OnPlatformViewCreated() {
 
   fml::AutoResetWaitableEvent latch;
   auto raster_task = fml::MakeCopyable(
-      [&waiting_for_first_frame = waiting_for_first_frame_,
-       rasterizer = rasterizer_->GetWeakPtr(),  //
-       studio = std::move(studio), surface = std::move(surface)]() mutable {
+      [&waiting_for_first_frame = waiting_for_first_frame_,  //
+       rasterizer = rasterizer_->GetWeakPtr(),               //
+       platform_view = platform_view_.get(),                 //
+       studio = std::move(studio)                            //
+  ]() mutable {
+        std::unique_ptr<Surface> surface =
+            platform_view->CreateSurface(kFlutterDefaultViewId);
         if (rasterizer) {
           // Enables the thread merger which may be used by the external view
           // embedder.
@@ -934,7 +940,8 @@ void Shell::OnPlatformViewScheduleFrame() {
 }
 
 // |PlatformView::Delegate|
-void Shell::OnPlatformViewSetViewportMetrics(const ViewportMetrics& metrics) {
+void Shell::OnPlatformViewSetViewportMetrics(int64_t view_id,
+                                             const ViewportMetrics& metrics) {
   FML_DCHECK(is_setup_);
   FML_DCHECK(task_runners_.GetPlatformTaskRunner()->RunsTasksOnCurrentThread());
 
@@ -958,15 +965,15 @@ void Shell::OnPlatformViewSetViewportMetrics(const ViewportMetrics& metrics) {
       });
 
   task_runners_.GetUITaskRunner()->PostTask(
-      [engine = engine_->GetWeakPtr(), metrics]() {
+      [engine = engine_->GetWeakPtr(), metrics, view_id]() {
         if (engine) {
-          engine->SetViewportMetrics(metrics);
+          engine->SetViewportMetrics(view_id, metrics);
         }
       });
 
   {
     std::scoped_lock<std::mutex> lock(resize_mutex_);
-    expected_frame_size_ =
+    expected_frame_sizes_[view_id] =
         SkISize::Make(metrics.physical_width, metrics.physical_height);
     device_pixel_ratio_ = metrics.device_pixel_ratio;
   }
@@ -1173,10 +1180,11 @@ void Shell::OnAnimatorUpdateLatestFrameTargetTime(
 void Shell::OnAnimatorDraw(std::shared_ptr<LayerTreePipeline> pipeline) {
   FML_DCHECK(is_setup_);
 
-  auto discard_callback = [this](flutter::LayerTree& tree) {
+  auto discard_callback = [this](int64_t view_id, flutter::LayerTree& tree) {
     std::scoped_lock<std::mutex> lock(resize_mutex_);
-    return !expected_frame_size_.isEmpty() &&
-           tree.frame_size() != expected_frame_size_;
+    auto expected_frame_size = ExpectedFrameSize(view_id);
+    return !expected_frame_size.isEmpty() &&
+           tree.frame_size() != expected_frame_size;
   };
 
   task_runners_.GetRasterTaskRunner()->PostTask(fml::MakeCopyable(
@@ -1927,7 +1935,8 @@ bool Shell::OnServiceProtocolRenderFrameWithRasterStats(
 
     response->AddMember("snapshots", snapshots, allocator);
 
-    const auto& frame_size = expected_frame_size_;
+    // TODO(dkwingsmt)
+    const auto& frame_size = ExpectedFrameSize(kFlutterDefaultViewId);
     response->AddMember("frame_width", frame_size.width(), allocator);
     response->AddMember("frame_height", frame_size.height(), allocator);
 
@@ -1987,20 +1996,53 @@ void Shell::AddRenderSurface(int64_t view_id) {
   TRACE_EVENT0("flutter", "Shell::AddRenderSurface");
   FML_DCHECK(is_setup_);
   FML_DCHECK(task_runners_.GetPlatformTaskRunner()->RunsTasksOnCurrentThread());
+  if (!engine_) {
+    return;
+  }
+  if (view_id == kFlutterDefaultViewId) {
+    return;
+  }
 
-  std::unique_ptr<Surface> surface = platform_view_->CreateSurface();
-  fml::AutoResetWaitableEvent latch;
+  auto ui_task = [engine = engine_->GetWeakPtr(),  //
+                  view_id                          //
+  ] { engine->AddView(view_id); };
+  // TODO(dkwingsmt): platform_view_ is captured illegally here.
+  // We need some mechanism from it being collected.
   task_runners_.GetRasterTaskRunner()->PostTask(
-      fml::MakeCopyable([&latch,                                  //
+      fml::MakeCopyable([&task_runners = task_runners_,           //
+                         ui_task,                                 //
+                         platform_view = platform_view_.get(),    //
                          rasterizer = rasterizer_->GetWeakPtr(),  //
-                         surface = std::move(surface),            //
                          view_id                                  //
   ]() mutable {
+        if (platform_view && rasterizer) {
+          std::unique_ptr<Surface> surface =
+              platform_view->CreateSurface(view_id);
+          if (surface) {
+            rasterizer->AddSurface(view_id, std::move(surface));
+          }
+          task_runners.GetUITaskRunner()->PostTask(ui_task);
+        }
+      }));
+}
+
+void Shell::RemoveRenderSurface(int64_t view_id) {
+  TRACE_EVENT0("flutter", "Shell::RemoveRenderSurface");
+  FML_DCHECK(is_setup_);
+  FML_DCHECK(task_runners_.GetPlatformTaskRunner()->RunsTasksOnCurrentThread());
+
+  fml::AutoResetWaitableEvent latch;
+  // platform_view_->RemoveSurface(view_id); // TODO
+  task_runners_.GetRasterTaskRunner()->PostTask(
+      [&latch,                                  //
+       rasterizer = rasterizer_->GetWeakPtr(),  //
+       view_id                                  //
+  ]() mutable {
         if (rasterizer) {
-          rasterizer->AddSurface(view_id, std::move(surface));
+          rasterizer->RemoveSurface(view_id);
         }
         latch.Signal();
-      }));
+      });
   latch.Wait();
 }
 
@@ -2116,6 +2158,14 @@ Shell::GetPlatformMessageHandler() const {
 
 const std::weak_ptr<VsyncWaiter> Shell::GetVsyncWaiter() const {
   return engine_->GetVsyncWaiter();
+}
+
+SkISize Shell::ExpectedFrameSize(int64_t view_id) {
+  auto found = expected_frame_sizes_.find(view_id);
+  if (found == expected_frame_sizes_.end()) {
+    return SkISize::MakeEmpty();
+  }
+  return found->second;
 }
 
 }  // namespace flutter

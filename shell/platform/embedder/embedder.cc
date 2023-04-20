@@ -1069,12 +1069,12 @@ InferExternalViewEmbedderFromArgs(const FlutterCompositor* compositor) {
           };
 
   flutter::EmbedderExternalViewEmbedder::PresentCallback present_callback =
-      [c_present_callback,
-       user_data = compositor->user_data](const auto& layers) {
+      [c_present_callback, user_data = compositor->user_data](
+          const auto& layers, int64_t window_view_id) {
         TRACE_EVENT0("flutter", "FlutterCompositorPresentLayers");
         return c_present_callback(
             const_cast<const FlutterLayer**>(layers.data()), layers.size(),
-            user_data);
+            window_view_id, user_data);
       };
 
   return {std::make_unique<flutter::EmbedderExternalViewEmbedder>(
@@ -2051,7 +2051,6 @@ FlutterEngineResult FlutterEngineShutdown(FLUTTER_API_SYMBOL(FlutterEngine)
 FLUTTER_EXPORT
 FlutterEngineResult FlutterEngineAddRenderSurface(
     FLUTTER_API_SYMBOL(FlutterEngine) engine,
-    void* user_data,
     int64_t view_id) {
   if (engine == nullptr) {
     return LOG_EMBEDDER_ERROR(kInvalidArguments, "Engine handle was invalid.");
@@ -2063,8 +2062,22 @@ FlutterEngineResult FlutterEngineAddRenderSurface(
   return kSuccess;
 }
 
+FlutterEngineResult FlutterEngineRemoveRenderSurface(
+    FLUTTER_API_SYMBOL(FlutterEngine) engine,
+    int64_t view_id) {
+  if (engine == nullptr) {
+    return LOG_EMBEDDER_ERROR(kInvalidArguments, "Engine handle was invalid.");
+  }
+  flutter::EmbedderEngine* embedder_engine =
+      reinterpret_cast<flutter::EmbedderEngine*>(engine);
+  embedder_engine->GetShell().RemoveRenderSurface(view_id);
+
+  return kSuccess;
+}
+
 FlutterEngineResult FlutterEngineSendWindowMetricsEvent(
     FLUTTER_API_SYMBOL(FlutterEngine) engine,
+    int64_t view_id,
     const FlutterWindowMetricsEvent* flutter_metrics) {
   if (engine == nullptr || flutter_metrics == nullptr) {
     return LOG_EMBEDDER_ERROR(kInvalidArguments, "Engine handle was invalid.");
@@ -2109,7 +2122,7 @@ FlutterEngineResult FlutterEngineSendWindowMetricsEvent(
   }
 
   return reinterpret_cast<flutter::EmbedderEngine*>(engine)->SetViewportMetrics(
-             metrics)
+             view_id, metrics)
              ? kSuccess
              : LOG_EMBEDDER_ERROR(kInvalidArguments,
                                   "Viewport metrics were invalid.");
@@ -2173,8 +2186,6 @@ inline flutter::PointerData::SignalKind ToPointerDataSignalKind(
       return flutter::PointerData::SignalKind::kScrollInertiaCancel;
     case kFlutterPointerSignalKindScale:
       return flutter::PointerData::SignalKind::kScale;
-    case kFlutterPointerSignalKindStylusAuxiliaryAction:
-      return flutter::PointerData::SignalKind::kStylusAuxiliaryAction;
   }
   return flutter::PointerData::SignalKind::kNone;
 }
@@ -3101,6 +3112,7 @@ FlutterEngineResult FlutterEngineGetProcAddresses(
   SET_PROC(Deinitialize, FlutterEngineDeinitialize);
   SET_PROC(RunInitialized, FlutterEngineRunInitialized);
   SET_PROC(AddRenderSurface, FlutterEngineAddRenderSurface);
+  SET_PROC(RemoveRenderSurface, FlutterEngineRemoveRenderSurface);
   SET_PROC(SendWindowMetricsEvent, FlutterEngineSendWindowMetricsEvent);
   SET_PROC(SendPointerEvent, FlutterEngineSendPointerEvent);
   SET_PROC(SendKeyEvent, FlutterEngineSendKeyEvent);

@@ -34,7 +34,7 @@ namespace flutter {
 
 IMPLEMENT_WRAPPERTYPEINFO(ui, SceneBuilder);
 
-SceneBuilder::SceneBuilder() {
+SceneBuilder::SceneBuilder(int64_t view_id) : view_id_(view_id) {
   // Add a ContainerLayer as the root layer, so that AddLayer operations are
   // always valid.
   PushLayer(std::make_shared<flutter::ContainerLayer>());
@@ -243,9 +243,8 @@ void SceneBuilder::addPicture(double dx,
   // been disposed but not collected yet, but the display list is null.
   if (picture->display_list()) {
     auto layer = std::make_unique<flutter::DisplayListLayer>(
-        SkPoint::Make(SafeNarrow(dx), SafeNarrow(dy)),
-        UIDartState::CreateGPUObject(picture->display_list()), !!(hints & 1),
-        !!(hints & 2));
+        SkPoint::Make(SafeNarrow(dx), SafeNarrow(dy)), picture->display_list(),
+        !!(hints & 1), !!(hints & 2));
     AddLayer(std::move(layer));
   }
 }
@@ -304,9 +303,10 @@ void SceneBuilder::setCheckerboardOffscreenLayers(bool checkerboard) {
 void SceneBuilder::build(Dart_Handle scene_handle) {
   FML_DCHECK(layer_stack_.size() >= 1);
 
-  Scene::create(
-      scene_handle, std::move(layer_stack_[0]), rasterizer_tracing_threshold_,
-      checkerboard_raster_cache_images_, checkerboard_offscreen_layers_);
+  Scene::create(scene_handle, view_id_, std::move(layer_stack_[0]),
+                rasterizer_tracing_threshold_,
+                checkerboard_raster_cache_images_,
+                checkerboard_offscreen_layers_);
   layer_stack_.clear();
   ClearDartWrapper();  // may delete this object.
 }

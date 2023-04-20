@@ -310,7 +310,7 @@ bool CapabilitiesVK::SupportsOffscreenMSAA() const {
 
 // |Capabilities|
 bool CapabilitiesVK::SupportsSSBO() const {
-  return false;
+  return true;
 }
 
 // |Capabilities|
@@ -335,6 +335,11 @@ bool CapabilitiesVK::SupportsComputeSubgroups() const {
 
 // |Capabilities|
 bool CapabilitiesVK::SupportsReadFromResolve() const {
+  return false;
+}
+
+// |Capabilities|
+bool CapabilitiesVK::SupportsReadFromOnscreenTexture() const {
   return false;
 }
 

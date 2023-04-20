@@ -163,6 +163,8 @@ class RuntimeController : public PlatformConfigurationClient {
   ///
   std::unique_ptr<RuntimeController> Clone() const;
 
+  bool AddView(int64_t view_id);
+
   //----------------------------------------------------------------------------
   /// @brief      Forward the specified viewport metrics to the running isolate.
   ///             If the isolate is not running, these metrics will be saved and
@@ -172,7 +174,7 @@ class RuntimeController : public PlatformConfigurationClient {
   ///
   /// @return     If the window metrics were forwarded to the running isolate.
   ///
-  bool SetViewportMetrics(const ViewportMetrics& metrics);
+  bool SetViewportMetrics(int64_t view_id, const ViewportMetrics& metrics);
 
   //----------------------------------------------------------------------------
   /// @brief      Forward the specified locale data to the running isolate. If

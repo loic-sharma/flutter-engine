@@ -673,6 +673,8 @@ class Engine final : public RuntimeDelegate, PointerDataDispatcher::Delegate {
   ///
   std::optional<uint32_t> GetUIIsolateReturnCode();
 
+  void AddView(int64_t view_id);
+
   //----------------------------------------------------------------------------
   /// @brief      Updates the viewport metrics for the currently running Flutter
   ///             application. The viewport metrics detail the size of the
@@ -683,7 +685,7 @@ class Engine final : public RuntimeDelegate, PointerDataDispatcher::Delegate {
   ///
   /// @param[in]  metrics  The metrics
   ///
-  void SetViewportMetrics(const ViewportMetrics& metrics);
+  void SetViewportMetrics(int64_t view_id, const ViewportMetrics& metrics);
 
   //----------------------------------------------------------------------------
   /// @brief      Notifies the engine that the embedder has sent it a message.

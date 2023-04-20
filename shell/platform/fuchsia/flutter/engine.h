@@ -49,7 +49,9 @@ class Engine final : public fuchsia::memorypressure::Watcher {
     virtual void OnEngineTerminate(const Engine* holder) = 0;
   };
 
-  static flutter::ThreadHost CreateThreadHost(const std::string& name_prefix);
+  static flutter::ThreadHost CreateThreadHost(
+      const std::string& name_prefix,
+      const std::shared_ptr<sys::ServiceDirectory>& runner_services = nullptr);
 
   // Gfx connection ctor.
   Engine(Delegate& delegate,
@@ -147,7 +149,7 @@ class Engine final : public fuchsia::memorypressure::Watcher {
 
   std::unique_ptr<flutter::Studio> CreateStudio();
 
-  std::unique_ptr<flutter::Surface> CreateSurface();
+  std::unique_ptr<flutter::Surface> CreateSurface(int64_t view_id);
 
   Delegate& delegate_;
 

@@ -8,7 +8,6 @@
 
 #include <memory>
 
-#import "flutter/shell/platform/darwin/macos/framework/Headers/FlutterApplication.h"
 #import "flutter/shell/platform/darwin/macos/framework/Source/AccessibilityBridgeMac.h"
 #import "flutter/shell/platform/darwin/macos/framework/Source/FlutterCompositor.h"
 #import "flutter/shell/platform/darwin/macos/framework/Source/FlutterPlatformViewController.h"
@@ -52,11 +51,14 @@ typedef NS_ENUM(NSInteger, FlutterAppExitResponse) {
  * messages through the platform channel managed by the engine.
  */
 @interface FlutterEngineTerminationHandler : NSObject
+
+@property(nonatomic, readonly) BOOL shouldTerminate;
+
 - (instancetype)initWithEngine:(FlutterEngine*)engine
                     terminator:(nullable FlutterTerminationCallback)terminator;
 - (void)handleRequestAppExitMethodCall:(NSDictionary<NSString*, id>*)data
                                 result:(FlutterResult)result;
-- (void)requestApplicationTermination:(FlutterApplication*)sender
+- (void)requestApplicationTermination:(NSApplication*)sender
                              exitType:(FlutterAppExitType)type
                                result:(nullable FlutterResult)result;
 @end
@@ -104,31 +106,6 @@ typedef NS_ENUM(NSInteger, FlutterAppExitResponse) {
  * Provides the |FlutterEngineTerminationHandler| to be used for this engine.
  */
 @property(nonatomic, readonly) FlutterEngineTerminationHandler* terminationHandler;
-
-/**
- * Attach a view controller to the engine as its default controller.
- *
- * Practically, since FlutterEngine can only be attached with one controller,
- * the given controller, if successfully attached, will always have the default
- * view ID kFlutterDefaultViewId.
- *
- * The engine holds a weak reference to the attached view controller.
- *
- * If the given view controller is already attached to an engine, this call
- * throws an assertion.
- */
-- (void)addViewController:(FlutterViewController*)viewController;
-
-/**
- * Dissociate the given view controller from this engine.
- *
- * Practically, since FlutterEngine can only be attached with one controller,
- * the given controller must be the default view controller.
- *
- * If the view controller is not associated with this engine, this call throws an
- * assertion.
- */
-- (void)removeViewController:(FlutterViewController*)viewController;
 
 /**
  * The |FlutterViewController| associated with the given view ID, if any.

@@ -15,9 +15,11 @@
 #include "flutter/fml/time/time_point.h"
 #include "flutter/shell/common/serialization_callbacks.h"
 #include "fml/make_copyable.h"
-#include "third_party/skia/include/core/SkImageEncoder.h"
+#include "third_party/skia/include/core/SkImageInfo.h"
+#include "third_party/skia/include/core/SkMatrix.h"
 #include "third_party/skia/include/core/SkPictureRecorder.h"
 #include "third_party/skia/include/core/SkSerialProcs.h"
+#include "third_party/skia/include/core/SkSize.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/core/SkSurfaceCharacterization.h"
 #include "third_party/skia/include/utils/SkBase64.h"
@@ -49,6 +51,11 @@ fml::TaskRunnerAffineWeakPtr<Rasterizer> Rasterizer::GetWeakPtr() const {
 fml::TaskRunnerAffineWeakPtr<SnapshotDelegate> Rasterizer::GetSnapshotDelegate()
     const {
   return weak_factory_.GetWeakPtr();
+}
+
+void Rasterizer::SetImpellerContext(
+    std::weak_ptr<impeller::Context> impeller_context) {
+  impeller_context_ = std::move(impeller_context);
 }
 
 void Rasterizer::Setup(std::unique_ptr<Studio> studio) {
@@ -154,6 +161,10 @@ void Rasterizer::AddSurface(int64_t view_id, std::unique_ptr<Surface> surface) {
   }
 }
 
+void Rasterizer::RemoveSurface(int64_t view_id) {
+  surfaces_.erase(view_id);
+}
+
 std::shared_ptr<flutter::TextureRegistry> Rasterizer::GetTextureRegistry() {
   return compositor_context_->texture_registry();
 }
@@ -212,6 +223,7 @@ int Rasterizer::DrawLastLayerTree(
 RasterStatus Rasterizer::Draw(
     const std::shared_ptr<LayerTreePipeline>& pipeline,
     LayerTreeDiscardCallback discard_callback) {
+  fflush(stdout);
   TRACE_EVENT0("flutter", "GPURasterizer::Draw");
   if (raster_thread_merger_ &&
       !raster_thread_merger_->IsOnRasterizingThread()) {
@@ -231,6 +243,8 @@ RasterStatus Rasterizer::Draw(
 
         // TODO: We should record the start time for each layer tree.
         // Currently this records the start time for the first layer tree.
+        // Frame_timings_recorder->RecordRasterStart(fml::TimePoint::Now());
+
         frame_timings_recorder->RecordRasterStart(fml::TimePoint::Now());
 
         for (auto item : item->layer_trees) {
@@ -238,18 +252,29 @@ RasterStatus Rasterizer::Draw(
           std::shared_ptr<LayerTree> layer_tree = std::move(item.second);
           // TODO: Discard checks the layer tree's size matches the view's size.
           // This needs to be updated for multi-view.
-          if (discard_callback(*layer_tree.get())) {
+          if (discard_callback(view_id, *layer_tree.get())) {
             draw_result.raster_status = RasterStatus::kDiscarded;
           } else {
             draw_result = DoDraw(view_id, *frame_timings_recorder.get(),
                                  std::move(layer_tree));
           }
-        }
 
-        // TODO: We want to record raster end for each layer tree.
-        // Currently this records the end time for the last layer tree.
+          bool should_resubmit_frame =
+              ShouldResubmitFrame(draw_result.raster_status);
+          if (external_view_embedder_ &&
+              external_view_embedder_->GetUsedThisFrame()) {
+            external_view_embedder_->SetUsedThisFrame(false);
+            external_view_embedder_->EndFrame(should_resubmit_frame,
+                                              raster_thread_merger_);
+          }
+        }
         frame_timings_recorder->RecordRasterEnd(
             &compositor_context_->raster_cache());
+
+    // TODO: We want to record raster end for each layer tree.
+    // Currently this records the end time for the last layer tree.
+    // frame_timings_recorder->RecordRasterEnd(
+    //     &compositor_context_->raster_cache());
 
 // SceneDisplayLag events are disabled on Fuchsia.
 // see: https://github.com/flutter/flutter/issues/56598
@@ -313,13 +338,6 @@ RasterStatus Rasterizer::Draw(
     */
   } else if (draw_result.raster_status == RasterStatus::kEnqueuePipeline) {
     consume_result = PipelineConsumeResult::MoreAvailable;
-  }
-
-  // EndFrame should perform cleanups for the external_view_embedder.
-  if (external_view_embedder_ && external_view_embedder_->GetUsedThisFrame()) {
-    external_view_embedder_->SetUsedThisFrame(false);
-    external_view_embedder_->EndFrame(should_resubmit_frame,
-                                      raster_thread_merger_);
   }
 
   // Consume as many pipeline items as possible. But yield the event loop
@@ -584,8 +602,6 @@ RasterStatus Rasterizer::DrawToSurfaceUnsafe(
     embedder_root_canvas = external_view_embedder_->GetRootCanvas();
   }
 
-  frame_timings_recorder.RecordRasterStart(fml::TimePoint::Now());
-
   // On Android, the external view embedder deletes surfaces in `BeginFrame`.
   //
   // Deleting a surface also clears the GL context. Therefore, acquire the
@@ -593,8 +609,6 @@ RasterStatus Rasterizer::DrawToSurfaceUnsafe(
   auto frame =
       surface->AcquireFrame(surface_record->view_id, layer_tree->frame_size());
   if (frame == nullptr) {
-    frame_timings_recorder.RecordRasterEnd(
-        &compositor_context_->raster_cache());
     return RasterStatus::kFailed;
   }
 
@@ -617,7 +631,7 @@ RasterStatus Rasterizer::DrawToSurfaceUnsafe(
           .supports_readback,                // surface supports pixel reads
       raster_thread_merger_,                 // thread merger
       frame->GetDisplayListBuilder().get(),  // display list builder
-      studio_->GetAiksContext()              // aiks context
+      studio_->GetAiksContext().get()        // aiks context
   );
   if (compositor_frame) {
     compositor_context_->raster_cache().BeginFrame();
@@ -680,8 +694,8 @@ RasterStatus Rasterizer::DrawToSurfaceUnsafe(
     if (external_view_embedder_ &&
         (!raster_thread_merger_ || raster_thread_merger_->IsMerged())) {
       FML_DCHECK(!frame->IsSubmitted());
-      external_view_embedder_->SubmitFrame(studio_->GetContext(),
-                                           std::move(frame));
+      external_view_embedder_->SubmitFrame(
+          studio_->GetContext(), std::move(frame), surface_record->view_id);
     } else {
       frame->Submit();
     }

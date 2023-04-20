@@ -14,7 +14,6 @@
 #include "flutter/shell/platform/common/accessibility_bridge.h"
 #import "flutter/shell/platform/darwin/common/framework/Headers/FlutterChannels.h"
 #import "flutter/shell/platform/darwin/macos/framework/Headers/FlutterAppDelegate.h"
-#import "flutter/shell/platform/darwin/macos/framework/Headers/FlutterApplication.h"
 #import "flutter/shell/platform/darwin/macos/framework/Source/FlutterEngineTestUtils.h"
 #import "flutter/shell/platform/darwin/macos/framework/Source/FlutterViewControllerTestUtils.h"
 #include "flutter/shell/platform/embedder/embedder.h"
@@ -24,6 +23,8 @@
 
 // CREATE_NATIVE_ENTRY and MOCK_ENGINE_PROC are leaky by design
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
+
+constexpr int64_t kDefaultViewId = 0ll;
 
 @interface FlutterEngine (Test)
 /**
@@ -627,9 +628,10 @@ TEST_F(FlutterEngineTest, ThreadSynchronizerNotBlockingRasterThreadAfterShutdown
   [threadSynchronizer shutdown];
 
   std::thread rasterThread([&threadSynchronizer] {
-    [threadSynchronizer performCommit:CGSizeMake(100, 100)
-                               notify:^{
-                               }];
+    [threadSynchronizer performCommitForView:kDefaultViewId
+                                        size:CGSizeMake(100, 100)
+                                      notify:^{
+                                      }];
   });
 
   rasterThread.join();

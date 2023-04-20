@@ -155,6 +155,7 @@ void LayerTree::Paint(CompositorContext::ScopedFrame& frame,
 
   if (root_layer_->needs_painting(context)) {
     root_layer_->Paint(context);
+  } else {
   }
 }
 

@@ -30,7 +30,7 @@ class Scene;
 /// @brief An enum for defining the different kinds of accessibility features
 ///        that can be enabled by the platform.
 ///
-///         Must match the `AccessibilityFeatureFlag` enum in framework.
+///         Must match the `AccessibilityFeatures` class in framework.
 enum class AccessibilityFeatureFlag : int32_t {
   kAccessibleNavigation = 1 << 0,
   kInvertColors = 1 << 1,
@@ -267,6 +267,8 @@ class PlatformConfiguration final {
   ///
   void DidCreateIsolate();
 
+  void AddView(int64_t view_id);
+
   //----------------------------------------------------------------------------
   /// @brief      Update the specified locale data in the framework.
   ///
@@ -434,6 +436,7 @@ class PlatformConfiguration final {
  private:
   PlatformConfigurationClient* client_;
   tonic::DartPersistentValue on_error_;
+  tonic::DartPersistentValue add_view_;
   tonic::DartPersistentValue update_locales_;
   tonic::DartPersistentValue update_user_settings_data_;
   tonic::DartPersistentValue update_initial_lifecycle_state_;
@@ -444,6 +447,8 @@ class PlatformConfiguration final {
   tonic::DartPersistentValue begin_frame_;
   tonic::DartPersistentValue draw_frame_;
   tonic::DartPersistentValue report_timings_;
+
+  tonic::DartPersistentValue library_;
 
   std::unordered_map<int64_t, std::unique_ptr<Window>> windows_;
 
@@ -538,7 +543,7 @@ class PlatformConfigurationNativeApi {
   static void RegisterBackgroundIsolate(int64_t root_isolate_token);
 
  private:
-  static Dart_PerformanceMode current_performace_mode_;
+  static Dart_PerformanceMode current_performance_mode_;
 };
 
 }  // namespace flutter

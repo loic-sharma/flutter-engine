@@ -25,12 +25,27 @@
 #include "flutter/fml/synchronization/waitable_event.h"
 #include "flutter/fml/time/time_delta.h"
 #include "flutter/fml/time/time_point.h"
+#if IMPELLER_SUPPORTS_RENDERING
+// GN is having trouble understanding how this works in the Fuchsia builds.
+#include "flutter/impeller/aiks/aiks_context.h"  // nogncheck
+#include "flutter/impeller/renderer/context.h"   // nogncheck
+#endif                                           // IMPELLER_SUPPORTS_RENDERING
 #include "flutter/lib/ui/snapshot_delegate.h"
 #include "flutter/shell/common/pipeline.h"
 #include "flutter/shell/common/snapshot_controller.h"
 #include "flutter/shell/common/snapshot_surface_producer.h"
+#include "third_party/skia/include/core/SkData.h"
 #include "third_party/skia/include/core/SkImage.h"
+#include "third_party/skia/include/core/SkRect.h"
+#include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/gpu/GrDirectContext.h"
+
+#if !IMPELLER_SUPPORTS_RENDERING
+namespace impeller {
+class Context;
+class AiksContext;
+}  // namespace impeller
+#endif  // !IMPELLER_SUPPORTS_RENDERING
 
 namespace flutter {
 
@@ -139,6 +154,8 @@ class Rasterizer final : public SnapshotDelegate,
   ///
   ~Rasterizer();
 
+  void SetImpellerContext(std::weak_ptr<impeller::Context> impeller_context);
+
   //----------------------------------------------------------------------------
   /// @brief      Rasterizers may be created well before an on-screen studio is
   ///             available for rendering. Shells usually create a rasterizer in
@@ -191,6 +208,8 @@ class Rasterizer final : public SnapshotDelegate,
 
   void AddSurface(int64_t view_id, std::unique_ptr<Surface> surface);
 
+  void RemoveSurface(int64_t view_id);
+
   //----------------------------------------------------------------------------
   ///
   /// @bug        https://github.com/flutter/flutter/issues/33939
@@ -223,7 +242,8 @@ class Rasterizer final : public SnapshotDelegate,
 
   std::shared_ptr<flutter::TextureRegistry> GetTextureRegistry() override;
 
-  using LayerTreeDiscardCallback = std::function<bool(flutter::LayerTree&)>;
+  using LayerTreeDiscardCallback =
+      std::function<bool(int64_t, flutter::LayerTree&)>;
 
   //----------------------------------------------------------------------------
   /// @brief      Takes the next item from the layer tree pipeline and executes
@@ -547,6 +567,19 @@ class Rasterizer final : public SnapshotDelegate,
   Studio* GetStudio() const override { return studio_.get(); }
 
   // |SnapshotController::Delegate|
+  std::shared_ptr<impeller::AiksContext> GetAiksContext() const override {
+#if IMPELLER_SUPPORTS_RENDERING
+    if (studio_) {
+      return studio_->GetAiksContext();
+    }
+    if (auto context = impeller_context_.lock()) {
+      return std::make_shared<impeller::AiksContext>(context);
+    }
+#endif
+    return nullptr;
+  }
+
+  // |SnapshotController::Delegate|
   const std::unique_ptr<SnapshotSurfaceProducer>& GetSnapshotSurfaceProducer()
       const override {
     return snapshot_surface_producer_;
@@ -564,10 +597,9 @@ class Rasterizer final : public SnapshotDelegate,
       GrDirectContext* surface_context,
       bool compressed);
 
-  DoDrawResult DoDraw(
-      int64_t view_id,
-      FrameTimingsRecorder& frame_timings_recorder,
-      std::shared_ptr<flutter::LayerTree> layer_tree);
+  DoDrawResult DoDraw(int64_t view_id,
+                      FrameTimingsRecorder& frame_timings_recorder,
+                      std::shared_ptr<flutter::LayerTree> layer_tree);
 
   RasterStatus DrawToSurface(FrameTimingsRecorder& frame_timings_recorder,
                              flutter::LayerTree* layer_tree,
@@ -583,11 +615,14 @@ class Rasterizer final : public SnapshotDelegate,
 
   void FireNextFrameCallbackIfPresent();
 
-  static bool NoDiscard(const flutter::LayerTree& layer_tree) { return false; }
+  static bool NoDiscard(int64_t view_id, const flutter::LayerTree& layer_tree) {
+    return false;
+  }
   static bool ShouldResubmitFrame(const RasterStatus& raster_status);
 
   Delegate& delegate_;
   MakeGpuImageBehavior gpu_image_behavior_;
+  std::weak_ptr<impeller::Context> impeller_context_;
   std::unique_ptr<Studio> studio_;
   std::unordered_map<int64_t, SurfaceRecord> surfaces_;
   std::unique_ptr<SnapshotSurfaceProducer> snapshot_surface_producer_;

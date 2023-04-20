@@ -108,6 +108,7 @@ class PlatformView {
     /// @param[in]  metrics  The updated viewport metrics.
     ///
     virtual void OnPlatformViewSetViewportMetrics(
+        int64_t view_id,
         const ViewportMetrics& metrics) = 0;
 
     //--------------------------------------------------------------------------
@@ -470,7 +471,7 @@ class PlatformView {
   ///
   /// @param[in]  metrics  The updated viewport metrics.
   ///
-  void SetViewportMetrics(const ViewportMetrics& metrics);
+  void SetViewportMetrics(int64_t view_id, const ViewportMetrics& metrics);
 
   //----------------------------------------------------------------------------
   /// @brief      Used by embedders to notify the shell that a platform view
@@ -495,7 +496,7 @@ class PlatformView {
   virtual void NotifyDestroyed();
 
   std::unique_ptr<Studio> CreateStudio();
-  std::unique_ptr<Surface> CreateSurface();
+  std::unique_ptr<Surface> CreateSurface(int64_t view_id);
 
   //----------------------------------------------------------------------------
   /// @brief      Used by embedders to schedule a frame. In response to this

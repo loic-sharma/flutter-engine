@@ -13,9 +13,7 @@
 #include "flutter/shell/platform/embedder/embedder.h"
 
 #import "flutter/shell/platform/darwin/macos/framework/Headers/FlutterAppDelegate.h"
-#import "flutter/shell/platform/darwin/macos/framework/Headers/FlutterApplication.h"
 #import "flutter/shell/platform/darwin/macos/framework/Source/FlutterAppDelegate_Internal.h"
-#import "flutter/shell/platform/darwin/macos/framework/Source/FlutterApplication_Internal.h"
 #import "flutter/shell/platform/darwin/macos/framework/Source/FlutterCompositor.h"
 #import "flutter/shell/platform/darwin/macos/framework/Source/FlutterDartProject_Internal.h"
 #import "flutter/shell/platform/darwin/macos/framework/Source/FlutterMenuPlugin.h"
@@ -160,6 +158,13 @@ constexpr char kTextPlainFormat[] = "text/plain";
  */
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result;
 
+/**
+ * Generate a new unique view ID.
+ *
+ * IDs start from kFlutterDefaultViewId.
+ */
+- (uint64_t)generateViewId;
+
 @end
 
 #pragma mark -
@@ -176,15 +181,11 @@ constexpr char kTextPlainFormat[] = "text/plain";
   _terminator = terminator ? terminator : ^(id sender) {
     // Default to actually terminating the application. The terminator exists to
     // allow tests to override it so that an actual exit doesn't occur.
-    FlutterApplication* flutterApp = [FlutterApplication sharedApplication];
-    if (flutterApp && [flutterApp respondsToSelector:@selector(terminateApplication:)]) {
-      [[FlutterApplication sharedApplication] terminateApplication:sender];
-    } else if (flutterApp) {
-      [flutterApp terminate:sender];
-    }
+    NSApplication* flutterApp = [NSApplication sharedApplication];
+    [flutterApp terminate:sender];
   };
   FlutterAppDelegate* appDelegate =
-      (FlutterAppDelegate*)[[FlutterApplication sharedApplication] delegate];
+      (FlutterAppDelegate*)[[NSApplication sharedApplication] delegate];
   appDelegate.terminationHandler = self;
   return self;
 }
@@ -202,7 +203,7 @@ constexpr char kTextPlainFormat[] = "text/plain";
   FlutterAppExitType exitType =
       [type isEqualTo:@"cancelable"] ? kFlutterAppExitTypeCancelable : kFlutterAppExitTypeRequired;
 
-  [self requestApplicationTermination:[FlutterApplication sharedApplication]
+  [self requestApplicationTermination:[NSApplication sharedApplication]
                              exitType:exitType
                                result:result];
 }
@@ -212,6 +213,7 @@ constexpr char kTextPlainFormat[] = "text/plain";
 - (void)requestApplicationTermination:(id)sender
                              exitType:(FlutterAppExitType)type
                                result:(nullable FlutterResult)result {
+  _shouldTerminate = YES;
   switch (type) {
     case kFlutterAppExitTypeCancelable: {
       FlutterJSONMethodCodec* codec = [FlutterJSONMethodCodec sharedInstance];
@@ -238,6 +240,8 @@ constexpr char kTextPlainFormat[] = "text/plain";
                    NSDictionary* replyArgs = (NSDictionary*)decoded_reply;
                    if ([replyArgs[@"response"] isEqual:@"exit"]) {
                      _terminator(sender);
+                   } else if ([replyArgs[@"response"] isEqual:@"cancel"]) {
+                     _shouldTerminate = NO;
                    }
                    if (result != nil) {
                      result(replyArgs);
@@ -537,6 +541,8 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
   NSEnumerator* viewControllerEnumerator = [_viewControllers objectEnumerator];
   FlutterViewController* nextViewController;
   while ((nextViewController = [viewControllerEnumerator nextObject])) {
+    FlutterEngineResult result = _embedderAPI.AddRenderSurface(_engine, nextViewController.viewId);
+    NSAssert(result == kSuccess, @"Failed to add view %lld.", nextViewController.viewId);
     [self updateWindowMetricsForViewController:nextViewController];
   }
 
@@ -663,13 +669,11 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 
   _compositor.present_layers_callback = [](const FlutterLayer** layers,  //
                                            size_t layers_count,          //
+                                           int64_t view_id,              //
                                            void* user_data               //
                                         ) {
-    // TODO(dkwingsmt): This callback only supports single-view, therefore it
-    // only operates on the default view. To support multi-view, we need a new
-    // callback that also receives a view ID.
-    return reinterpret_cast<flutter::FlutterCompositor*>(user_data)->Present(kFlutterDefaultViewId,
-                                                                             layers, layers_count);
+    return reinterpret_cast<flutter::FlutterCompositor*>(user_data)->Present(view_id, layers,
+                                                                             layers_count);
   };
 
   _compositor.avoid_backing_store_cache = true;
@@ -685,15 +689,25 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 
 #pragma mark - Framework-internal methods
 
-- (void)addViewController:(FlutterViewController*)controller {
-  [self registerViewController:controller forId:kFlutterDefaultViewId];
+- (bool)addViewController:(FlutterViewController*)controller {
+  uint64_t viewId = [self generateViewId];
+  [self registerViewController:controller forId:viewId];
+  if (_engine != nullptr) {
+    FlutterEngineResult result = _embedderAPI.AddRenderSurface(_engine, viewId);
+    [controller loadView];
+    return result == kSuccess;
+  }
+  return true;
 }
 
-- (void)removeViewController:(nonnull FlutterViewController*)viewController {
+- (bool)removeViewController:(nonnull FlutterViewController*)viewController {
   NSAssert([viewController attached] && viewController.engine == self,
            @"The given view controller is not associated with this engine.");
+  [[FlutterView sharedThreadSynchronizer] deregisterView:viewController.viewId];
+  FlutterEngineResult result = _embedderAPI.RemoveRenderSurface(_engine, viewController.viewId);
   [self deregisterViewControllerForId:viewController.viewId];
   [self shutDownIfNeeded];
+  return result == kSuccess;
 }
 
 - (BOOL)running {
@@ -756,12 +770,6 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 }
 
 - (void)updateWindowMetricsForViewController:(FlutterViewController*)viewController {
-  if (viewController.viewId != kFlutterDefaultViewId) {
-    // TODO(dkwingsmt): The embedder API only supports single-view for now. As
-    // embedder APIs are converted to multi-view, this method should support any
-    // views.
-    return;
-  }
   if (!_engine || !viewController || !viewController.viewLoaded) {
     return;
   }
@@ -780,7 +788,7 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
       .left = static_cast<size_t>(scaledBounds.origin.x),
       .top = static_cast<size_t>(scaledBounds.origin.y),
   };
-  _embedderAPI.SendWindowMetricsEvent(_engine, &windowMetricsEvent);
+  _embedderAPI.SendWindowMetricsEvent(_engine, viewController.viewId, &windowMetricsEvent);
 }
 
 - (void)sendPointerEvent:(const FlutterPointerEvent&)event {
@@ -820,6 +828,12 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 }
 
 #pragma mark - Private methods
+
+- (uint64_t)generateViewId {
+  uint64_t result = _nextViewId;
+  _nextViewId += 1;
+  return result;
+}
 
 - (void)sendUserLocales {
   if (!self.running) {
@@ -900,6 +914,7 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
   }
 
   NSEnumerator* viewControllerEnumerator = [_viewControllers objectEnumerator];
+  [[FlutterView sharedThreadSynchronizer] shutdown];
   FlutterViewController* nextViewController;
   while ((nextViewController = [viewControllerEnumerator nextObject])) {
     [nextViewController.flutterView shutdown];
