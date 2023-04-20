@@ -2003,15 +2003,14 @@ void Shell::AddRenderSurface(int64_t view_id) {
     return;
   }
 
-  auto ui_task = [engine = engine_->GetWeakPtr(),  //
-                  view_id                          //
-  ] { engine->AddView(view_id); };
+  task_runners_.GetUITaskRunner()->PostTask([engine = engine_->GetWeakPtr(),  //
+                                             view_id                          //
+  ] { engine->AddView(view_id); });
+
   // TODO(dkwingsmt): platform_view_ is captured illegally here.
   // We need some mechanism from it being collected.
   task_runners_.GetRasterTaskRunner()->PostTask(
-      fml::MakeCopyable([&task_runners = task_runners_,           //
-                         ui_task,                                 //
-                         platform_view = platform_view_.get(),    //
+      fml::MakeCopyable([platform_view = platform_view_.get(),    //
                          rasterizer = rasterizer_->GetWeakPtr(),  //
                          view_id                                  //
   ]() mutable {
@@ -2021,7 +2020,6 @@ void Shell::AddRenderSurface(int64_t view_id) {
           if (surface) {
             rasterizer->AddSurface(view_id, std::move(surface));
           }
-          task_runners.GetUITaskRunner()->PostTask(ui_task);
         }
       }));
 }

@@ -333,7 +333,6 @@ void RuntimeController::ScheduleFrame() {
 
 // |PlatformConfigurationClient|
 void RuntimeController::Render(int64_t view_id, Scene* scene) {
-  printf("RuntimeController::Render %lld start\n", view_id);
   client_.Render(view_id, scene->takeLayerTree());
 }
 
