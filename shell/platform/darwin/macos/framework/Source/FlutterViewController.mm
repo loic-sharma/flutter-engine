@@ -477,6 +477,10 @@ static void CommonInit(FlutterViewController* controller, FlutterEngine* engine)
   [self listenForMetaModifiedKeyUpEvents];
 }
 
+- (void)viewDidAppear {
+  [_engine updateWindowMetricsForViewController:self];
+}
+
 - (void)viewWillDisappear {
   // Per Apple's documentation, it is discouraged to call removeMonitor: in dealloc, and it's
   // recommended to be called earlier in the lifecycle.
@@ -853,7 +857,8 @@ static void CommonInit(FlutterViewController* controller, FlutterEngine* engine)
                                           commandQueue:(id<MTLCommandQueue>)commandQueue {
   return [[FlutterView alloc] initWithMTLDevice:device
                                    commandQueue:commandQueue
-                                reshapeListener:self];
+                                reshapeListener:self
+                                         viewId:_viewId];
 }
 
 - (void)onKeyboardLayoutChanged {

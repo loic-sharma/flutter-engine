@@ -241,7 +241,7 @@ RasterStatus Rasterizer::Draw(
         std::unique_ptr<FrameTimingsRecorder> frame_timings_recorder =
             std::move(item->frame_timings_recorder);
         int64_t view_id = item->view_id;
-        if (discard_callback(*layer_tree.get())) {
+        if (discard_callback(view_id, *layer_tree.get())) {
           draw_result.raster_status = RasterStatus::kDiscarded;
         } else {
           draw_result = DoDraw(view_id, std::move(frame_timings_recorder),
@@ -675,8 +675,8 @@ RasterStatus Rasterizer::DrawToSurfaceUnsafe(
     if (external_view_embedder_ &&
         (!raster_thread_merger_ || raster_thread_merger_->IsMerged())) {
       FML_DCHECK(!frame->IsSubmitted());
-      external_view_embedder_->SubmitFrame(studio_->GetContext(),
-                                           std::move(frame));
+      external_view_embedder_->SubmitFrame(
+          studio_->GetContext(), std::move(frame), surface_record->view_id);
     } else {
       frame->Submit();
     }

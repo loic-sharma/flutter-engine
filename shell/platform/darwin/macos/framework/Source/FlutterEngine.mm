@@ -669,13 +669,11 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 
   _compositor.present_layers_callback = [](const FlutterLayer** layers,  //
                                            size_t layers_count,          //
+                                           int64_t view_id,              //
                                            void* user_data               //
                                         ) {
-    // TODO(dkwingsmt): This callback only supports single-view, therefore it
-    // only operates on the default view. To support multi-view, we need a new
-    // callback that also receives a view ID.
-    return reinterpret_cast<flutter::FlutterCompositor*>(user_data)->Present(kFlutterDefaultViewId,
-                                                                             layers, layers_count);
+    return reinterpret_cast<flutter::FlutterCompositor*>(user_data)->Present(view_id, layers,
+                                                                             layers_count);
   };
 
   _compositor.avoid_backing_store_cache = true;
@@ -770,12 +768,6 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 }
 
 - (void)updateWindowMetricsForViewController:(FlutterViewController*)viewController {
-  if (viewController.viewId != kFlutterDefaultViewId) {
-    // TODO(dkwingsmt): The embedder API only supports single-view for now. As
-    // embedder APIs are converted to multi-view, this method should support any
-    // views.
-    return;
-  }
   if (!_engine || !viewController || !viewController.viewLoaded) {
     return;
   }
@@ -794,7 +786,7 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
       .left = static_cast<size_t>(scaledBounds.origin.x),
       .top = static_cast<size_t>(scaledBounds.origin.y),
   };
-  _embedderAPI.SendWindowMetricsEvent(_engine, &windowMetricsEvent);
+  _embedderAPI.SendWindowMetricsEvent(_engine, viewController.viewId, &windowMetricsEvent);
 }
 
 - (void)sendPointerEvent:(const FlutterPointerEvent&)event {
@@ -920,6 +912,7 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
   }
 
   NSEnumerator* viewControllerEnumerator = [_viewControllers objectEnumerator];
+  [[FlutterView sharedThreadSynchronizer] shutdown];
   FlutterViewController* nextViewController;
   while ((nextViewController = [viewControllerEnumerator nextObject])) {
     [nextViewController.flutterView shutdown];

@@ -242,7 +242,8 @@ class Rasterizer final : public SnapshotDelegate,
 
   std::shared_ptr<flutter::TextureRegistry> GetTextureRegistry() override;
 
-  using LayerTreeDiscardCallback = std::function<bool(flutter::LayerTree&)>;
+  using LayerTreeDiscardCallback =
+      std::function<bool(int64_t, flutter::LayerTree&)>;
 
   //----------------------------------------------------------------------------
   /// @brief      Takes the next item from the layer tree pipeline and executes
@@ -615,7 +616,9 @@ class Rasterizer final : public SnapshotDelegate,
 
   void FireNextFrameCallbackIfPresent();
 
-  static bool NoDiscard(const flutter::LayerTree& layer_tree) { return false; }
+  static bool NoDiscard(int64_t view_id, const flutter::LayerTree& layer_tree) {
+    return false;
+  }
   static bool ShouldResubmitFrame(const RasterStatus& raster_status);
 
   Delegate& delegate_;
