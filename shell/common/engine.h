@@ -675,6 +675,8 @@ class Engine final : public RuntimeDelegate, PointerDataDispatcher::Delegate {
 
   void AddView(int64_t view_id);
 
+  void RemoveView(int64_t view_id);
+
   //----------------------------------------------------------------------------
   /// @brief      Updates the viewport metrics for the currently running Flutter
   ///             application. The viewport metrics detail the size of the

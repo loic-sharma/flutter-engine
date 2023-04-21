@@ -22,6 +22,8 @@
 namespace flutter {
 namespace {
 
+constexpr int64_t kFlutterDefaultViewId = 0ll;
+
 Dart_Handle ToByteData(const fml::Mapping& buffer) {
   return tonic::DartByteData::Create(buffer.GetMapping(), buffer.GetSize());
 }
@@ -32,11 +34,13 @@ PlatformConfigurationClient::~PlatformConfigurationClient() {}
 
 PlatformConfiguration::PlatformConfiguration(
     PlatformConfigurationClient* client)
-    : client_(client) {}
+    : client_(client) {
+  if (client_->ImplicitViewEnabled()) {
+    AddView(kFlutterDefaultViewId);
+  }
+}
 
 PlatformConfiguration::~PlatformConfiguration() {}
-
-constexpr int64_t kFlutterDefaultViewId = 0ll;
 
 void PlatformConfiguration::DidCreateIsolate() {
   Dart_Handle library = Dart_LookupLibrary(tonic::ToDart("dart:ui"));
@@ -45,6 +49,8 @@ void PlatformConfiguration::DidCreateIsolate() {
                 Dart_GetField(library, tonic::ToDart("_onError")));
   add_view_.Set(tonic::DartState::Current(),
                 Dart_GetField(library, tonic::ToDart("_addView")));
+  remove_view_.Set(tonic::DartState::Current(),
+                Dart_GetField(library, tonic::ToDart("_removeView")));
   update_locales_.Set(tonic::DartState::Current(),
                       Dart_GetField(library, tonic::ToDart("_updateLocales")));
   update_user_settings_data_.Set(
@@ -74,11 +80,23 @@ void PlatformConfiguration::DidCreateIsolate() {
 
   library_.Set(tonic::DartState::Current(),
                Dart_LookupLibrary(tonic::ToDart("dart:ui")));
-  // TODO(dkwingsmt): We need to add view here, otherwise the app won't start.
-  // I suspect it's because the Dart runtime is created later than the view is
-  // added. We probably need the initial state fetching feature to resolve
-  // this.
-  AddView(kFlutterDefaultViewId);
+
+  SendViewConfigurations();
+}
+
+void PlatformConfiguration::SendViewConfigurations() {
+  std::shared_ptr<tonic::DartState> dart_state = library_.dart_state().lock();
+  FML_DCHECK(dart_state);
+  tonic::DartState::Scope scope(dart_state);
+
+  // TODO(dkwingsmt): send all of ViewportMetrics
+  std::vector<int64_t> view_ids;
+  for (const auto& [view_id, window] : windows_) {
+    view_ids.push_back(view_id);
+  }
+
+  tonic::CheckAndHandleError(tonic::DartInvokeField(
+      library_.value(), "_sendViewConfigurations", {tonic::ToDart(view_ids)}));
 }
 
 void PlatformConfiguration::AddView(int64_t view_id) {
@@ -91,14 +109,24 @@ void PlatformConfiguration::AddView(int64_t view_id) {
   if (!dart_state) {
     return;
   }
-  bool is_existing_implicit_view = view_id == kFlutterDefaultViewId;
-  if (!is_existing_implicit_view) {
-    tonic::DartState::Scope scope(dart_state);
-    tonic::CheckAndHandleError(
-        tonic::DartInvoke(add_view_.Get(), {
-                                               tonic::ToDart(view_id),
-                                           }));
+  tonic::DartState::Scope scope(dart_state);
+  tonic::CheckAndHandleError(
+      tonic::DartInvoke(add_view_.Get(), {
+                                              tonic::ToDart(view_id),
+                                          }));
+}
+
+void PlatformConfiguration::RemoveView(int64_t view_id) {
+  windows_.erase(view_id);
+  std::shared_ptr<tonic::DartState> dart_state = remove_view_.dart_state().lock();
+  if (!dart_state) {
+    return;
   }
+  tonic::DartState::Scope scope(dart_state);
+  tonic::CheckAndHandleError(
+      tonic::DartInvoke(remove_view_.Get(), {
+                                              tonic::ToDart(view_id),
+                                          }));
 }
 
 void PlatformConfiguration::UpdateLocales(

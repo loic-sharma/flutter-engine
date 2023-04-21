@@ -2030,7 +2030,10 @@ void Shell::RemoveRenderSurface(int64_t view_id) {
   FML_DCHECK(task_runners_.GetPlatformTaskRunner()->RunsTasksOnCurrentThread());
 
   fml::AutoResetWaitableEvent latch;
-  // platform_view_->RemoveSurface(view_id); // TODO
+  // platform_view_->RemoveSurface(view_id);
+  task_runners_.GetUITaskRunner()->PostTask([engine = engine_->GetWeakPtr(),  //
+                                             view_id                          //
+  ] { engine->RemoveView(view_id); });
   task_runners_.GetRasterTaskRunner()->PostTask(
       [&latch,                                  //
        rasterizer = rasterizer_->GetWeakPtr(),  //

@@ -135,6 +135,15 @@ bool RuntimeController::AddView(int64_t view_id) {
   return false;
 }
 
+bool RuntimeController::RemoveView(int64_t view_id) {
+  if (auto* platform_configuration = GetPlatformConfigurationIfAvailable()) {
+    platform_configuration->RemoveView(view_id);
+    return true;
+  }
+
+  return false;
+}
+
 bool RuntimeController::SetViewportMetrics(int64_t view_id,
                                            const ViewportMetrics& metrics) {
   TRACE_EVENT0("flutter", "SetViewportMetrics");

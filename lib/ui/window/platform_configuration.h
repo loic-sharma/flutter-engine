@@ -269,6 +269,8 @@ class PlatformConfiguration final {
 
   void AddView(int64_t view_id);
 
+  void RemoveView(int64_t view_id);
+
   //----------------------------------------------------------------------------
   /// @brief      Update the specified locale data in the framework.
   ///
@@ -444,6 +446,7 @@ class PlatformConfiguration final {
   PlatformConfigurationClient* client_;
   tonic::DartPersistentValue on_error_;
   tonic::DartPersistentValue add_view_;
+  tonic::DartPersistentValue remove_view_;
   tonic::DartPersistentValue update_locales_;
   tonic::DartPersistentValue update_user_settings_data_;
   tonic::DartPersistentValue update_initial_lifecycle_state_;
@@ -457,12 +460,18 @@ class PlatformConfiguration final {
 
   tonic::DartPersistentValue library_;
 
+  // All *actual* views that the app has.
+  //
+  // This means that, if implicit view is enabled but the implicit view is
+  // currently closed, `windows_` will not have an entry for ID 0.
   std::unordered_map<int64_t, std::unique_ptr<Window>> windows_;
 
   // ID starts at 1 because an ID of 0 indicates that no response is expected.
   int next_response_id_ = 1;
   std::unordered_map<int, fml::RefPtr<PlatformMessageResponse>>
       pending_responses_;
+
+  void SendViewConfigurations();
 };
 
 //----------------------------------------------------------------------------
