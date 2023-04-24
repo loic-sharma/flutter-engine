@@ -694,7 +694,6 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
   [self registerViewController:controller forId:viewId];
   if (_engine != nullptr) {
     FlutterEngineResult result = _embedderAPI.AddRenderSurface(_engine, viewId);
-    [controller loadView];
     return result == kSuccess;
   }
   return true;

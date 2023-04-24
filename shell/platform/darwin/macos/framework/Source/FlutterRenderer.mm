@@ -96,7 +96,6 @@ static bool OnAcquireExternalTexture(FlutterEngine* engine,
 }
 
 - (BOOL)present:(const FlutterMetalTexture*)texture {
-  NSLog(@"Presenting to %lld", texture->view_id);
   FlutterView* view = [_viewProvider viewForId:texture->view_id];
   if (view == nil) {
     return NO;
