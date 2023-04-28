@@ -10,6 +10,8 @@ impeller_component("aiks") {
     "aiks_context.h",
     "canvas.cc",
     "canvas.h",
+    "color_source.cc",
+    "color_source.h",
     "image.cc",
     "image.h",
     "paint.cc",
@@ -59,7 +61,10 @@ impeller_component("aiks_unittests") {
 impeller_component("aiks_unittests_golden") {
   testonly = true
 
-  defines = [ "IMPELLER_GOLDEN_TESTS" ]
+  defines = [
+    "IMPELLER_GOLDEN_TESTS",
+    "IMPELLER_ENABLE_VALIDATION=1",
+  ]
 
   sources = [ "aiks_unittests.cc" ]
   deps = [
