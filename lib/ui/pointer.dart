@@ -176,6 +176,7 @@ class PointerData {
     this.panDeltaY = 0.0,
     this.scale = 0.0,
     this.rotation = 0.0,
+    this.viewId = 0,
   });
 
   /// Unique identifier that ties the [PointerEvent] to embedder event created it.
@@ -374,6 +375,9 @@ class PointerData {
   /// The current angle of the pan/zoom in radians, with 0.0 as the initial angle.
   final double rotation;
 
+  /// The identifier of the view this pointer event is for.
+  final int viewId;
+
   @override
   String toString() => 'PointerData(x: $physicalX, y: $physicalY)';
 
@@ -413,7 +417,8 @@ class PointerData {
              'panDeltaX: $panDeltaX, '
              'panDeltaY: $panDeltaY, '
              'scale: $scale, '
-             'rotation: $rotation'
+             'rotation: $rotation, '
+             'viewId: $viewId '
            ')';
   }
 }
