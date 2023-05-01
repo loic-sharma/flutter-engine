@@ -111,7 +111,7 @@ void Animator::BeginFrame(
         std::move(layer_trees), std::move(frame_timings_recorder_));
 
     // Reset the layer trees container as it was moved.
-    layer_trees = std::unordered_map<int64_t, std::shared_ptr<LayerTree>>();
+    layer_trees = std::unordered_map<int64_t, std::unique_ptr<LayerTree>>();
 
     // Commit the pending continuation.
     PipelineProduceResult result =
@@ -158,7 +158,7 @@ void Animator::BeginFrame(
 }
 
 void Animator::Render(int64_t view_id,
-                      std::shared_ptr<flutter::LayerTree> layer_tree) {
+                      std::unique_ptr<flutter::LayerTree> layer_tree) {
   has_rendered_ = true;
   last_layer_tree_size_ = layer_tree->frame_size();
 

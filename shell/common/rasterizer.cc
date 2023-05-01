@@ -246,9 +246,9 @@ RasterStatus Rasterizer::Draw(
 
         frame_timings_recorder->RecordRasterStart(fml::TimePoint::Now());
 
-        for (auto item : item->layer_trees) {
+        for (auto& item : item->layer_trees) {
           int64_t view_id = item.first;
-          std::shared_ptr<LayerTree> layer_tree = std::move(item.second);
+          std::unique_ptr<LayerTree> layer_tree = std::move(item.second);
           // TODO: Discard checks the layer tree's size matches the view's size.
           // This needs to be updated for multi-view.
           if (discard_callback(view_id, *layer_tree.get())) {
@@ -481,7 +481,7 @@ fml::Milliseconds Rasterizer::GetFrameBudget() const {
 Rasterizer::DoDrawResult Rasterizer::DoDraw(
     int64_t view_id,
     FrameTimingsRecorder& frame_timings_recorder,
-    std::shared_ptr<flutter::LayerTree> layer_tree) {
+    std::unique_ptr<flutter::LayerTree> layer_tree) {
   TRACE_EVENT_WITH_FRAME_NUMBER(&frame_timings_recorder, "flutter",
                                 "Rasterizer::DoDraw");
   FML_DCHECK(delegate_.GetTaskRunners()

@@ -258,11 +258,11 @@ class Pipeline {
 
 struct LayerTreeItem {
   LayerTreeItem(
-      std::unordered_map<int64_t, std::shared_ptr<LayerTree>> layer_trees,
+      std::unordered_map<int64_t, std::unique_ptr<LayerTree>> layer_trees,
       std::unique_ptr<FrameTimingsRecorder> frame_timings_recorder)
       : layer_trees(std::move(layer_trees)),
         frame_timings_recorder(std::move(frame_timings_recorder)) {}
-  std::unordered_map<int64_t, std::shared_ptr<LayerTree>> layer_trees;
+  std::unordered_map<int64_t, std::unique_ptr<LayerTree>> layer_trees;
   std::unique_ptr<FrameTimingsRecorder> frame_timings_recorder;
 };
 
