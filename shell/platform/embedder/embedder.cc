@@ -2051,13 +2051,14 @@ FlutterEngineResult FlutterEngineShutdown(FLUTTER_API_SYMBOL(FlutterEngine)
 FLUTTER_EXPORT
 FlutterEngineResult FlutterEngineAddRenderSurface(
     FLUTTER_API_SYMBOL(FlutterEngine) engine,
-    int64_t view_id) {
+    const FlutterRenderSurfaceConfig* config,
+    void* user_data) {
   if (engine == nullptr) {
     return LOG_EMBEDDER_ERROR(kInvalidArguments, "Engine handle was invalid.");
   }
   flutter::EmbedderEngine* embedder_engine =
       reinterpret_cast<flutter::EmbedderEngine*>(engine);
-  embedder_engine->GetShell().AddRenderSurface(view_id);
+  embedder_engine->GetShell().AddRenderSurface(config->view_id);
 
   return kSuccess;
 }

@@ -89,7 +89,7 @@ constexpr char kTextPlainFormat[] = "text/plain";
 - (nullable FlutterViewController*)viewControllerForId:(FlutterViewId)viewId;
 
 /**
- * An internal method that adds the view controller with the given ID.
+ * Stores the view controller in this class.
  *
  * This method assigns the controller with the ID, puts the controller into the
  * map, and does assertions related to the default view ID.
@@ -97,13 +97,33 @@ constexpr char kTextPlainFormat[] = "text/plain";
 - (void)registerViewController:(FlutterViewController*)controller forId:(FlutterViewId)viewId;
 
 /**
- * An internal method that removes the view controller with the given ID.
+ * Removes the view controller from this class.
  *
  * This method clears the ID of the controller, removes the controller from the
  * map. This is an no-op if the view ID is not associated with any view
  * controllers.
  */
 - (void)deregisterViewControllerForId:(FlutterViewId)viewId;
+
+/**
+ * Notifies the Engine of the addition of the specified view.
+ *
+ * This method calls the embedder API, which allocates GPU resources and sends
+ * the message to the framework.
+ *
+ * This method might be called in addViewController or when the engine is
+ * launched, whichever comes the last.
+ *
+ * This method returns true if the operation is successful.
+ */
+- (BOOL)addViewToEmbedderEngine:(FlutterViewId)viewId;
+
+/**
+ * Notifies the Engine of the removal of the specified view.
+ *
+ * This method returns true if the operation is successful.
+ */
+- (BOOL)removeViewFromEmbedderEngine:(FlutterViewId)viewId;
 
 /**
  * Shuts down the engine if view requirement is not met, and headless execution
@@ -161,7 +181,7 @@ constexpr char kTextPlainFormat[] = "text/plain";
  *
  * IDs start from kFlutterDefaultViewId.
  */
-- (uint64_t)generateViewId;
+- (FlutterViewId)generateViewId;
 
 @end
 
@@ -541,8 +561,8 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
   NSEnumerator* viewControllerEnumerator = [_viewControllers objectEnumerator];
   FlutterViewController* nextViewController;
   while ((nextViewController = [viewControllerEnumerator nextObject])) {
-    FlutterEngineResult result = _embedderAPI.AddRenderSurface(_engine, nextViewController.viewId);
-    NSAssert(result == kSuccess, @"Failed to add view %lld.", nextViewController.viewId);
+    bool successful = [self addViewToEmbedderEngine:nextViewController.viewId];
+    NSAssert(successful, @"Failed to add view %lld.", nextViewController.viewId);
     [self updateWindowMetricsForViewController:nextViewController];
   }
 
@@ -595,6 +615,19 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
     [oldController detachFromEngine];
     [_viewControllers removeObjectForKey:@(viewId)];
   }
+}
+
+- (BOOL)addViewToEmbedderEngine:(FlutterViewId)viewId {
+  FlutterRenderSurfaceConfig config{
+    .view_id = viewId,
+  };
+  FlutterEngineResult result = _embedderAPI.AddRenderSurface(_engine, &config, nullptr);
+  return result == kSuccess;
+}
+
+- (BOOL)removeViewFromEmbedderEngine:(FlutterViewId)viewId {
+  FlutterEngineResult result = _embedderAPI.RemoveRenderSurface(_engine, viewId);
+  return result == kSuccess;
 }
 
 - (void)shutDownIfNeeded {
@@ -690,22 +723,28 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 #pragma mark - Framework-internal methods
 
 - (bool)addViewController:(FlutterViewController*)controller {
-  uint64_t viewId = [self generateViewId];
+  FlutterViewId viewId = [self generateViewId];
   [self registerViewController:controller forId:viewId];
   if (_engine != nullptr) {
-    FlutterEngineResult result = _embedderAPI.AddRenderSurface(_engine, viewId);
-    return result == kSuccess;
+    return [self addViewToEmbedderEngine:viewId];
+  } else {
+    // The engine will be notified of the new view when it's launched.
+    return true;
   }
-  return true;
 }
 
 - (bool)removeViewController:(nonnull FlutterViewController*)viewController {
   NSAssert([viewController attached] && viewController.engine == self,
            @"The given view controller is not associated with this engine.");
-  FlutterEngineResult result = _embedderAPI.RemoveRenderSurface(_engine, viewController.viewId);
+  bool embedderEngineResult;
+  if (_engine != nullptr) {
+    embedderEngineResult = [self removeViewFromEmbedderEngine:viewController.viewId];
+  } else {
+    embedderEngineResult = true;
+  }
   [self deregisterViewControllerForId:viewController.viewId];
   [self shutDownIfNeeded];
-  return result == kSuccess;
+  return embedderEngineResult;
 }
 
 - (BOOL)running {
@@ -827,8 +866,8 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 
 #pragma mark - Private methods
 
-- (uint64_t)generateViewId {
-  uint64_t result = _nextViewId;
+- (FlutterViewId)generateViewId {
+  FlutterViewId result = _nextViewId;
   _nextViewId += 1;
   return result;
 }

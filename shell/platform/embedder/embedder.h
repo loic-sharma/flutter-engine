@@ -808,6 +808,10 @@ typedef struct {
 } FlutterRendererConfig;
 
 typedef struct {
+  int64_t view_id;
+} FlutterRenderSurfaceConfig;
+
+typedef struct {
   /// The size of this struct. Must be sizeof(FlutterWindowMetricsEvent).
   size_t struct_size;
   /// Physical width of the window.
@@ -1598,10 +1602,10 @@ typedef bool (*FlutterLayersPresentCallback)(const FlutterLayer** layers,
 typedef struct {
   /// This size of this struct. Must be sizeof(FlutterCompositor).
   size_t struct_size;
-  /// A baton that in not interpreted by the engine in any way. If it passed
+  /// A baton that in not interpreted by the engine in any way. It is passed
   /// back to the embedder in `FlutterCompositor.create_backing_store_callback`,
   /// `FlutterCompositor.collect_backing_store_callback` and
-  /// `FlutterCompositor.present_layers_callback`
+  /// `FlutterCompositor.present_layers_callback`.
   void* user_data;
   /// A callback invoked by the engine to obtain a backing store for a specific
   /// `FlutterLayer`.
@@ -2249,7 +2253,8 @@ FlutterEngineResult FlutterEngineRunInitialized(
 FLUTTER_EXPORT
 FlutterEngineResult FlutterEngineAddRenderSurface(
     FLUTTER_API_SYMBOL(FlutterEngine) engine,
-    int64_t view_id);
+    const FlutterRenderSurfaceConfig* config,
+    void* user_data);
 
 FLUTTER_EXPORT
 FlutterEngineResult FlutterEngineRemoveRenderSurface(
@@ -2833,7 +2838,8 @@ typedef FlutterEngineResult (*FlutterEngineRunInitializedFnPtr)(
     FLUTTER_API_SYMBOL(FlutterEngine) engine);
 typedef FlutterEngineResult (*FlutterEngineAddRenderSurfaceFnPtr)(
     FLUTTER_API_SYMBOL(FlutterEngine) engine,
-    int64_t view_id);
+    const FlutterRenderSurfaceConfig* config,
+    void* user_data);
 typedef FlutterEngineResult (*FlutterEngineRemoveRenderSurfaceFnPtr)(
     FLUTTER_API_SYMBOL(FlutterEngine) engine,
     int64_t view_id);
