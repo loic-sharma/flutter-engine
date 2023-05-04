@@ -376,7 +376,7 @@ class PointerData {
   final double rotation;
 
   /// The identifier of the view this pointer event is for.
-  final int viewId;
+  final Object viewId;
 
   @override
   String toString() => 'PointerData(x: $physicalX, y: $physicalY)';

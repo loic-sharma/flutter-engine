@@ -108,7 +108,7 @@ class PointerData {
   final double panDeltaY;
   final double scale;
   final double rotation;
-  final int viewId;
+  final Object viewId;
 
   @override
   String toString() => 'PointerData(x: $physicalX, y: $physicalY)';
