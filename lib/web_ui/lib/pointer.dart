@@ -71,6 +71,7 @@ class PointerData {
     this.panDeltaY = 0.0,
     this.scale = 0.0,
     this.rotation = 0.0,
+    this.viewId = 0,
   });
   final int embedderId;
   final Duration timeStamp;
@@ -107,6 +108,7 @@ class PointerData {
   final double panDeltaY;
   final double scale;
   final double rotation;
+  final Object viewId;
 
   @override
   String toString() => 'PointerData(x: $physicalX, y: $physicalY)';
@@ -145,7 +147,8 @@ class PointerData {
            'panDeltaX: $panDeltaX, '
            'panDeltaY: $panDeltaY, '
            'scale: $scale, '
-           'rotation: $rotation'
+           'rotation: $rotation, '
+           'viewId: $viewId'
            ')';
   }
 }
