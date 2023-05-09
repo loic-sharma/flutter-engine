@@ -9,6 +9,19 @@
 
 #include <stdint.h>
 
+typedef int64_t FlutterViewId;
+
+/**
+ * The view ID for APIs that don't support multi-view.
+ *
+ * Some single-view APIs will eventually be replaced by their multi-view
+ * variant. During the deprecation period, the single-view APIs will coexist with
+ * and work with the multi-view APIs as if the other views don't exist.  For
+ * backward compatibility, single-view APIs will always operate on the view with
+ * this ID. Also, the first view assigned to the engine will also have this ID.
+ */
+constexpr FlutterViewId kFlutterDefaultViewId = 0ll;
+
 /**
  * Listener for view resizing.
  */
@@ -31,6 +44,7 @@
 - (nullable instancetype)initWithMTLDevice:(nonnull id<MTLDevice>)device
                               commandQueue:(nonnull id<MTLCommandQueue>)commandQueue
                            reshapeListener:(nonnull id<FlutterViewReshapeListener>)reshapeListener
+                              synchronizer:(nonnull FlutterThreadSynchronizer*)synchronizer
                                     viewId:(int64_t)viewId NS_DESIGNATED_INITIALIZER;
 
 - (nullable instancetype)initWithFrame:(NSRect)frameRect
@@ -59,17 +73,5 @@
  * with.
  */
 - (void)setBackgroundColor:(nonnull NSColor*)color;
-
-+ (nonnull FlutterThreadSynchronizer*)sharedThreadSynchronizer;
-
-@end
-
-@interface FlutterView (FlutterViewPrivate)
-
-/**
- * Returns FlutterThreadSynchronizer for this view.
- * Used for FlutterEngineTest.
- */
-- (nonnull FlutterThreadSynchronizer*)threadSynchronizer;
 
 @end

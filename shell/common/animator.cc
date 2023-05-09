@@ -108,7 +108,8 @@ void Animator::BeginFrame(
     frame_timings_recorder_->RecordBuildEnd(fml::TimePoint::Now());
 
     auto layer_tree_item = std::make_unique<LayerTreeItem>(
-        std::move(layer_trees), std::move(frame_timings_recorder_));
+        std::move(layer_trees), std::move(frame_timings_recorder_),
+        device_pixel_ratio_);
 
     // Reset the layer trees container as it was moved.
     layer_trees = std::unordered_map<int64_t, std::unique_ptr<LayerTree>>();
@@ -158,7 +159,8 @@ void Animator::BeginFrame(
 }
 
 void Animator::Render(int64_t view_id,
-                      std::unique_ptr<flutter::LayerTree> layer_tree) {
+                      std::unique_ptr<flutter::LayerTree> layer_tree,
+                      float device_pixel_ratio) {
   has_rendered_ = true;
   last_layer_tree_size_ = layer_tree->frame_size();
 
@@ -184,6 +186,8 @@ void Animator::Render(int64_t view_id,
   // TODO: The framework can call render directly even if we didn't begin
   // a frame. In this scenario, we should notify the rasterizer of pending work.
   layer_trees[view_id] = std::move(layer_tree);
+  // TODO(dkwingsmt): Probably different DPR for different layer trees
+  device_pixel_ratio_ = device_pixel_ratio;
 }
 
 const std::weak_ptr<VsyncWaiter> Animator::GetVsyncWaiter() const {

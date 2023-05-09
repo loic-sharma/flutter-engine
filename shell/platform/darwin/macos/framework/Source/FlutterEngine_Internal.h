@@ -107,10 +107,12 @@ typedef NS_ENUM(NSInteger, FlutterAppExitResponse) {
  */
 @property(nonatomic, readonly) FlutterEngineTerminationHandler* terminationHandler;
 
+@property(nonatomic, readonly) FlutterThreadSynchronizer* synchronizer;
+
 /**
  * The |FlutterViewController| associated with the given view ID, if any.
  */
-- (nullable FlutterViewController*)viewControllerForId:(uint64_t)viewId;
+- (nullable FlutterViewController*)viewControllerForId:(FlutterViewId)viewId;
 
 /**
  * Informs the engine that the specified view controller's window metrics have changed.
