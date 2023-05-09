@@ -270,6 +270,8 @@ RasterStatus Rasterizer::Draw(
         frame_timings_recorder->RecordRasterEnd(
             &compositor_context_->raster_cache());
 
+        FireNextFrameCallbackIfPresent();
+
     // TODO: We want to record raster end for each layer tree.
     // Currently this records the end time for the last layer tree.
     // frame_timings_recorder->RecordRasterEnd(

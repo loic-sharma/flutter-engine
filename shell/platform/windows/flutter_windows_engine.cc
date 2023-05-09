@@ -464,7 +464,9 @@ void FlutterWindowsEngine::AddPluginRegistrarDestructionCallback(
 void FlutterWindowsEngine::SendWindowMetricsEvent(
     const FlutterWindowMetricsEvent& event) {
   if (engine_) {
-    embedder_api_.SendWindowMetricsEvent(engine_, &event);
+    // TODO(loicsharma): Remove this once the engine supports multiple views.
+    int64_t view_id = 0;
+    embedder_api_.SendWindowMetricsEvent(engine_, view_id, &event);
   }
 }
 
