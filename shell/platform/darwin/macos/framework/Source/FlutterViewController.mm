@@ -372,6 +372,10 @@ void OnKeyboardLayoutChanged(CFNotificationCenterRef center,
   std::shared_ptr<flutter::AccessibilityBridgeMac> _bridge;
 
   FlutterViewId _id;
+
+  // FlutterViewController does not actually uses the synchronizer, but only
+  // passes it to FlutterView.
+  __weak FlutterThreadSynchronizer* _weakSynchronizer;
 }
 
 @synthesize viewId = _viewId;
@@ -395,6 +399,7 @@ static void CommonInit(FlutterViewController* controller, FlutterEngine* engine)
             @"the FlutterEngine is mocked. Please subclass these classes instead.");
   controller->_mouseTrackingMode = FlutterMouseTrackingModeInKeyWindow;
   controller->_textInputPlugin = [[FlutterTextInputPlugin alloc] initWithViewController:controller];
+  controller->_weakSynchronizer = engine.synchronizer;
   [controller initializeKeyboard];
   [controller notifySemanticsEnabledChanged];
   // macOS fires this message when changing IMEs.
@@ -860,6 +865,7 @@ static void CommonInit(FlutterViewController* controller, FlutterEngine* engine)
   return [[FlutterView alloc] initWithMTLDevice:device
                                    commandQueue:commandQueue
                                 reshapeListener:self
+                                   synchronizer:_weakSynchronizer
                                          viewId:_viewId];
 }
 
@@ -868,6 +874,14 @@ static void CommonInit(FlutterViewController* controller, FlutterEngine* engine)
   if (_keyboardLayoutNotifier != nil) {
     _keyboardLayoutNotifier();
   }
+}
+
+- (NSString*)lookupKeyForAsset:(NSString*)asset {
+  return [FlutterDartProject lookupKeyForAsset:asset];
+}
+
+- (NSString*)lookupKeyForAsset:(NSString*)asset fromPackage:(NSString*)package {
+  return [FlutterDartProject lookupKeyForAsset:asset fromPackage:package];
 }
 
 #pragma mark - FlutterViewReshapeListener

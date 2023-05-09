@@ -6,8 +6,6 @@
 
 namespace flutter {
 
-constexpr int64_t kFlutterDefaultViewId = 0ll;
-
 IOSExternalViewEmbedder::IOSExternalViewEmbedder(
     const std::shared_ptr<FlutterPlatformViewsController>& platform_views_controller,
     std::shared_ptr<IOSContext> context)
@@ -69,12 +67,11 @@ DlCanvas* IOSExternalViewEmbedder::CompositeEmbeddedView(int64_t view_id) {
 
 // |ExternalViewEmbedder|
 void IOSExternalViewEmbedder::SubmitFrame(GrDirectContext* context,
-                                          std::unique_ptr<SurfaceFrame> frame) {
+                                          std::unique_ptr<SurfaceFrame> frame,
+                                          int64_t window_view_id) {
   TRACE_EVENT0("flutter", "IOSExternalViewEmbedder::SubmitFrame");
   FML_CHECK(platform_views_controller_);
-  // TODO(dkwingsmt)
-  platform_views_controller_->SubmitFrame(context, ios_context_, kFlutterDefaultViewId,
-                                          std::move(frame));
+  platform_views_controller_->SubmitFrame(context, ios_context_, window_view_id, std::move(frame));
   TRACE_EVENT0("flutter", "IOSExternalViewEmbedder::DidSubmitFrame");
 }
 

@@ -341,6 +341,14 @@ constexpr char kTextPlainFormat[] = "text/plain";
   [[_flutterEngine platformViewController] registerViewFactory:factory withId:factoryId];
 }
 
+- (NSString*)lookupKeyForAsset:(NSString*)asset {
+  return [FlutterDartProject lookupKeyForAsset:asset];
+}
+
+- (NSString*)lookupKeyForAsset:(NSString*)asset fromPackage:(NSString*)package {
+  return [FlutterDartProject lookupKeyForAsset:asset fromPackage:package];
+}
+
 @end
 
 // Callbacks provided to the engine. See the called methods for documentation.
@@ -401,6 +409,8 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
   // A method channel for miscellaneous platform functionality.
   FlutterMethodChannel* _platformChannel;
 
+  FlutterThreadSynchronizer* _synchronizer;
+
   int _nextViewId;
 }
 
@@ -440,6 +450,7 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
                            object:nil];
 
   _platformViewController = [[FlutterPlatformViewController alloc] init];
+  _synchronizer = [[FlutterThreadSynchronizer alloc] init];
   [self setUpPlatformViewChannel];
   [self setUpAccessibilityChannel];
   [self setUpNotificationCenterListeners];
@@ -619,7 +630,7 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 
 - (BOOL)addViewToEmbedderEngine:(FlutterViewId)viewId {
   FlutterRenderSurfaceConfig config{
-    .view_id = viewId,
+      .view_id = viewId,
   };
   FlutterEngineResult result = _embedderAPI.AddRenderSurface(_engine, &config, nullptr);
   return result == kSuccess;
@@ -951,7 +962,8 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
   }
 
   NSEnumerator* viewControllerEnumerator = [_viewControllers objectEnumerator];
-  [[FlutterView sharedThreadSynchronizer] shutdown];
+  [_synchronizer shutdown];
+  _synchronizer = nil;
   FlutterViewController* nextViewController;
   while ((nextViewController = [viewControllerEnumerator nextObject])) {
     [nextViewController.flutterView shutdown];
@@ -1117,6 +1129,10 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 
 - (std::vector<std::string>)switches {
   return flutter::GetSwitchesFromEnvironment();
+}
+
+- (FlutterThreadSynchronizer*)synchronizer {
+  return _synchronizer;
 }
 
 #pragma mark - FlutterBinaryMessenger
