@@ -675,6 +675,8 @@ class Engine final : public RuntimeDelegate, PointerDataDispatcher::Delegate {
 
   void AddView(int64_t view_id);
 
+  void RemoveView(int64_t view_id);
+
   //----------------------------------------------------------------------------
   /// @brief      Updates the viewport metrics for the currently running Flutter
   ///             application. The viewport metrics detail the size of the
@@ -686,6 +688,14 @@ class Engine final : public RuntimeDelegate, PointerDataDispatcher::Delegate {
   /// @param[in]  metrics  The metrics
   ///
   void SetViewportMetrics(int64_t view_id, const ViewportMetrics& metrics);
+
+  //----------------------------------------------------------------------------
+  /// @brief      Updates the display metrics for the currently running Flutter
+  ///             application.
+  ///
+  /// @param[in]  displays  A complete list of displays
+  ///
+  void SetDisplays(const std::vector<DisplayData>& displays);
 
   //----------------------------------------------------------------------------
   /// @brief      Notifies the engine that the embedder has sent it a message.
@@ -898,7 +908,8 @@ class Engine final : public RuntimeDelegate, PointerDataDispatcher::Delegate {
 
   // |RuntimeDelegate|
   void Render(int64_t view_id,
-              std::shared_ptr<flutter::LayerTree> layer_tree) override;
+              std::unique_ptr<flutter::LayerTree> layer_tree,
+              float device_pixel_ratio) override;
 
   // |RuntimeDelegate|
   void UpdateSemantics(SemanticsNodeUpdates update,

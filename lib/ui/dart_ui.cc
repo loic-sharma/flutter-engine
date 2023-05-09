@@ -81,7 +81,7 @@ typedef CanvasPath Path;
   V(PathMeasure::Create, 3)                                           \
   V(Path::Create, 1)                                                  \
   V(PictureRecorder::Create, 1)                                       \
-  V(SceneBuilder::Create, 2)                                          \
+  V(SceneBuilder::Create, 1)                                          \
   V(SemanticsUpdateBuilder::Create, 1)                                \
   /* Other */                                                         \
   V(FontCollection::LoadFontFromList, 3)                              \
@@ -286,7 +286,6 @@ typedef CanvasPath Path;
   V(SceneBuilder, pushImageFilter, 4)                  \
   V(SceneBuilder, pushOffset, 5)                       \
   V(SceneBuilder, pushOpacity, 6)                      \
-  V(SceneBuilder, pushPhysicalShape, 8)                \
   V(SceneBuilder, pushShaderMask, 10)                  \
   V(SceneBuilder, pushTransformHandle, 4)              \
   V(SceneBuilder, setCheckerboardOffscreenLayers, 2)   \

@@ -290,6 +290,10 @@ void Engine::AddView(int64_t view_id) {
   runtime_controller_->AddView(view_id);
 }
 
+void Engine::RemoveView(int64_t view_id) {
+  runtime_controller_->RemoveView(view_id);
+}
+
 void Engine::SetViewportMetrics(int64_t view_id,
                                 const ViewportMetrics& metrics) {
   runtime_controller_->SetViewportMetrics(view_id, metrics);
@@ -456,18 +460,18 @@ void Engine::ScheduleFrame(bool regenerate_layer_tree) {
 }
 
 void Engine::Render(int64_t view_id,
-                    std::shared_ptr<flutter::LayerTree> layer_tree) {
+                    std::unique_ptr<flutter::LayerTree> layer_tree,
+                    float device_pixel_ratio) {
   if (!layer_tree) {
     return;
   }
 
   // Ensure frame dimensions are sane.
-  if (layer_tree->frame_size().isEmpty() ||
-      layer_tree->device_pixel_ratio() <= 0.0f) {
+  if (layer_tree->frame_size().isEmpty() || device_pixel_ratio <= 0.0f) {
     return;
   }
 
-  animator_->Render(view_id, std::move(layer_tree));
+  animator_->Render(view_id, std::move(layer_tree), device_pixel_ratio);
 }
 
 void Engine::UpdateSemantics(SemanticsNodeUpdates update,
@@ -587,6 +591,11 @@ void Engine::LoadDartDeferredLibraryError(intptr_t loading_unit_id,
 
 const std::weak_ptr<VsyncWaiter> Engine::GetVsyncWaiter() const {
   return animator_->GetVsyncWaiter();
+}
+
+void Engine::SetDisplays(const std::vector<DisplayData>& displays) {
+  runtime_controller_->SetDisplays(displays);
+  ScheduleFrame();
 }
 
 }  // namespace flutter

@@ -20,6 +20,8 @@
 
 namespace flutter {
 
+constexpr uint64_t kFlutterDefaultViewId = 0ll;
+
 RuntimeController::RuntimeController(RuntimeDelegate& p_client,
                                      const TaskRunners& task_runners)
     : client_(p_client), vm_(nullptr), context_(task_runners) {}
@@ -112,10 +114,9 @@ std::unique_ptr<RuntimeController> RuntimeController::Clone() const {
   );
 }
 
-constexpr int64_t kFlutterDefaultViewId = 0ll;
-
 bool RuntimeController::FlushRuntimeStateToIsolate() {
-  // TODO(dkwingsmt)
+  // TODO(dkwingsmt): Needs a view ID here (or platform_data should probably
+  // have multiple view metrics).
   return SetViewportMetrics(kFlutterDefaultViewId,
                             platform_data_.viewport_metrics) &&
          SetLocales(platform_data_.locale_data) &&
@@ -123,12 +124,22 @@ bool RuntimeController::FlushRuntimeStateToIsolate() {
          SetAccessibilityFeatures(
              platform_data_.accessibility_feature_flags_) &&
          SetUserSettingsData(platform_data_.user_settings_data) &&
-         SetInitialLifecycleState(platform_data_.lifecycle_state);
+         SetInitialLifecycleState(platform_data_.lifecycle_state) &&
+         SetDisplays(platform_data_.displays);
 }
 
 bool RuntimeController::AddView(int64_t view_id) {
   if (auto* platform_configuration = GetPlatformConfigurationIfAvailable()) {
     platform_configuration->AddView(view_id);
+    return true;
+  }
+
+  return false;
+}
+
+bool RuntimeController::RemoveView(int64_t view_id) {
+  if (auto* platform_configuration = GetPlatformConfigurationIfAvailable()) {
+    platform_configuration->RemoveView(view_id);
     return true;
   }
 
@@ -141,8 +152,11 @@ bool RuntimeController::SetViewportMetrics(int64_t view_id,
   platform_data_.viewport_metrics = metrics;
 
   if (auto* platform_configuration = GetPlatformConfigurationIfAvailable()) {
-    platform_configuration->get_window(view_id)->UpdateWindowMetrics(metrics);
-    return true;
+    Window* window = platform_configuration->get_window(view_id);
+    if (window) {
+      window->UpdateWindowMetrics(metrics);
+      return true;
+    }
   }
 
   return false;
@@ -330,7 +344,16 @@ void RuntimeController::ScheduleFrame() {
 
 // |PlatformConfigurationClient|
 void RuntimeController::Render(int64_t view_id, Scene* scene) {
-  client_.Render(view_id, scene->takeLayerTree());
+  auto window =
+      UIDartState::Current()->platform_configuration()->get_window(view_id);
+  if (window == nullptr) {
+    return;
+  }
+  const auto& viewport_metrics = window->viewport_metrics();
+  client_.Render(view_id,
+                 scene->takeLayerTree(viewport_metrics.physical_width,
+                                      viewport_metrics.physical_height),
+                 viewport_metrics.device_pixel_ratio);
 }
 
 // |PlatformConfigurationClient|
@@ -511,6 +534,17 @@ void RuntimeController::LoadDartDeferredLibraryError(
 
 void RuntimeController::RequestDartDeferredLibrary(intptr_t loading_unit_id) {
   return client_.RequestDartDeferredLibrary(loading_unit_id);
+}
+
+bool RuntimeController::SetDisplays(const std::vector<DisplayData>& displays) {
+  TRACE_EVENT0("flutter", "SetDisplays");
+  platform_data_.displays = displays;
+
+  if (auto* platform_configuration = GetPlatformConfigurationIfAvailable()) {
+    platform_configuration->UpdateDisplays(displays);
+    return true;
+  }
+  return false;
 }
 
 RuntimeController::Locale::Locale(std::string language_code_,

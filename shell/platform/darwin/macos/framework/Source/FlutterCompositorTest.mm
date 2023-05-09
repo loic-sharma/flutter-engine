@@ -11,8 +11,6 @@
 #import "flutter/shell/platform/darwin/macos/framework/Source/FlutterViewProvider.h"
 #import "flutter/testing/testing.h"
 
-extern const uint64_t kFlutterDefaultViewId;
-
 @interface FlutterViewMockProvider : NSObject <FlutterViewProvider> {
   FlutterView* _defaultView;
 }
@@ -32,7 +30,7 @@ extern const uint64_t kFlutterDefaultViewId;
   return self;
 }
 
-- (nullable FlutterView*)viewForId:(uint64_t)viewId {
+- (nullable FlutterView*)viewForId:(FlutterViewId)viewId {
   if (viewId == kFlutterDefaultViewId) {
     return _defaultView;
   }
@@ -97,7 +95,8 @@ TEST(FlutterCompositorTest, TestCreate) {
   config.struct_size = sizeof(FlutterBackingStoreConfig);
   config.size.width = 800;
   config.size.height = 600;
-  macos_compositor->CreateBackingStore(&config, &backing_store);
+  config.view_id = 0;
+  ASSERT_TRUE(macos_compositor->CreateBackingStore(&config, &backing_store));
 
   ASSERT_EQ(backing_store.type, kFlutterBackingStoreTypeMetal);
   ASSERT_NE(backing_store.metal.texture.texture, nil);
@@ -122,6 +121,7 @@ TEST(FlutterCompositorTest, TestPresent) {
   config.struct_size = sizeof(FlutterBackingStoreConfig);
   config.size.width = 800;
   config.size.height = 600;
+  config.view_id = 0;
   macos_compositor->CreateBackingStore(&config, &backing_store);
 
   FlutterLayer layers[] = {{

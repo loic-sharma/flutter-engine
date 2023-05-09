@@ -83,7 +83,7 @@ static bool OnAcquireExternalTexture(FlutterEngine* engine,
 
 #pragma mark - Embedder callback implementations.
 
-- (FlutterMetalTexture)createTextureForView:(uint64_t)viewId size:(CGSize)size {
+- (FlutterMetalTexture)createTextureForView:(FlutterViewId)viewId size:(CGSize)size {
   FlutterView* view = [_viewProvider viewForId:viewId];
   NSAssert(view != nil, @"Can't create texture on a non-existent view 0x%llx.", viewId);
   if (view == nil) {
@@ -96,7 +96,6 @@ static bool OnAcquireExternalTexture(FlutterEngine* engine,
 }
 
 - (BOOL)present:(const FlutterMetalTexture*)texture {
-  NSLog(@"Presenting to %lld", texture->view_id);
   FlutterView* view = [_viewProvider viewForId:texture->view_id];
   if (view == nil) {
     return NO;

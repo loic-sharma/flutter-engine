@@ -16,7 +16,6 @@
 #include "flutter/flow/layers/layer_tree.h"
 #include "flutter/flow/layers/opacity_layer.h"
 #include "flutter/flow/layers/performance_overlay_layer.h"
-#include "flutter/flow/layers/physical_shape_layer.h"
 #include "flutter/flow/layers/platform_view_layer.h"
 #include "flutter/flow/layers/shader_mask_layer.h"
 #include "flutter/flow/layers/texture_layer.h"
@@ -34,7 +33,7 @@ namespace flutter {
 
 IMPLEMENT_WRAPPERTYPEINFO(ui, SceneBuilder);
 
-SceneBuilder::SceneBuilder(int64_t view_id) : view_id_(view_id) {
+SceneBuilder::SceneBuilder() {
   // Add a ContainerLayer as the root layer, so that AddLayer operations are
   // always valid.
   PushLayer(std::make_shared<flutter::ContainerLayer>());
@@ -203,25 +202,6 @@ void SceneBuilder::pushShaderMask(Dart_Handle layer_handle,
   }
 }
 
-void SceneBuilder::pushPhysicalShape(Dart_Handle layer_handle,
-                                     const CanvasPath* path,
-                                     double elevation,
-                                     int color,
-                                     int shadow_color,
-                                     int clipBehavior,
-                                     const fml::RefPtr<EngineLayer>& oldLayer) {
-  auto layer = std::make_shared<flutter::PhysicalShapeLayer>(
-      static_cast<DlColor>(color), static_cast<DlColor>(shadow_color),
-      static_cast<float>(elevation), path->path(),
-      static_cast<flutter::Clip>(clipBehavior));
-  PushLayer(layer);
-  EngineLayer::MakeRetained(layer_handle, layer);
-
-  if (oldLayer && oldLayer->Layer()) {
-    layer->AssignOldLayer(oldLayer->Layer().get());
-  }
-}
-
 void SceneBuilder::addRetained(const fml::RefPtr<EngineLayer>& retainedLayer) {
   AddLayer(retainedLayer->Layer());
 }
@@ -303,10 +283,9 @@ void SceneBuilder::setCheckerboardOffscreenLayers(bool checkerboard) {
 void SceneBuilder::build(Dart_Handle scene_handle) {
   FML_DCHECK(layer_stack_.size() >= 1);
 
-  Scene::create(scene_handle, view_id_, std::move(layer_stack_[0]),
-                rasterizer_tracing_threshold_,
-                checkerboard_raster_cache_images_,
-                checkerboard_offscreen_layers_);
+  Scene::create(
+      scene_handle, std::move(layer_stack_[0]), rasterizer_tracing_threshold_,
+      checkerboard_raster_cache_images_, checkerboard_offscreen_layers_);
   layer_stack_.clear();
   ClearDartWrapper();  // may delete this object.
 }
