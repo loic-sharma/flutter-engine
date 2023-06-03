@@ -375,28 +375,41 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
       [](const FlutterBackingStoreConfig* config,
          FlutterBackingStore* backing_store_out, void* user_data) -> bool {
     // Based off fl_renderer_gl_create_backing_store
-
-    // TODO: Make render context current and create the surface.
-
-    // HACK: Do resizing magic.
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
-    if (host->view()) {
-      host->view()->GetFrameBufferId(config->size.width,
-                                     config->size.height);
+
+    if (!host->view()) {
+      return false;
     }
 
-    backing_store_out->type = kFlutterBackingStoreTypeOpenGL;
-    backing_store_out->open_gl.type = kFlutterOpenGLTargetTypeFramebuffer;
-    backing_store_out->open_gl.framebuffer.user_data = user_data;
-    backing_store_out->open_gl.framebuffer.name = kWindowFrameBufferID;
-    // TODO: Investigate this constant more. Linux uses RGBA8 but Skia rejects that
-    // on my desktop.
-    //backing_store_out->open_gl.framebuffer.target = 0x8058 /* TODO: GR_GL_RGBA8 */;
-    backing_store_out->open_gl.framebuffer.target =
-        0x93A1 /* TODO: GR_GL_BGRA8 */;
-    backing_store_out->open_gl.framebuffer.destruction_callback = [](void* p) {
-      // Backing store destroyed by collect_backing_store_callback.
-    };
+    if (host->surface_manager_) {
+      // TODO: Make render context current and create the surface
+      backing_store_out->type = kFlutterBackingStoreTypeOpenGL;
+      backing_store_out->open_gl.type = kFlutterOpenGLTargetTypeFramebuffer;
+      backing_store_out->open_gl.framebuffer.user_data = user_data;
+      backing_store_out->open_gl.framebuffer.name =
+          host->view()->GetFrameBufferId(config->size.width,
+                                         config->size.height);
+      // TODO: Investigate this constant more. Linux uses RGBA8 but Skia rejects
+      // that on my desktop.
+      // backing_store_out->open_gl.framebuffer.target = 0x8058 /* TODO:
+      // GR_GL_RGBA8 */;
+      backing_store_out->open_gl.framebuffer.target =
+          0x93A1 /* TODO: GR_GL_BGRA8 */;
+      backing_store_out->open_gl.framebuffer.destruction_callback =
+          [](void* p) {
+            // Backing store destroyed by collect_backing_store_callback.
+          };
+    } else {
+      // TODO: Support software rasterization.
+      // See: EmbedderTestBackingStoreProducer::CreateSoftware
+      backing_store_out->type = kFlutterBackingStoreTypeSoftware;
+      backing_store_out->software.allocation = nullptr;
+      backing_store_out->software.destruction_callback = [](void* p) {};
+      backing_store_out->software.height = 0;  // TODO: Get view height
+      backing_store_out->software.row_bytes = 0;  // TODO: Get view row * 4? See PresentSoftwareBitmap
+      backing_store_out->user_data = nullptr;
+    }
+
 
     return true;
   };
@@ -404,6 +417,7 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
   compositor.collect_backing_store_callback =
       [](const FlutterBackingStore* renderer, void* user_data) -> bool {
     // TODO: Make render context current and delete the surface.
+    // On resizing this is called *after* the new backing store was created.
     return true;
   };
 
@@ -419,7 +433,13 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
     if (!host->view()) {
       return false;
     }
-    return host->view()->SwapBuffers();
+
+    if (host->surface_manager_) {
+      return host->view()->SwapBuffers();
+    } else {
+      // TODO: Support software rasterization.
+      return host->view()->PresentSoftwareBitmap(nullptr, 0, 0);
+    }
   };
   args.compositor = &compositor;
 
