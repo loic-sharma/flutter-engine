@@ -378,6 +378,13 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
 
     // TODO: Make render context current and create the surface.
 
+    // HACK: Do resizing magic.
+    auto host = static_cast<FlutterWindowsEngine*>(user_data);
+    if (host->view()) {
+      host->view()->GetFrameBufferId(config->size.width,
+                                     config->size.height);
+    }
+
     backing_store_out->type = kFlutterBackingStoreTypeOpenGL;
     backing_store_out->open_gl.type = kFlutterOpenGLTargetTypeFramebuffer;
     backing_store_out->open_gl.framebuffer.user_data = user_data;
@@ -403,7 +410,8 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
   compositor.present_layers_callback =
       [](const FlutterLayer** layers, size_t layers_count,
          void* user_data) -> bool {
-    if (layers_count != 1) {
+    if (layers_count != 1 ||
+        layers[0]->type != kFlutterLayerContentTypeBackingStore) {
       return false;
     }
 
