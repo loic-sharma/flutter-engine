@@ -400,30 +400,40 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
             // Backing store destroyed by collect_backing_store_callback.
           };
     } else {
+      void* allocation = malloc(config->size.width * config->size.height * 4);
+      if (!allocation) {
+        return false;
+      }
+
       // TODO: Support software rasterization.
       // See: EmbedderTestBackingStoreProducer::CreateSoftware
       backing_store_out->type = kFlutterBackingStoreTypeSoftware;
-      backing_store_out->software.allocation = nullptr;
-      backing_store_out->software.destruction_callback = [](void* p) {};
-      backing_store_out->software.height = 0;  // TODO: Get view height
-      backing_store_out->software.row_bytes = 0;  // TODO: Get view row * 4? See PresentSoftwareBitmap
+      backing_store_out->software.allocation = allocation;
+      backing_store_out->software.destruction_callback = [](void* p) {
+        free(p);
+      };
+      backing_store_out->software.height =
+          config->size.height;
+      backing_store_out->software.row_bytes =
+          config->size.width *
+          4;
       backing_store_out->user_data = nullptr;
     }
-
 
     return true;
   };
 
   compositor.collect_backing_store_callback =
       [](const FlutterBackingStore* renderer, void* user_data) -> bool {
-    // TODO: Make render context current and delete the surface.
-    // On resizing this is called *after* the new backing store was created.
+    // TODO: There is only a single surface manager that owns a single surface
+    // that are all destroyed when the engine is destroyed. Ideally this would
+    // support multiple surfaces and delete the corresponding surface.
     return true;
   };
 
-  compositor.present_layers_callback =
-      [](const FlutterLayer** layers, size_t layers_count,
-         void* user_data) -> bool {
+  compositor.present_layers_callback = [](const FlutterLayer** layers,
+                                          size_t layers_count,
+                                          void* user_data) -> bool {
     if (layers_count != 1 ||
         layers[0]->type != kFlutterLayerContentTypeBackingStore) {
       return false;
@@ -437,8 +447,10 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
     if (host->surface_manager_) {
       return host->view()->SwapBuffers();
     } else {
-      // TODO: Support software rasterization.
-      return host->view()->PresentSoftwareBitmap(nullptr, 0, 0);
+      const auto& backing_store = layers[0]->backing_store->software;
+      return host->view()->PresentSoftwareBitmap(backing_store.allocation,
+                                                 backing_store.row_bytes,
+                                                 backing_store.height);
     }
   };
   args.compositor = &compositor;
