@@ -48,19 +48,9 @@ FlutterWindowsView::FlutterWindowsView(
       binding_handler_->GetRenderTarget());
 }
 
-FlutterWindowsView::~FlutterWindowsView() {
-  // The engine renders into the view's surface. The engine must be
-  // shutdown before the view's resources can be destroyed.
-  if (engine_) {
-    engine_->Stop();
-  }
-
-  DestroyRenderSurface();
-}
-
 void FlutterWindowsView::SetEngine(
-    std::unique_ptr<FlutterWindowsEngine> engine) {
-  engine_ = std::move(engine);
+    FlutterWindowsEngine* engine) {
+  engine_ = engine;
 
   engine_->SetView(this);
 
@@ -595,12 +585,6 @@ void FlutterWindowsView::CreateRenderSurface() {
   }
 }
 
-void FlutterWindowsView::DestroyRenderSurface() {
-  if (engine_ && engine_->surface_manager()) {
-    engine_->surface_manager()->DestroySurface();
-  }
-}
-
 void FlutterWindowsView::SendInitialAccessibilityFeatures() {
   binding_handler_->SendInitialAccessibilityFeatures();
 }
@@ -618,7 +602,7 @@ PlatformWindow FlutterWindowsView::GetPlatformWindow() const {
 }
 
 FlutterWindowsEngine* FlutterWindowsView::GetEngine() {
-  return engine_.get();
+  return engine_;
 }
 
 void FlutterWindowsView::AnnounceAlert(const std::wstring& text) {

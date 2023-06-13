@@ -25,12 +25,21 @@ namespace flutter {
 class FlutterViewController {
  public:
   // Creates a FlutterView that can be parented into a Windows View hierarchy
-  // either using HWNDs.
+  // using HWNDs.
   //
-  // |dart_project| will be used to configure the engine backing this view.
+  // |dart_project| will be used to create an engine to back this view controller.
   explicit FlutterViewController(int width,
                                  int height,
                                  const DartProject& project);
+
+  // Creates a FlutterView that can be parented into a Windows View hierarchy
+  // using HWNDs.
+  //
+  // The view controller will be attached to the |engine|, which will be started
+  // if it isn't running already.
+  explicit FlutterViewController(int width,
+                                 int height,
+                                 std::shared_ptr<FlutterEngine> engine);
 
   virtual ~FlutterViewController();
 
@@ -39,7 +48,7 @@ class FlutterViewController {
   FlutterViewController& operator=(FlutterViewController const&) = delete;
 
   // Returns the engine running Flutter content in this view.
-  FlutterEngine* engine() { return engine_.get(); }
+  FlutterEngine* engine();
 
   // Returns the view managed by this controller.
   FlutterView* view() { return view_.get(); }
@@ -61,8 +70,11 @@ class FlutterViewController {
   // Handle for interacting with the C API's view controller, if any.
   FlutterDesktopViewControllerRef controller_ = nullptr;
 
-  // The backing engine
-  std::unique_ptr<FlutterEngine> engine_;
+  // The shared engine, if any.
+  std::shared_ptr<FlutterEngine> shared_engine_;
+
+  // The owned engine, if any.
+  std::unique_ptr<FlutterEngine> owned_engine_;
 
   // The owned FlutterView.
   std::unique_ptr<FlutterView> view_;

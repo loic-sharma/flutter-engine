@@ -42,18 +42,13 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
   // called with a valid FlutterWindowsEngine instance.
   FlutterWindowsView(std::unique_ptr<WindowBindingHandler> window_binding);
 
-  virtual ~FlutterWindowsView();
-
   // Configures the window instance with an instance of a running Flutter
   // engine.
-  void SetEngine(std::unique_ptr<FlutterWindowsEngine> engine);
+  void SetEngine(FlutterWindowsEngine* engine);
 
   // Creates rendering surface for Flutter engine to draw into.
   // Should be called before calling FlutterEngineRun using this view.
   void CreateRenderSurface();
-
-  // Destroys current rendering surface if one has been allocated.
-  void DestroyRenderSurface();
 
   // Return the currently configured WindowsRenderTarget.
   WindowsRenderTarget* GetRenderTarget() const;
@@ -361,7 +356,7 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
   std::unique_ptr<WindowsRenderTarget> render_target_;
 
   // The engine associated with this view.
-  std::unique_ptr<FlutterWindowsEngine> engine_;
+  FlutterWindowsEngine* engine_ = nullptr;
 
   // Keeps track of pointer states in relation to the window.
   std::unordered_map<int32_t, std::unique_ptr<PointerState>> pointer_states_;

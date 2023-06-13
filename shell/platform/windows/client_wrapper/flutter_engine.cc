@@ -63,7 +63,7 @@ bool FlutterEngine::Run(const char* entry_point) {
 }
 
 void FlutterEngine::ShutDown() {
-  if (engine_ && owns_engine_) {
+  if (engine_) {
     FlutterDesktopEngineDestroy(engine_);
   }
   engine_ = nullptr;
@@ -100,8 +100,7 @@ void FlutterEngine::SetNextFrameCallback(std::function<void()> callback) {
       this);
 }
 
-FlutterDesktopEngineRef FlutterEngine::RelinquishEngine() {
-  owns_engine_ = false;
+FlutterDesktopEngineRef FlutterEngine::engine() {
   return engine_;
 }
 
