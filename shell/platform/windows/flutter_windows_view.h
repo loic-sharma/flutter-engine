@@ -42,6 +42,8 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
   // called with a valid FlutterWindowsEngine instance.
   FlutterWindowsView(std::unique_ptr<WindowBindingHandler> window_binding);
 
+  virtual ~FlutterWindowsView();
+
   // Configures the window instance with an instance of a running Flutter
   // engine.
   void SetEngine(FlutterWindowsEngine* engine);

@@ -48,6 +48,10 @@ FlutterWindowsView::FlutterWindowsView(
       binding_handler_->GetRenderTarget());
 }
 
+FlutterWindowsView::~FlutterWindowsView() {
+  engine_->SetView(nullptr);
+}
+
 void FlutterWindowsView::SetEngine(
     FlutterWindowsEngine* engine) {
   engine_ = engine;
