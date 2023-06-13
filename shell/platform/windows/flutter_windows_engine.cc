@@ -52,24 +52,31 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
   config.open_gl.struct_size = sizeof(config.open_gl);
   config.open_gl.make_current = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
-    if (!host->view()) {
+    if (!host->surface_manager()) {
       return false;
     }
-    return host->view()->MakeCurrent();
+    return host->surface_manager()->MakeCurrent();
   };
   config.open_gl.clear_current = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
-    if (!host->view()) {
+    if (!host->surface_manager()) {
       return false;
     }
-    return host->view()->ClearContext();
+    return host->surface_manager()->ClearContext();
   };
   config.open_gl.present = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
-    if (!host->view()) {
+    if (!host->view() || !host->surface_manager()) {
       return false;
     }
-    return host->view()->SwapBuffers();
+
+    if (host->view()->IgnorePresent()) {
+      return true;
+    }
+
+    host->surface_manager()->SwapBuffers();
+    host->view()->OnPresent();
+    return true;
   };
   config.open_gl.fbo_reset_after_present = true;
   config.open_gl.fbo_with_frame_info_callback =
@@ -88,10 +95,10 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
   };
   config.open_gl.make_resource_current = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
-    if (!host->view()) {
+    if (!host->surface_manager()) {
       return false;
     }
-    return host->view()->MakeResourceCurrent();
+    return host->surface_manager()->MakeResourceCurrent();
   };
   config.open_gl.gl_external_texture_frame_callback =
       [](void* user_data, int64_t texture_id, size_t width, size_t height,

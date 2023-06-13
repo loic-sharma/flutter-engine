@@ -64,12 +64,9 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
   // Tells the engine to generate a new frame
   void ForceRedraw();
 
-  // Callbacks for clearing context, settings context and swapping buffers,
-  // these are typically called on an engine-controlled (non-platform) thread.
-  bool ClearContext();
-  bool MakeCurrent();
-  bool MakeResourceCurrent();
-  bool SwapBuffers();
+  // TODO: Comments
+  bool IgnorePresent();
+  void OnPresent();
 
   // Callback for presenting a software bitmap.
   bool PresentSoftwareBitmap(const void* allocation,

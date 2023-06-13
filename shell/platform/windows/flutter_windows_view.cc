@@ -49,7 +49,9 @@ FlutterWindowsView::FlutterWindowsView(
 }
 
 FlutterWindowsView::~FlutterWindowsView() {
-  engine_->SetView(nullptr);
+  if (engine_) {
+    engine_->SetView(nullptr);
+  }
 }
 
 void FlutterWindowsView::SetEngine(
@@ -523,19 +525,7 @@ void FlutterWindowsView::SendPointerEventWithData(
   }
 }
 
-bool FlutterWindowsView::MakeCurrent() {
-  return engine_->surface_manager()->MakeCurrent();
-}
-
-bool FlutterWindowsView::MakeResourceCurrent() {
-  return engine_->surface_manager()->MakeResourceCurrent();
-}
-
-bool FlutterWindowsView::ClearContext() {
-  return engine_->surface_manager()->ClearContext();
-}
-
-bool FlutterWindowsView::SwapBuffers() {
+bool FlutterWindowsView::IgnorePresent() {
   // Called on an engine-controlled (non-platform) thread.
   std::unique_lock<std::mutex> lock(resize_mutex_);
 
@@ -544,29 +534,33 @@ bool FlutterWindowsView::SwapBuffers() {
     // right dimensions has been generated. This is marked with
     // kFrameGenerated resize status.
     case ResizeState::kResizeStarted:
+      return true;
+    case ResizeState::kFrameGenerated:
+    case ResizeState::kDone:
+    default:
       return false;
+  }
+}
+
+void FlutterWindowsView::OnPresent() {
+  // Called on an engine-controlled (non-platform) thread.
+  std::unique_lock<std::mutex> lock(resize_mutex_);
+
+    switch (resize_status_) {
     case ResizeState::kFrameGenerated: {
-      bool visible = binding_handler_->IsVisible();
-      bool swap_buffers_result;
-      // For visible windows swap the buffers while resize handler is waiting.
-      // For invisible windows unblock the handler first and then swap buffers.
-      // SwapBuffers waits for vsync and there's no point doing that for
-      // invisible windows.
-      if (visible) {
-        swap_buffers_result = engine_->surface_manager()->SwapBuffers();
-      }
-      resize_status_ = ResizeState::kDone;
       lock.unlock();
       resize_cv_.notify_all();
       binding_handler_->OnWindowResized();
-      if (!visible) {
-        swap_buffers_result = engine_->surface_manager()->SwapBuffers();
-      }
-      return swap_buffers_result;
+      return;
     }
+
+    // SwapBuffer requests during resize are ignored until the frame with the
+    // right dimensions has been generated. This is marked with
+    // kFrameGenerated resize status.
+    case ResizeState::kResizeStarted:
     case ResizeState::kDone:
     default:
-      return engine_->surface_manager()->SwapBuffers();
+      return;
   }
 }
 
