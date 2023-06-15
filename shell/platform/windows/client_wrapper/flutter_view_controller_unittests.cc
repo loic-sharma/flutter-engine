@@ -24,6 +24,14 @@ class TestWindowsApi : public testing::StubFlutterWindowsApi {
     return reinterpret_cast<FlutterDesktopViewControllerRef>(2);
   }
 
+    // |flutter::testing::StubFlutterWindowsApi|
+  FlutterDesktopViewControllerRef MultiViewControllerCreate(
+      int width,
+      int height,
+      FlutterDesktopEngineRef engine) override {
+    return reinterpret_cast<FlutterDesktopViewControllerRef>(2);
+  }
+
   // |flutter::testing::StubFlutterWindowsApi|
   void ViewControllerDestroy() override { view_controller_destroyed_ = true; }
 

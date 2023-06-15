@@ -39,7 +39,7 @@ class FlutterViewController {
   // if it isn't running already.
   explicit FlutterViewController(int width,
                                  int height,
-                                 std::shared_ptr<FlutterEngine> engine);
+                                 FlutterEngine* engine);
 
   virtual ~FlutterViewController();
 
@@ -71,7 +71,7 @@ class FlutterViewController {
   FlutterDesktopViewControllerRef controller_ = nullptr;
 
   // The shared engine, if any.
-  std::shared_ptr<FlutterEngine> shared_engine_;
+  FlutterEngine* shared_engine_ = nullptr;
 
   // The owned engine, if any.
   std::unique_ptr<FlutterEngine> owned_engine_;

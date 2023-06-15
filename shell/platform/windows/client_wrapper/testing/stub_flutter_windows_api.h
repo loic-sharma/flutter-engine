@@ -35,6 +35,12 @@ class StubFlutterWindowsApi {
     return nullptr;
   }
 
+  // Called for FlutterDesktopMultiViewControllerCreate.
+  virtual FlutterDesktopViewControllerRef
+  MultiViewControllerCreate(int width, int height, FlutterDesktopEngineRef engine) {
+    return nullptr;
+  }
+
   // Called for FlutterDesktopViewControllerDestroy.
   virtual void ViewControllerDestroy() {}
 

@@ -90,6 +90,12 @@ FlutterDesktopViewControllerCreate(int width,
                                    int height,
                                    FlutterDesktopEngineRef engine);
 
+
+FLUTTER_EXPORT FlutterDesktopViewControllerRef
+FlutterDesktopMultiViewControllerCreate(int width,
+                                        int height,
+                                        FlutterDesktopEngineRef engine);
+
 // Shuts down the engine instance associated with |controller|, and cleans up
 // associated state.
 //

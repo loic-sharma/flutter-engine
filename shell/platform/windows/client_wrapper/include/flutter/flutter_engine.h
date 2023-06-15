@@ -88,6 +88,8 @@ class FlutterEngine : public PluginRegistry {
   // For access to |engine|.
   friend class FlutterViewController;
 
+  FlutterDesktopEngineRef RelinquishEngine();
+
   // Returns the underlying C API engine.
   //
   // This is intended to be used by FlutterViewController and
@@ -102,6 +104,8 @@ class FlutterEngine : public PluginRegistry {
 
   // Whether the engine has been run. This will be true if Run has been called.
   bool has_been_run_ = false;
+
+  bool owns_engine_ = true;
 
   // The callback to execute once the next frame is drawn.
   std::function<void()> next_frame_callback_ = nullptr;

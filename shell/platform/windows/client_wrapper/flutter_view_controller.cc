@@ -25,10 +25,10 @@ FlutterViewController::FlutterViewController(int width,
 
 FlutterViewController::FlutterViewController(int width,
                                              int height,
-                                             std::shared_ptr<FlutterEngine> engine) {
-  shared_engine_ = std::move(engine);
+                                             FlutterEngine* engine) {
+  shared_engine_ = engine;
   controller_ =
-      FlutterDesktopViewControllerCreate(width, height, shared_engine_->engine());
+      FlutterDesktopMultiViewControllerCreate(width, height, shared_engine_->engine());
   if (!controller_) {
     std::cerr << "Failed to create view controller." << std::endl;
     return;
@@ -47,7 +47,7 @@ FlutterEngine* FlutterViewController::engine() {
   if (owned_engine_) {
     return owned_engine_.get();
   } else {
-    return shared_engine_.get();
+    return shared_engine_;
   }
 }
 

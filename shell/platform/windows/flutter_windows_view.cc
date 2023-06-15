@@ -54,6 +54,11 @@ FlutterWindowsView::~FlutterWindowsView() {
   }
 }
 
+void FlutterWindowsView::SetOwnedEngine(std::unique_ptr<FlutterWindowsEngine> engine) {
+  owned_engine_ = std::move(engine);
+  SetEngine(owned_engine_.get());
+}
+
 void FlutterWindowsView::SetEngine(
     FlutterWindowsEngine* engine) {
   engine_ = engine;

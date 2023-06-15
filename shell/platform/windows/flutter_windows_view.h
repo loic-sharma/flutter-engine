@@ -46,6 +46,7 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
 
   // Configures the window instance with an instance of a running Flutter
   // engine.
+  void SetOwnedEngine(std::unique_ptr<FlutterWindowsEngine> engine);
   void SetEngine(FlutterWindowsEngine* engine);
 
   // Creates rendering surface for Flutter engine to draw into.
@@ -353,6 +354,9 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
   // surface_manager for creation of render surfaces and bound to the physical
   // os window.
   std::unique_ptr<WindowsRenderTarget> render_target_;
+
+  // The engine associated with this view.
+  std::unique_ptr<FlutterWindowsEngine> owned_engine_;
 
   // The engine associated with this view.
   FlutterWindowsEngine* engine_ = nullptr;

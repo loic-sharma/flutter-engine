@@ -72,6 +72,32 @@ FlutterDesktopViewControllerRef FlutterDesktopViewControllerCreate(
   state->view =
       std::make_unique<flutter::FlutterWindowsView>(std::move(window_wrapper));
   // Attach the view controller to the engine and ensure the engine is started.
+  state->view->SetOwnedEngine(
+    std::unique_ptr<flutter::FlutterWindowsEngine>(EngineFromHandle(engine)));
+  state->view->CreateRenderSurface();
+  if (!state->view->GetEngine()->running()) {
+    if (!state->view->GetEngine()->Run()) {
+      return nullptr;
+    }
+  }
+
+  // Must happen after engine is running.
+  state->view->SendInitialBounds();
+  state->view->SendInitialAccessibilityFeatures();
+  return state.release();
+}
+
+FlutterDesktopViewControllerRef FlutterDesktopMultiViewControllerCreate(
+    int width,
+    int height,
+    FlutterDesktopEngineRef engine) {
+  std::unique_ptr<flutter::WindowBindingHandler> window_wrapper =
+      std::make_unique<flutter::FlutterWindow>(width, height);
+
+  auto state = std::make_unique<FlutterDesktopViewControllerState>();
+  state->view =
+      std::make_unique<flutter::FlutterWindowsView>(std::move(window_wrapper));
+  // Attach the view controller to the engine and ensure the engine is started.
   state->view->SetEngine(EngineFromHandle(engine));
   state->view->CreateRenderSurface();
   if (!state->view->GetEngine()->running()) {
