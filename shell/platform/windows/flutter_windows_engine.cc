@@ -368,6 +368,91 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
 
   args.custom_task_runners = &custom_task_runners;
 
+    FlutterCompositor compositor = {};
+  compositor.struct_size = sizeof(FlutterCompositor);
+  compositor.user_data = this;
+  compositor.create_backing_store_callback =
+      [](const FlutterBackingStoreConfig* config,
+         FlutterBackingStore* backing_store_out, void* user_data) -> bool {
+    // Based off fl_renderer_gl_create_backing_store
+    auto host = static_cast<FlutterWindowsEngine*>(user_data);
+
+    if (!host->view()) {
+      return false;
+    }
+
+    if (host->surface_manager_) {
+      // TODO: Make render context current and create the surface
+      backing_store_out->type = kFlutterBackingStoreTypeOpenGL;
+      backing_store_out->open_gl.type = kFlutterOpenGLTargetTypeFramebuffer;
+      backing_store_out->open_gl.framebuffer.user_data = user_data;
+      backing_store_out->open_gl.framebuffer.name =
+          host->view()->GetFrameBufferId(config->size.width,
+                                         config->size.height);
+      // TODO: Investigate this constant more. Linux uses RGBA8 but Skia rejects
+      // that on my desktop.
+      // backing_store_out->open_gl.framebuffer.target = 0x8058 /* TODO:
+      // GR_GL_RGBA8 */;
+      backing_store_out->open_gl.framebuffer.target =
+          0x93A1 /* TODO: GR_GL_BGRA8 */;
+      backing_store_out->open_gl.framebuffer.destruction_callback =
+          [](void* p) {
+            // Backing store destroyed by collect_backing_store_callback.
+          };
+    } else {
+      void* allocation = malloc(config->size.width * config->size.height * 4);
+      if (!allocation) {
+        return false;
+      }
+
+      // TODO: Support software rasterization.
+      // See: EmbedderTestBackingStoreProducer::CreateSoftware
+      backing_store_out->type = kFlutterBackingStoreTypeSoftware;
+      backing_store_out->software.allocation = allocation;
+      backing_store_out->software.destruction_callback = [](void* p) {
+        free(p);
+      };
+      backing_store_out->software.height = config->size.height;
+      backing_store_out->software.row_bytes = config->size.width * 4;
+      backing_store_out->user_data = nullptr;
+    }
+
+    return true;
+  };
+
+  compositor.collect_backing_store_callback =
+      [](const FlutterBackingStore* renderer, void* user_data) -> bool {
+    // TODO: There is only a single surface manager that owns a single surface
+    // that are all destroyed when the engine is destroyed. Ideally this would
+    // support multiple surfaces and delete the corresponding surface.
+    return true;
+  };
+
+  compositor.present_layers_callback = [](const FlutterLayer** layers,
+                                          size_t layers_count,
+                                          int64_t view_id,
+                                          void* user_data) -> bool {
+    if (layers_count != 1 ||
+        layers[0]->type != kFlutterLayerContentTypeBackingStore) {
+      return false;
+    }
+
+    auto host = static_cast<FlutterWindowsEngine*>(user_data);
+    if (!host->view()) {
+      return false;
+    }
+
+    if (host->surface_manager_) {
+      return host->view()->SwapBuffers();
+    } else {
+      const auto& backing_store = layers[0]->backing_store->software;
+      return host->view()->PresentSoftwareBitmap(backing_store.allocation,
+                                                 backing_store.row_bytes,
+                                                 backing_store.height);
+    }
+  };
+  args.compositor = &compositor;
+
   if (aot_data_) {
     args.aot_data = aot_data_.get();
   }
