@@ -45,6 +45,16 @@ FlutterDesktopViewControllerRef FlutterDesktopViewControllerCreate(
   return nullptr;
 }
 
+FlutterDesktopViewControllerRef FlutterDesktopEngineCreateViewController(
+    int width,
+    int height,
+    FlutterDesktopEngineRef engine) {
+  if (s_stub_implementation) {
+    return s_stub_implementation->EngineCreateViewController(width, height, engine);
+  }
+  return nullptr;
+}
+
 void FlutterDesktopViewControllerDestroy(
     FlutterDesktopViewControllerRef controller) {
   if (s_stub_implementation) {

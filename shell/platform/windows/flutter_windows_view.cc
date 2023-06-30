@@ -53,6 +53,7 @@ FlutterWindowsView::FlutterWindowsView(
 FlutterWindowsView::~FlutterWindowsView() {
   // The engine renders into the view's surface. The engine must be
   // shutdown before the view's resources can be destroyed.
+  // TODO(loicsharma): Destroying a view controller should not always stop the engine.
   if (engine_) {
     engine_->Stop();
   }
@@ -60,9 +61,8 @@ FlutterWindowsView::~FlutterWindowsView() {
   DestroyRenderSurface();
 }
 
-void FlutterWindowsView::SetEngine(
-    std::unique_ptr<FlutterWindowsEngine> engine) {
-  engine_ = std::move(engine);
+void FlutterWindowsView::SetEngine(FlutterWindowsEngine* engine) {
+  engine_ = engine;
 
   engine_->SetView(this);
 
@@ -628,7 +628,7 @@ PlatformWindow FlutterWindowsView::GetPlatformWindow() const {
 }
 
 FlutterWindowsEngine* FlutterWindowsView::GetEngine() {
-  return engine_.get();
+  return engine_;
 }
 
 void FlutterWindowsView::AnnounceAlert(const std::wstring& text) {

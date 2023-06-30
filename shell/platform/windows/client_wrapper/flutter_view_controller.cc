@@ -12,9 +12,23 @@ namespace flutter {
 FlutterViewController::FlutterViewController(int width,
                                              int height,
                                              const DartProject& project) {
-  engine_ = std::make_unique<FlutterEngine>(project);
-  controller_ = FlutterDesktopViewControllerCreate(width, height,
-                                                   engine_->RelinquishEngine());
+  engine_ = std::make_shared<FlutterEngine>(project);
+  controller_ = FlutterDesktopEngineCreateViewController(width, height,
+                                                         engine_->engine());
+  if (!controller_) {
+    std::cerr << "Failed to create view controller." << std::endl;
+    return;
+  }
+  view_ = std::make_unique<FlutterView>(
+      FlutterDesktopViewControllerGetView(controller_));
+}
+
+FlutterViewController::FlutterViewController(int width,
+                                             int height,
+                                             std::shared_ptr<FlutterEngine> engine) {
+  engine_ = std::move(engine);
+  controller_ = FlutterDesktopEngineCreateViewController(width, height,
+                                                         engine_->engine());
   if (!controller_) {
     std::cerr << "Failed to create view controller." << std::endl;
     return;

@@ -203,6 +203,12 @@ FLUTTER_EXPORT void FlutterDesktopEngineSetNextFrameCallback(
     VoidCallback callback,
     void* user_data);
 
+FLUTTER_EXPORT FlutterDesktopViewControllerRef
+FlutterDesktopEngineCreateViewController(
+    int width,
+    int height,
+    FlutterDesktopEngineRef engine);
+
 // ========== View ==========
 
 // Return backing HWND for manipulation in host application.

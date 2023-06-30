@@ -72,8 +72,34 @@ FlutterDesktopViewControllerRef FlutterDesktopViewControllerCreate(
   state->view =
       std::make_unique<flutter::FlutterWindowsView>(std::move(window_wrapper));
   // Take ownership of the engine, starting it if necessary.
-  state->view->SetEngine(
-      std::unique_ptr<flutter::FlutterWindowsEngine>(EngineFromHandle(engine)));
+  state->engine =
+      std::unique_ptr<flutter::FlutterWindowsEngine>(EngineFromHandle(engine));
+  state->view->SetEngine(state->engine.get());
+  state->view->CreateRenderSurface();
+  if (!state->view->GetEngine()->running()) {
+    if (!state->view->GetEngine()->Run()) {
+      return nullptr;
+    }
+  }
+
+  // Must happen after engine is running.
+  state->view->SendInitialBounds();
+  state->view->SendInitialAccessibilityFeatures();
+  return state.release();
+}
+
+FlutterDesktopViewControllerRef FlutterDesktopEngineCreateViewController(
+    int width,
+    int height,
+    FlutterDesktopEngineRef engine) {
+  std::unique_ptr<flutter::WindowBindingHandler> window_wrapper =
+      std::make_unique<flutter::FlutterWindow>(width, height);
+
+  auto state = std::make_unique<FlutterDesktopViewControllerState>();
+  state->view =
+      std::make_unique<flutter::FlutterWindowsView>(std::move(window_wrapper));
+  // This starts the engine if necessary.
+  state->view->SetEngine(EngineFromHandle(engine));
   state->view->CreateRenderSurface();
   if (!state->view->GetEngine()->running()) {
     if (!state->view->GetEngine()->Run()) {
