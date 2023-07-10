@@ -65,6 +65,8 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
     return host->view()->ClearContext();
   };
   config.open_gl.present = [](void* user_data) -> bool {
+    FML_UNREACHABLE();
+
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
     if (!host->view()) {
       return false;
@@ -74,6 +76,8 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
   config.open_gl.fbo_reset_after_present = true;
   config.open_gl.fbo_with_frame_info_callback =
       [](void* user_data, const FlutterFrameInfo* info) -> uint32_t {
+    FML_UNREACHABLE();
+
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
     if (host->view()) {
       return host->view()->GetFrameBufferId(info->size.width,
