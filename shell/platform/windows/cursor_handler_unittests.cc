@@ -79,14 +79,14 @@ class CursorHandlerTest : public WindowsTest {
     EXPECT_CALL(*window_, GetRenderTarget).WillOnce(Return(nullptr));
 
     engine_ = builder.Build();
-    view_ = std::make_unique<FlutterWindowsView>(std::move(window));
+    view_ = std::make_shared<FlutterWindowsView>(std::move(window));
 
-    engine_->AddView(view_.get());
+    engine_->AddView(view_);
   }
 
  private:
   std::unique_ptr<FlutterWindowsEngine> engine_;
-  std::unique_ptr<FlutterWindowsView> view_;
+  std::shared_ptr<FlutterWindowsView> view_;
   MockWindowBindingHandler* window_;
 
   FML_DISALLOW_COPY_AND_ASSIGN(CursorHandlerTest);

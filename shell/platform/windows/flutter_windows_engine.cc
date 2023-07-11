@@ -442,7 +442,11 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
     }
 
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
-    if (!host->view()) {
+
+    // TODO(loicsharma): RemoveView removes the view from the views_ dictionary
+    // immediately even though removing a view from the engine is an asynchronous operation.
+    // Once that's fixed, we should be able to remove this.
+    if (host->views_.find(view_id) == host->views_.end()) {
       return false;
     }
 
@@ -507,11 +511,11 @@ bool FlutterWindowsEngine::Stop() {
   return false;
 }
 
-void FlutterWindowsEngine::AddView(FlutterWindowsView* view) {
+void FlutterWindowsEngine::AddView(std::shared_ptr<FlutterWindowsView> view) {
   // TODO(loicsharma): If the implicit view is disabled, the first
   // view ID should be 1.
   view->SetId(next_view_id_);
-  views_[next_view_id_] = view;
+  views_[next_view_id_] = std::move(view);
 
   // TODO(loicsharma): HACK. This ensures the keyboard is initialized once.
   // Once the text input plugin is cleaned up we can  remove this by
@@ -530,11 +534,30 @@ void FlutterWindowsEngine::AddView(FlutterWindowsView* view) {
     assert(running());
 
     FlutterAddViewInfo info = {};
+    // TODO(loicsharma): Struct size
     info.view_id = next_view_id_;
     embedder_api_.AddView(engine_, &info);
   }
 
   next_view_id_++;
+}
+
+void FlutterWindowsEngine::RemoveView(int64_t view_id) {
+  assert(running());
+  assert(views_.find(view_id) != views_.end());
+  assert(view_id != kImplicitViewId);
+
+  // Remove the view from the engine.
+  FlutterRemoveViewInfo info = {};
+  // TODO(loicsharma): Struct size
+  info.view_id = view_id;
+  embedder_api_.RemoveView(engine_, &info);
+
+  // TODO(loicsharma): Removing the view is an asynchronous operation
+  // as it requires a hop to the raster thread. The embedder API
+  // should accept a callback for when the view was removed from Flutter.
+  // The Windows embedder should not erase its view until then.
+  views_.erase(view_id);
 }
 
 void FlutterWindowsEngine::OnVsync(intptr_t baton) {
@@ -742,9 +765,9 @@ FlutterWindowsEngine::CreateKeyboardKeyHandler(
 std::unique_ptr<TextInputPlugin> FlutterWindowsEngine::CreateTextInputPlugin(
     BinaryMessenger* messenger) {
   // TODO(loicsharma): HACK. The text input plugin shouldn't accept a view in
-  // its constructor.
+  // its constructor. This results in a dangling pointer if the view is destroyed.
   auto view = views_.begin()->second;
-  return std::make_unique<TextInputPlugin>(messenger, view);
+  return std::make_unique<TextInputPlugin>(messenger, view.get());
 }
 
 bool FlutterWindowsEngine::RegisterExternalTexture(int64_t texture_id) {

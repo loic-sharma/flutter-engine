@@ -48,7 +48,7 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
   // engine.
   void SetEngine(FlutterWindowsEngine* engine);
 
-  // TODO(loicsharma): Is this actually necessary?
+  int64_t view_id() { return view_id_; }
   void SetId(int64_t view_id) { view_id_ = view_id; }
 
   // Creates rendering surface for Flutter engine to draw into.

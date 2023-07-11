@@ -51,14 +51,6 @@ FlutterWindowsView::FlutterWindowsView(
 }
 
 FlutterWindowsView::~FlutterWindowsView() {
-  // The engine renders into the view's surface. The engine must be
-  // shutdown before the view's resources can be destroyed.
-  // TODO(loicsharma): Destroying a view controller should not always stop the
-  // engine.
-  if (engine_) {
-    engine_->Stop();
-  }
-
   DestroyRenderSurface();
 }
 
@@ -265,14 +257,12 @@ void FlutterWindowsView::OnResetImeComposing() {
 void FlutterWindowsView::SendWindowMetrics(size_t width,
                                            size_t height,
                                            double dpiScale) const {
-  // TODO(dkwingsmt)
-  int64_t view_id = kFlutterDefaultViewId;
   FlutterWindowMetricsEvent event = {};
   event.struct_size = sizeof(event);
   event.width = width;
   event.height = height;
   event.pixel_ratio = dpiScale;
-  engine_->SendWindowMetricsEvent(view_id, event);
+  engine_->SendWindowMetricsEvent(view_id_, event);
 }
 
 void FlutterWindowsView::SendInitialBounds() {

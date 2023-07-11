@@ -61,17 +61,17 @@ static FlutterDesktopTextureRegistrarRef HandleForTextureRegistrar(
   return reinterpret_cast<FlutterDesktopTextureRegistrarRef>(registrar);
 }
 
-static std::unique_ptr<flutter::FlutterWindowsView> CreateView(
+static std::shared_ptr<flutter::FlutterWindowsView> CreateView(
   int width, int height, flutter::FlutterWindowsEngine* engine) {
   std::unique_ptr<flutter::WindowBindingHandler> window_wrapper =
       std::make_unique<flutter::FlutterWindow>(width, height);
 
   auto view =
-      std::make_unique<flutter::FlutterWindowsView>(std::move(window_wrapper));
+      std::make_shared<flutter::FlutterWindowsView>(std::move(window_wrapper));
 
   view->SetEngine(engine);
   view->CreateRenderSurface();
-  engine->AddView(view.get());
+  engine->AddView(view);
 
   // Launch the engine if necessary.
   if (!engine->running()) {
@@ -114,6 +114,19 @@ FlutterDesktopViewControllerRef FlutterDesktopEngineCreateViewController(
 
 void FlutterDesktopViewControllerDestroy(
     FlutterDesktopViewControllerRef controller) {
+  // The view controller and engine share ownership of the view.
+  // The view must be removed from the engine to destroy it.
+  auto engine = controller->view->GetEngine();
+  if (engine) {
+    auto view_id = controller->view->view_id();
+
+    // The implicit view is special: it must continue to exist
+    // as long as the engine is running.
+    if (view_id != flutter::kImplicitViewId) {
+      engine->RemoveView(view_id);
+    }
+  }
+
   delete controller;
 }
 

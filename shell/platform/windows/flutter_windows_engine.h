@@ -115,14 +115,27 @@ class FlutterWindowsEngine {
   virtual bool Stop();
 
   // Sets the view that is displaying this engine's content.
-  void AddView(FlutterWindowsView* view);
+  // TODO(loicsharma): This accepts a shared pointer so that
+  // the implicit view can exist even if its controller is destroyed.
+  // Reconsider this...
+  void AddView(std::shared_ptr<FlutterWindowsView> view);
+
+  void RemoveView(int64_t view_id);
 
   // The view displaying this engine's content, if any. This will be null for
   // headless engines.
   // TODO(loicsharma): Remove this.
-  FlutterWindowsView* view() { return views_[kImplicitViewId]; }
+  FlutterWindowsView* view() {
+    if (views_.find(kImplicitViewId) == views_.end()) {
+      return nullptr;
+    }
 
-  FlutterWindowsView* view(int64_t view_id) { return views_[kImplicitViewId]; }
+    return views_[kImplicitViewId].get();
+  }
+
+  FlutterWindowsView* view(int64_t view_id) {
+    return views_[view_id].get();
+  }
 
   // Returns the currently configured Plugin Registrar.
   FlutterDesktopPluginRegistrarRef GetRegistrar();
@@ -340,7 +353,7 @@ class FlutterWindowsEngine {
   FlutterWindowsView* implicit_view_ = nullptr;
 
   // The views displaying the content running in this engine.
-  std::unordered_map<int64_t, FlutterWindowsView*> views_;
+  std::unordered_map<int64_t, std::shared_ptr<FlutterWindowsView>> views_;
 
   // Task runner for tasks posted from the engine.
   std::unique_ptr<TaskRunner> task_runner_;
