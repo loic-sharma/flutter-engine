@@ -20,6 +20,7 @@
 
 #include "flutter/fml/macros.h"
 #include "flutter/shell/platform/windows/window_binding_handler.h"
+#include "windows_proc_table.h"
 
 namespace flutter {
 
@@ -27,33 +28,33 @@ namespace flutter {
 // destroy surfaces
 class AngleSurfaceManager {
  public:
-  static std::unique_ptr<AngleSurfaceManager> Create();
+  static std::unique_ptr<AngleSurfaceManager> Create(WindowsProcTable& windows_proc_table);
   virtual ~AngleSurfaceManager();
 
   // Creates an EGLSurface wrapper and backing DirectX 11 SwapChain
   // associated with window, in the appropriate format for display.
   // Target represents the visual entity to bind to.  Width and
   // height represent dimensions surface is created at.
-  virtual bool CreateSurface(WindowsRenderTarget* render_target,
+  virtual bool CreateSurface(int64_t surface_id,
+                             WindowsRenderTarget* render_target,
                              EGLint width,
-                             EGLint height,
-                             bool enable_vsync);
+                             EGLint height);
 
   // Resizes backing surface from current size to newly requested size
   // based on width and height for the specific case when width and height do
   // not match current surface dimensions.  Target represents the visual entity
   // to bind to.
-  virtual void ResizeSurface(WindowsRenderTarget* render_target,
+  virtual void ResizeSurface(int64_t surface_id,
+                             WindowsRenderTarget* render_target,
                              EGLint width,
-                             EGLint height,
-                             bool enable_vsync);
+                             EGLint height);
 
   // queries EGL for the dimensions of surface in physical
   // pixels returning width and height as out params.
-  void GetSurfaceDimensions(EGLint* width, EGLint* height);
+  void GetSurfaceDimensions(int64_t surface_id, EGLint* width, EGLint* height);
 
   // Releases the pass-in EGLSurface wrapping and backing resources if not null.
-  virtual void DestroySurface();
+  virtual void DestroySurface(int64_t surface_id);
 
   // Binds egl_context_ to the current rendering thread and to the draw and read
   // surfaces returning a boolean result reflecting success.
@@ -68,7 +69,7 @@ class AngleSurfaceManager {
 
   // Swaps the front and back buffers of the DX11 swapchain backing surface if
   // not null.
-  EGLBoolean SwapBuffers();
+  EGLBoolean SwapBuffers(int64_t surface_id);
 
   // Creates a |EGLSurface| from the provided handle.
   EGLSurface CreateSurfaceFromHandle(EGLenum handle_type,
@@ -78,9 +79,8 @@ class AngleSurfaceManager {
   // Gets the |EGLDisplay|.
   EGLDisplay egl_display() const { return egl_display_; };
 
-  // If enabled, makes the current surface's buffer swaps block until the
-  // v-blank.
-  virtual void SetVSyncEnabled(bool enabled);
+  // Notify the surface manager that Window's compositor has changed.
+  virtual void UpdateSwapInterval();
 
   // Gets the |ID3D11Device| chosen by ANGLE.
   bool GetDevice(ID3D11Device** device);
@@ -88,7 +88,7 @@ class AngleSurfaceManager {
  protected:
   // Creates a new surface manager retaining reference to the passed-in target
   // for the lifetime of the manager.
-  AngleSurfaceManager();
+  explicit AngleSurfaceManager(WindowsProcTable& windows_proc_table);
 
  private:
   bool Initialize();
@@ -99,6 +99,12 @@ class AngleSurfaceManager {
       PFNEGLGETPLATFORMDISPLAYEXTPROC egl_get_platform_display_EXT,
       const EGLint* config,
       bool should_log);
+
+  // Whether Window's system compositor is enabled.
+  bool IsDwmCompositionEnabled();
+
+  // Table of Win32 APIs for mocking.
+  WindowsProcTable& windows_proc_table_;
 
   // EGL representation of native display.
   EGLDisplay egl_display_;

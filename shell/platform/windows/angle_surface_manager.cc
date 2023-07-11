@@ -20,19 +20,21 @@ namespace flutter {
 
 int AngleSurfaceManager::instance_count_ = 0;
 
-std::unique_ptr<AngleSurfaceManager> AngleSurfaceManager::Create() {
+std::unique_ptr<AngleSurfaceManager> AngleSurfaceManager::Create(
+    WindowsProcTable& windows_proc_table) {
   std::unique_ptr<AngleSurfaceManager> manager;
-  manager.reset(new AngleSurfaceManager());
+  manager.reset(new AngleSurfaceManager(windows_proc_table));
   if (!manager->initialize_succeeded_) {
     return nullptr;
   }
   return std::move(manager);
 }
 
-AngleSurfaceManager::AngleSurfaceManager()
+AngleSurfaceManager::AngleSurfaceManager(WindowsProcTable& windows_proc_table)
     : egl_config_(nullptr),
       egl_display_(EGL_NO_DISPLAY),
-      egl_context_(EGL_NO_CONTEXT) {
+      egl_context_(EGL_NO_CONTEXT),
+      windows_proc_table_(windows_proc_table) {
   initialize_succeeded_ = Initialize();
   ++instance_count_;
 }
@@ -207,10 +209,10 @@ void AngleSurfaceManager::CleanUp() {
   }
 }
 
-bool AngleSurfaceManager::CreateSurface(WindowsRenderTarget* render_target,
+bool AngleSurfaceManager::CreateSurface(int64_t surface_id,
+                                        WindowsRenderTarget* render_target,
                                         EGLint width,
-                                        EGLint height,
-                                        bool vsync_enabled) {
+                                        EGLint height) {
   if (!render_target || !initialize_succeeded_) {
     return false;
   }
@@ -234,30 +236,30 @@ bool AngleSurfaceManager::CreateSurface(WindowsRenderTarget* render_target,
   surface_height_ = height;
   render_surface_ = surface;
 
-  SetVSyncEnabled(vsync_enabled);
+  UpdateSwapInterval();
   return true;
 }
 
-void AngleSurfaceManager::ResizeSurface(WindowsRenderTarget* render_target,
+void AngleSurfaceManager::ResizeSurface(int64_t surface_id,
+                                        WindowsRenderTarget* render_target,
                                         EGLint width,
-                                        EGLint height,
-                                        bool vsync_enabled) {
+                                        EGLint height) {
   EGLint existing_width, existing_height;
-  GetSurfaceDimensions(&existing_width, &existing_height);
+  GetSurfaceDimensions(surface_id, &existing_width, &existing_height);
   if (width != existing_width || height != existing_height) {
     surface_width_ = width;
     surface_height_ = height;
 
     ClearContext();
-    DestroySurface();
-    if (!CreateSurface(render_target, width, height, vsync_enabled)) {
+    DestroySurface(surface_id);
+    if (!CreateSurface(surface_id, render_target, width, height)) {
       FML_LOG(ERROR)
           << "AngleSurfaceManager::ResizeSurface failed to create surface";
     }
   }
 }
 
-void AngleSurfaceManager::GetSurfaceDimensions(EGLint* width, EGLint* height) {
+void AngleSurfaceManager::GetSurfaceDimensions(int64_t surface_id, EGLint* width, EGLint* height) {
   if (render_surface_ == EGL_NO_SURFACE || !initialize_succeeded_) {
     *width = 0;
     *height = 0;
@@ -271,7 +273,7 @@ void AngleSurfaceManager::GetSurfaceDimensions(EGLint* width, EGLint* height) {
   *height = surface_height_;
 }
 
-void AngleSurfaceManager::DestroySurface() {
+void AngleSurfaceManager::DestroySurface(int64_t surface_id) {
   if (egl_display_ != EGL_NO_DISPLAY && render_surface_ != EGL_NO_SURFACE) {
     eglDestroySurface(egl_display_, render_surface_);
   }
@@ -293,7 +295,7 @@ bool AngleSurfaceManager::MakeResourceCurrent() {
                          egl_resource_context_) == EGL_TRUE);
 }
 
-EGLBoolean AngleSurfaceManager::SwapBuffers() {
+EGLBoolean AngleSurfaceManager::SwapBuffers(int64_t surface_id) {
   return (eglSwapBuffers(egl_display_, render_surface_));
 }
 
@@ -305,19 +307,34 @@ EGLSurface AngleSurfaceManager::CreateSurfaceFromHandle(
                                           egl_config_, attributes);
 }
 
-void AngleSurfaceManager::SetVSyncEnabled(bool enabled) {
+bool AngleSurfaceManager::IsDwmCompositionEnabled() {
+  // If the Desktop Window Manager composition is enabled, the system
+  // itself synchronizes with v-sync and the swap interval can be disabled.
+  // See: https://learn.microsoft.com/windows/win32/dwm/composition-ovw
+  BOOL composition_enabled;
+  HRESULT result = windows_proc_table_.DwmIsCompositionEnabled(&composition_enabled);
+  if (SUCCEEDED(result)) {
+    return composition_enabled;
+  }
+
+  return false;
+}
+
+void AngleSurfaceManager::UpdateSwapInterval() {
   if (eglMakeCurrent(egl_display_, render_surface_, render_surface_,
                      egl_context_) != EGL_TRUE) {
     LogEglError("Unable to make surface current to update the swap interval");
     return;
   }
 
+  bool enabled = IsDwmCompositionEnabled();
+
   // OpenGL swap intervals can be used to prevent screen tearing.
   // If enabled, the raster thread blocks until the v-blank.
   // This is unnecessary if DWM composition is enabled.
   // See: https://www.khronos.org/opengl/wiki/Swap_Interval
   // See: https://learn.microsoft.com/windows/win32/dwm/composition-ovw
-  if (eglSwapInterval(egl_display_, enabled ? 1 : 0) != EGL_TRUE) {
+  if (eglSwapInterval(egl_display_, enabled ? 0 : 1) != EGL_TRUE) {
     LogEglError("Unable to update the swap interval");
     return;
   }

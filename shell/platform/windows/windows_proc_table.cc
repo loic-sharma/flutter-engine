@@ -4,6 +4,8 @@
 
 #include "flutter/shell/platform/windows/windows_proc_table.h"
 
+#include <dwmapi.h>
+
 namespace flutter {
 
 WindowsProcTable::WindowsProcTable() {
@@ -23,6 +25,10 @@ BOOL WindowsProcTable::GetPointerType(UINT32 pointer_id,
   }
 
   return get_pointer_type_.value()(pointer_id, pointer_type);
+}
+
+HRESULT WindowsProcTable::DwmIsCompositionEnabled(BOOL* composition_enabled) {
+  return ::DwmIsCompositionEnabled(composition_enabled);
 }
 
 }  // namespace flutter

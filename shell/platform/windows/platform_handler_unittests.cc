@@ -145,7 +145,7 @@ class PlatformHandlerTest : public WindowsTest {
     view_ = std::make_unique<FlutterWindowsView>(std::move(window));
     engine_ = builder.Build();
 
-    engine_->SetView(view_.get());
+    engine_->AddView(view_.get());
   }
 
  private:

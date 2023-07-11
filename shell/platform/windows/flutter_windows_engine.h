@@ -42,6 +42,8 @@
 
 namespace flutter {
 
+static constexpr int64_t kImplicitViewId = 0;
+
 class FlutterWindowsView;
 
 // Update the thread priority for the Windows engine.
@@ -113,11 +115,14 @@ class FlutterWindowsEngine {
   virtual bool Stop();
 
   // Sets the view that is displaying this engine's content.
-  void SetView(FlutterWindowsView* view);
+  void AddView(FlutterWindowsView* view);
 
   // The view displaying this engine's content, if any. This will be null for
   // headless engines.
-  FlutterWindowsView* view() { return view_; }
+  // TODO(loicsharma): Remove this.
+  FlutterWindowsView* view() { return views_[kImplicitViewId]; }
+
+  FlutterWindowsView* view(int64_t view_id) { return views_[kImplicitViewId]; }
 
   // Returns the currently configured Plugin Registrar.
   FlutterDesktopPluginRegistrarRef GetRegistrar();
@@ -147,6 +152,7 @@ class FlutterWindowsEngine {
   AngleSurfaceManager* surface_manager() { return surface_manager_.get(); }
 
   // Return the AccessibilityBridgeWindows for this engine's view.
+  // TODO(loicsharma): Remove this.
   std::weak_ptr<AccessibilityBridgeWindows> accessibility_bridge();
 
   WindowProcDelegateManager* window_proc_delegate_manager() {
@@ -331,7 +337,10 @@ class FlutterWindowsEngine {
   UniqueAotDataPtr aot_data_;
 
   // The view displaying the content running in this engine, if any.
-  FlutterWindowsView* view_ = nullptr;
+  FlutterWindowsView* implicit_view_ = nullptr;
+
+  // The views displaying the content running in this engine.
+  std::unordered_map<int64_t, FlutterWindowsView*> views_;
 
   // Task runner for tasks posted from the engine.
   std::unique_ptr<TaskRunner> task_runner_;
@@ -350,6 +359,8 @@ class FlutterWindowsEngine {
 
   // The texture registrar.
   std::unique_ptr<FlutterWindowsTextureRegistrar> texture_registrar_;
+
+  WindowsProcTable windows_proc_table_;
 
   // Resolved OpenGL functions used by external texture implementations.
   GlProcs gl_procs_ = {};
@@ -392,6 +403,8 @@ class FlutterWindowsEngine {
   // An override of the frame interval used by EngineModifier for testing.
   std::optional<std::chrono::nanoseconds> frame_interval_override_ =
       std::nullopt;
+
+  int64_t next_view_id_ = 0;
 
   bool semantics_enabled_ = false;
 

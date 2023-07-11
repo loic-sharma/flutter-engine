@@ -48,6 +48,9 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
   // engine.
   void SetEngine(FlutterWindowsEngine* engine);
 
+  // TODO(loicsharma): Is this actually necessary?
+  void SetId(int64_t view_id) { view_id_ = view_id; }
+
   // Creates rendering surface for Flutter engine to draw into.
   // Should be called before calling FlutterEngineRun using this view.
   void CreateRenderSurface();
@@ -354,6 +357,8 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
   // needed before passing on to engine.
   void SendPointerEventWithData(const FlutterPointerEvent& event_data,
                                 PointerState* state);
+
+  int64_t view_id_;
 
   // Currently configured WindowsRenderTarget for this view used by
   // surface_manager for creation of render surfaces and bound to the physical

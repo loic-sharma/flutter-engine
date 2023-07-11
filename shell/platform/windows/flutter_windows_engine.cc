@@ -206,7 +206,7 @@ FlutterWindowsEngine::FlutterWindowsEngine(
   FlutterWindowsTextureRegistrar::ResolveGlFunctions(gl_procs_);
   texture_registrar_ =
       std::make_unique<FlutterWindowsTextureRegistrar>(this, gl_procs_);
-  surface_manager_ = AngleSurfaceManager::Create();
+  surface_manager_ = AngleSurfaceManager::Create(windows_proc_table_);
   window_proc_delegate_manager_ = std::make_unique<WindowProcDelegateManager>();
   window_proc_delegate_manager_->RegisterTopLevelWindowProcDelegate(
       [](HWND hwnd, UINT msg, WPARAM wpar, LPARAM lpar, void* user_data,
@@ -447,12 +447,12 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
     }
 
     if (host->surface_manager_) {
-      return host->view()->SwapBuffers();
+      return host->view(view_id)->SwapBuffers();
     } else {
       const auto& backing_store = layers[0]->backing_store->software;
-      return host->view()->PresentSoftwareBitmap(backing_store.allocation,
-                                                 backing_store.row_bytes,
-                                                 backing_store.height);
+      return host->view(view_id)->PresentSoftwareBitmap(backing_store.allocation,
+                                                        backing_store.row_bytes,
+                                                        backing_store.height);
     }
   };
   args.compositor = &compositor;
@@ -507,9 +507,34 @@ bool FlutterWindowsEngine::Stop() {
   return false;
 }
 
-void FlutterWindowsEngine::SetView(FlutterWindowsView* view) {
-  view_ = view;
-  InitializeKeyboard();
+void FlutterWindowsEngine::AddView(FlutterWindowsView* view) {
+  // TODO(loicsharma): If the implicit view is disabled, the first
+  // view ID should be 1.
+  view->SetId(next_view_id_);
+  views_[next_view_id_] = view;
+
+  // TODO(loicsharma): HACK. This ensures the keyboard is initialized once.
+  // Once the text input plugin is cleaned up we can  remove this by
+  // initializing the keyboard at engine start up instead of after view
+  // creation.
+  if (next_view_id_ == kImplicitViewId) {
+    InitializeKeyboard();
+  }
+
+  // Notify the engine of the new view if one was created.
+  if (next_view_id_ != kImplicitViewId) {
+    // TODO(loicsharma): Adding a view requires a running engine. However,
+    // this path will run before the engine is launched if the implicit
+    // view is disabled. One option would be to make this method launch the
+    // engine if necessary.
+    assert(running());
+
+    FlutterAddViewInfo info = {};
+    info.view_id = next_view_id_;
+    embedder_api_.AddView(engine_, &info);
+  }
+
+  next_view_id_++;
 }
 
 void FlutterWindowsEngine::OnVsync(intptr_t baton) {
@@ -679,7 +704,7 @@ void FlutterWindowsEngine::SendSystemLocales() {
 }
 
 void FlutterWindowsEngine::InitializeKeyboard() {
-  if (view_ == nullptr) {
+  if (views_.size() == 0) {
     FML_LOG(ERROR) << "Cannot initialize keyboard on Windows headless mode.";
   }
 
@@ -716,7 +741,10 @@ FlutterWindowsEngine::CreateKeyboardKeyHandler(
 
 std::unique_ptr<TextInputPlugin> FlutterWindowsEngine::CreateTextInputPlugin(
     BinaryMessenger* messenger) {
-  return std::make_unique<TextInputPlugin>(messenger, view_);
+  // TODO(loicsharma): HACK. The text input plugin shouldn't accept a view in
+  // its constructor.
+  auto view = views_.begin()->second;
+  return std::make_unique<TextInputPlugin>(messenger, view);
 }
 
 bool FlutterWindowsEngine::RegisterExternalTexture(int64_t texture_id) {
@@ -768,13 +796,15 @@ void FlutterWindowsEngine::UpdateSemanticsEnabled(bool enabled) {
   if (engine_ && semantics_enabled_ != enabled) {
     semantics_enabled_ = enabled;
     embedder_api_.UpdateSemanticsEnabled(engine_, enabled);
-    view_->UpdateSemanticsEnabled(enabled);
+    for (auto iterator = views_.begin(); iterator != views_.end(); ++iterator) {
+      iterator->second->UpdateSemanticsEnabled(enabled);
+    }
   }
 }
 
 void FlutterWindowsEngine::OnPreEngineRestart() {
   // Reset the keyboard's state on hot restart.
-  if (view_) {
+  if (implicit_view_) {
     InitializeKeyboard();
   }
 }
@@ -846,7 +876,8 @@ void FlutterWindowsEngine::HandleAccessibilityMessage(
       std::string text =
           std::get<std::string>(data_map.at(EncodableValue("message")));
       std::wstring wide_text = fml::Utf8ToWideString(text);
-      view_->AnnounceAlert(wide_text);
+      // TODO(loicsharma): Route this to the correct view.
+      implicit_view_->AnnounceAlert(wide_text);
     }
   }
   SendPlatformMessageResponse(message->response_handle,
@@ -869,11 +900,14 @@ void FlutterWindowsEngine::OnQuit(std::optional<HWND> hwnd,
 
 std::weak_ptr<AccessibilityBridgeWindows>
 FlutterWindowsEngine::accessibility_bridge() {
-  return view_->accessibility_bridge();
+  // TODO(loicsharma): Remove this helper.
+  return views_[kImplicitViewId]->accessibility_bridge();
 }
 
 void FlutterWindowsEngine::OnDwmCompositionChanged() {
-  view_->OnDwmCompositionChanged();
+  for (auto iterator = views_.begin(); iterator != views_.end(); ++iterator) {
+    iterator->second->OnDwmCompositionChanged();
+  }
 }
 
 void FlutterWindowsEngine::OnApplicationLifecycleEnabled() {
