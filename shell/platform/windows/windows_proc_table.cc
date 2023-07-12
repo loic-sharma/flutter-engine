@@ -4,6 +4,8 @@
 
 #include "flutter/shell/platform/windows/windows_proc_table.h"
 
+#include <dwmapi.h>
+
 namespace flutter {
 
 WindowsProcTable::WindowsProcTable() {
@@ -30,6 +32,10 @@ LRESULT WindowsProcTable::GetThreadPreferredUILanguages(DWORD flags,
                                                         PZZWSTR languages,
                                                         PULONG length) const {
   return ::GetThreadPreferredUILanguages(flags, count, languages, length);
+}
+
+HRESULT WindowsProcTable::DwmIsCompositionEnabled(BOOL* composition_enabled) {
+  return ::DwmIsCompositionEnabled(composition_enabled);
 }
 
 }  // namespace flutter

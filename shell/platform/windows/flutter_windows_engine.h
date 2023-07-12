@@ -319,6 +319,10 @@ class FlutterWindowsEngine {
 
   FlutterEngineProcTable embedder_api_ = {};
 
+  // A wrapper around win32 APIs that degrades gracefully if an API
+  // isn't available on the current version of Windows. Also enables mocking.
+  WindowsProcTable windows_proc_table_;
+
   std::unique_ptr<FlutterProjectBundle> project_;
 
   // AOT data, if any.
@@ -402,8 +406,6 @@ class FlutterWindowsEngine {
 
   // Handler for top level window messages.
   std::unique_ptr<WindowsLifecycleManager> lifecycle_manager_;
-
-  WindowsProcTable windows_proc_table_;
 
   FML_DISALLOW_COPY_AND_ASSIGN(FlutterWindowsEngine);
 };

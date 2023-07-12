@@ -25,6 +25,18 @@
 namespace flutter {
 namespace testing {
 
+class MockAngleSurfaceManager : public AngleSurfaceManager {
+ public:
+  MockAngleSurfaceManager() : AngleSurfaceManager(windows_proc_table_) {}
+
+  MOCK_METHOD0(OnDwmCompositionChanged, void());
+
+ private:
+  WindowsProcTable windows_proc_table_;
+
+  FML_DISALLOW_COPY_AND_ASSIGN(MockAngleSurfaceManager);
+};
+
 class FlutterWindowsEngineTest : public WindowsTest {};
 
 TEST_F(FlutterWindowsEngineTest, RunDoesExpectedInitialization) {
@@ -858,6 +870,23 @@ TEST_F(FlutterWindowsEngineTest, EnableApplicationLifecycle) {
 
   engine->window_proc_delegate_manager()->OnTopLevelWindowProc(0, WM_CLOSE, 0,
                                                                0);
+}
+
+// Desktop Window Manager composition can be disabled on Windows 7.
+// If this happens, the app must synchronize with the vsync to prevent
+// screen tearing.
+TEST_F(FlutterWindowsEngineTest, NotifiesSurfaceManagerOfDwmUpdates) {
+  FlutterWindowsEngineBuilder builder{GetContext()};
+  auto engine = builder.Build();
+
+  auto surface_manager = std::make_unique<MockAngleSurfaceManager>();
+  EXPECT_CALL(*surface_manager.get(), OnDwmCompositionChanged).Times(1);
+
+  EngineModifier modifier(engine.get());
+  modifier.SetSurfaceManager(surface_manager.release());
+
+  engine->window_proc_delegate_manager()->OnTopLevelWindowProc(
+      0, WM_DWMCOMPOSITIONCHANGED, 0, 0);
 }
 
 }  // namespace testing

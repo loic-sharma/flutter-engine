@@ -199,7 +199,7 @@ FlutterWindowsEngine::FlutterWindowsEngine(const FlutterProjectBundle& project)
   FlutterWindowsTextureRegistrar::ResolveGlFunctions(gl_procs_);
   texture_registrar_ =
       std::make_unique<FlutterWindowsTextureRegistrar>(this, gl_procs_);
-  surface_manager_ = AngleSurfaceManager::Create();
+  surface_manager_ = AngleSurfaceManager::Create(windows_proc_table_);
   window_proc_delegate_manager_ = std::make_unique<WindowProcDelegateManager>();
   window_proc_delegate_manager_->RegisterTopLevelWindowProcDelegate(
       [](HWND hwnd, UINT msg, WPARAM wpar, LPARAM lpar, void* user_data,
@@ -780,7 +780,9 @@ FlutterWindowsEngine::accessibility_bridge() {
 }
 
 void FlutterWindowsEngine::OnDwmCompositionChanged() {
-  view_->OnDwmCompositionChanged();
+  if (surface_manager_) {
+    surface_manager_->OnDwmCompositionChanged();
+  }
 }
 
 void FlutterWindowsEngine::OnApplicationLifecycleEnabled() {
