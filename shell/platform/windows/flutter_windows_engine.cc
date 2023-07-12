@@ -52,13 +52,18 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
   config.open_gl.struct_size = sizeof(config.open_gl);
   config.open_gl.make_current = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
+    // TODO(loicsharma): This shouldn't be necessary when RemoveView waits
+    // until the raster thread removes the view.
     if (!host->view()) {
       return false;
     }
-    return host->view()->MakeCurrent();
+    // TODO(loicsharma): Remove single view assumption
+    return host->view(kImplicitViewId)->MakeCurrent();
   };
   config.open_gl.clear_current = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
+    // TODO(loicsharma): This shouldn't be necessary when RemoveView waits
+    // until the raster thread removes the view.
     if (!host->view()) {
       return false;
     }
@@ -66,25 +71,11 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
   };
   config.open_gl.present = [](void* user_data) -> bool {
     FML_UNREACHABLE();
-
-    auto host = static_cast<FlutterWindowsEngine*>(user_data);
-    if (!host->view()) {
-      return false;
-    }
-    return host->view()->SwapBuffers();
   };
   config.open_gl.fbo_reset_after_present = true;
   config.open_gl.fbo_with_frame_info_callback =
       [](void* user_data, const FlutterFrameInfo* info) -> uint32_t {
     FML_UNREACHABLE();
-
-    auto host = static_cast<FlutterWindowsEngine*>(user_data);
-    if (host->view()) {
-      return host->view()->GetFrameBufferId(info->size.width,
-                                            info->size.height);
-    } else {
-      return kWindowFrameBufferID;
-    }
   };
   config.open_gl.gl_proc_resolver = [](void* user_data,
                                        const char* what) -> void* {
@@ -92,6 +83,8 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
   };
   config.open_gl.make_resource_current = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
+    // TODO(loicsharma): This shouldn't be necessary when RemoveView waits
+    // until the raster thread removes the view.
     if (!host->view()) {
       return false;
     }
@@ -512,40 +505,38 @@ bool FlutterWindowsEngine::Stop() {
 }
 
 void FlutterWindowsEngine::AddView(std::shared_ptr<FlutterWindowsView> view) {
-  // TODO(loicsharma): If the implicit view is disabled, the first
-  // view ID should be 1.
-  view->SetId(next_view_id_);
-  views_[next_view_id_] = std::move(view);
+  FML_DCHECK(views_.find(view->view_id()) == views_.end());
+
+  int64_t view_id = view->view_id();
+  views_[view_id] = std::move(view);
 
   // TODO(loicsharma): HACK. This ensures the keyboard is initialized once.
   // Once the text input plugin is cleaned up we can  remove this by
   // initializing the keyboard at engine start up instead of after view
   // creation.
-  if (next_view_id_ == kImplicitViewId) {
+  if (view_id == kImplicitViewId) {
     InitializeKeyboard();
   }
 
   // Notify the engine of the new view if one was created.
-  if (next_view_id_ != kImplicitViewId) {
+  if (view_id != kImplicitViewId) {
     // TODO(loicsharma): Adding a view requires a running engine. However,
     // this path will run before the engine is launched if the implicit
     // view is disabled. One option would be to make this method launch the
     // engine if necessary.
-    assert(running());
+    FML_DCHECK(running());
 
     FlutterAddViewInfo info = {};
     // TODO(loicsharma): Struct size
-    info.view_id = next_view_id_;
+    info.view_id = view_id;
     embedder_api_.AddView(engine_, &info);
   }
-
-  next_view_id_++;
 }
 
 void FlutterWindowsEngine::RemoveView(int64_t view_id) {
-  assert(running());
-  assert(views_.find(view_id) != views_.end());
-  assert(view_id != kImplicitViewId);
+  FML_DCHECK(running());
+  FML_DCHECK(views_.find(view_id) != views_.end());
+  FML_DCHECK(view_id != kImplicitViewId);
 
   // Remove the view from the engine.
   FlutterRemoveViewInfo info = {};

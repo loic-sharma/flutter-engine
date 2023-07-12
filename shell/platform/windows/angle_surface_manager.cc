@@ -22,6 +22,9 @@ int AngleSurfaceManager::instance_count_ = 0;
 
 std::unique_ptr<AngleSurfaceManager> AngleSurfaceManager::Create(
     WindowsProcTable& windows_proc_table) {
+  // TODO(loicsharma): HACK. Forces software rasterization.
+  return nullptr;
+
   std::unique_ptr<AngleSurfaceManager> manager;
   manager.reset(new AngleSurfaceManager(windows_proc_table));
   if (!manager->initialize_succeeded_) {
@@ -213,6 +216,8 @@ bool AngleSurfaceManager::CreateSurface(int64_t surface_id,
                                         WindowsRenderTarget* render_target,
                                         EGLint width,
                                         EGLint height) {
+  FML_DCHECK(!RenderSurfaceExists(surface_id));
+
   if (!render_target || !initialize_succeeded_) {
     return false;
   }
@@ -232,11 +237,10 @@ bool AngleSurfaceManager::CreateSurface(int64_t surface_id,
     return false;
   }
 
-  surface_width_ = width;
-  surface_height_ = height;
-  render_surface_ = surface;
+  render_surfaces_.emplace(
+      surface_id, std::make_unique<AngleSurface>(surface, width, height));
 
-  UpdateSwapInterval();
+  UpdateSwapInterval(surface_id);
   return true;
 }
 
@@ -244,12 +248,11 @@ void AngleSurfaceManager::ResizeSurface(int64_t surface_id,
                                         WindowsRenderTarget* render_target,
                                         EGLint width,
                                         EGLint height) {
+  FML_DCHECK(RenderSurfaceExists(surface_id));
+
   EGLint existing_width, existing_height;
   GetSurfaceDimensions(surface_id, &existing_width, &existing_height);
   if (width != existing_width || height != existing_height) {
-    surface_width_ = width;
-    surface_height_ = height;
-
     ClearContext();
     DestroySurface(surface_id);
     if (!CreateSurface(surface_id, render_target, width, height)) {
@@ -259,8 +262,10 @@ void AngleSurfaceManager::ResizeSurface(int64_t surface_id,
   }
 }
 
-void AngleSurfaceManager::GetSurfaceDimensions(int64_t surface_id, EGLint* width, EGLint* height) {
-  if (render_surface_ == EGL_NO_SURFACE || !initialize_succeeded_) {
+void AngleSurfaceManager::GetSurfaceDimensions(int64_t surface_id,
+                                               EGLint* width,
+                                               EGLint* height) {
+  if (!initialize_succeeded_ || !RenderSurfaceExists(surface_id)) {
     *width = 0;
     *height = 0;
     return;
@@ -269,20 +274,26 @@ void AngleSurfaceManager::GetSurfaceDimensions(int64_t surface_id, EGLint* width
   // Can't use eglQuerySurface here; Because we're not using
   // EGL_FIXED_SIZE_ANGLE flag anymore, Angle may resize the surface before
   // Flutter asks it to, which breaks resize redraw synchronization
-  *width = surface_width_;
-  *height = surface_height_;
+  *width = render_surfaces_[surface_id]->width;
+  *height = render_surfaces_[surface_id]->height;
 }
 
 void AngleSurfaceManager::DestroySurface(int64_t surface_id) {
-  if (egl_display_ != EGL_NO_DISPLAY && render_surface_ != EGL_NO_SURFACE) {
-    eglDestroySurface(egl_display_, render_surface_);
+  if (egl_display_ == EGL_NO_DISPLAY || !RenderSurfaceExists(surface_id)) {
+    return;
   }
-  render_surface_ = EGL_NO_SURFACE;
+
+  eglDestroySurface(egl_display_, render_surfaces_[surface_id]->surface);
+  render_surfaces_.erase(surface_id);
 }
 
-bool AngleSurfaceManager::MakeCurrent() {
-  return (eglMakeCurrent(egl_display_, render_surface_, render_surface_,
-                         egl_context_) == EGL_TRUE);
+bool AngleSurfaceManager::MakeCurrent(int64_t surface_id) {
+  FML_DCHECK(RenderSurfaceExists(surface_id));
+
+  EGLSurface surface = render_surfaces_[surface_id]->surface;
+
+  return (eglMakeCurrent(egl_display_, surface, surface, egl_context_) ==
+          EGL_TRUE);
 }
 
 bool AngleSurfaceManager::ClearContext() {
@@ -296,7 +307,9 @@ bool AngleSurfaceManager::MakeResourceCurrent() {
 }
 
 EGLBoolean AngleSurfaceManager::SwapBuffers(int64_t surface_id) {
-  return (eglSwapBuffers(egl_display_, render_surface_));
+  FML_DCHECK(RenderSurfaceExists(surface_id));
+
+  return (eglSwapBuffers(egl_display_, render_surfaces_[surface_id]->surface));
 }
 
 EGLSurface AngleSurfaceManager::CreateSurfaceFromHandle(
@@ -307,12 +320,17 @@ EGLSurface AngleSurfaceManager::CreateSurfaceFromHandle(
                                           egl_config_, attributes);
 }
 
+bool AngleSurfaceManager::RenderSurfaceExists(int64_t surface_id) {
+  return render_surfaces_.find(surface_id) != render_surfaces_.end();
+}
+
 bool AngleSurfaceManager::IsDwmCompositionEnabled() {
   // If the Desktop Window Manager composition is enabled, the system
   // itself synchronizes with v-sync and the swap interval can be disabled.
   // See: https://learn.microsoft.com/windows/win32/dwm/composition-ovw
   BOOL composition_enabled;
-  HRESULT result = windows_proc_table_.DwmIsCompositionEnabled(&composition_enabled);
+  HRESULT result =
+      windows_proc_table_.DwmIsCompositionEnabled(&composition_enabled);
   if (SUCCEEDED(result)) {
     return composition_enabled;
   }
@@ -320,9 +338,12 @@ bool AngleSurfaceManager::IsDwmCompositionEnabled() {
   return false;
 }
 
-void AngleSurfaceManager::UpdateSwapInterval() {
-  if (eglMakeCurrent(egl_display_, render_surface_, render_surface_,
-                     egl_context_) != EGL_TRUE) {
+void AngleSurfaceManager::UpdateSwapInterval(int64_t surface_id) {
+  FML_DCHECK(RenderSurfaceExists(surface_id));
+
+  EGLSurface surface = render_surfaces_[surface_id]->surface;
+  if (eglMakeCurrent(egl_display_, surface, surface, egl_context_) !=
+      EGL_TRUE) {
     LogEglError("Unable to make surface current to update the swap interval");
     return;
   }

@@ -55,7 +55,10 @@ FlutterWindowsView::~FlutterWindowsView() {
 }
 
 void FlutterWindowsView::SetEngine(FlutterWindowsEngine* engine) {
+  FML_DCHECK(engine_ == nullptr);
+
   engine_ = engine;
+  view_id_ = engine_->AcquireViewId();
 }
 
 uint32_t FlutterWindowsView::GetFrameBufferId(size_t width, size_t height) {
@@ -524,7 +527,7 @@ void FlutterWindowsView::SendPointerEventWithData(
 }
 
 bool FlutterWindowsView::MakeCurrent() {
-  return engine_->surface_manager()->MakeCurrent();
+  return engine_->surface_manager()->MakeCurrent(view_id_);
 }
 
 bool FlutterWindowsView::MakeResourceCurrent() {
@@ -658,7 +661,7 @@ void FlutterWindowsView::UpdateSemanticsEnabled(bool enabled) {
 
 void FlutterWindowsView::OnDwmCompositionChanged() {
   if (engine_->surface_manager()) {
-    engine_->surface_manager()->UpdateSwapInterval();
+    engine_->surface_manager()->UpdateSwapInterval(view_id_);
   }
 }
 

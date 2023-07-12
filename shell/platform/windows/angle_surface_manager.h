@@ -28,7 +28,8 @@ namespace flutter {
 // destroy surfaces
 class AngleSurfaceManager {
  public:
-  static std::unique_ptr<AngleSurfaceManager> Create(WindowsProcTable& windows_proc_table);
+  static std::unique_ptr<AngleSurfaceManager> Create(
+      WindowsProcTable& windows_proc_table);
   virtual ~AngleSurfaceManager();
 
   // Creates an EGLSurface wrapper and backing DirectX 11 SwapChain
@@ -58,7 +59,7 @@ class AngleSurfaceManager {
 
   // Binds egl_context_ to the current rendering thread and to the draw and read
   // surfaces returning a boolean result reflecting success.
-  bool MakeCurrent();
+  bool MakeCurrent(int64_t surface_id);
 
   // Clears current egl_context_
   bool ClearContext();
@@ -80,7 +81,7 @@ class AngleSurfaceManager {
   EGLDisplay egl_display() const { return egl_display_; };
 
   // Notify the surface manager that Window's compositor has changed.
-  virtual void UpdateSwapInterval();
+  virtual void UpdateSwapInterval(int64_t surface_id);
 
   // Gets the |ID3D11Device| chosen by ANGLE.
   bool GetDevice(ID3D11Device** device);
@@ -99,6 +100,9 @@ class AngleSurfaceManager {
       PFNEGLGETPLATFORMDISPLAYEXTPROC egl_get_platform_display_EXT,
       const EGLint* config,
       bool should_log);
+
+  // Whether a render surface exists for the given ID.
+  bool RenderSurfaceExists(int64_t surface_id);
 
   // Whether Window's system compositor is enabled.
   bool IsDwmCompositionEnabled();
@@ -123,12 +127,16 @@ class AngleSurfaceManager {
   // creating surfaces.
   bool initialize_succeeded_;
 
-  // Current render_surface that engine will draw into.
-  EGLSurface render_surface_ = EGL_NO_SURFACE;
+  struct AngleSurface {
+    AngleSurface(EGLSurface surface, EGLint width, EGLint height)
+        : surface(surface), width(width), height(height) {}
+    EGLSurface surface = EGL_NO_SURFACE;
+    EGLint width = 0;
+    EGLint height = 0;
+  };
 
-  // Requested dimensions for current surface
-  EGLint surface_width_ = 0;
-  EGLint surface_height_ = 0;
+  // Surfaces the engine can draw into.
+  std::unordered_map<int64_t, std::unique_ptr<AngleSurface>> render_surfaces_;
 
   // The current D3D device.
   Microsoft::WRL::ComPtr<ID3D11Device> resolved_device_;

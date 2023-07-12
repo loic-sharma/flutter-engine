@@ -122,6 +122,14 @@ class FlutterWindowsEngine {
 
   void RemoveView(int64_t view_id);
 
+  int64_t AcquireViewId() {
+    // TODO(loicsharma): If the implicit view is disabled, the first
+    // view ID should be 1.
+    int64_t view_id = next_view_id_;
+    next_view_id_++;
+    return view_id;
+  }
+
   // The view displaying this engine's content, if any. This will be null for
   // headless engines.
   // TODO(loicsharma): Remove this.
