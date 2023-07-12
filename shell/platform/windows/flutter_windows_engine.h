@@ -357,9 +357,6 @@ class FlutterWindowsEngine {
   // AOT data, if any.
   UniqueAotDataPtr aot_data_;
 
-  // The view displaying the content running in this engine, if any.
-  FlutterWindowsView* implicit_view_ = nullptr;
-
   // The views displaying the content running in this engine.
   std::unordered_map<int64_t, std::shared_ptr<FlutterWindowsView>> views_;
 

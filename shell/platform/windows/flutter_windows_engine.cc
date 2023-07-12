@@ -818,7 +818,9 @@ void FlutterWindowsEngine::UpdateSemanticsEnabled(bool enabled) {
 
 void FlutterWindowsEngine::OnPreEngineRestart() {
   // Reset the keyboard's state on hot restart.
-  if (implicit_view_) {
+  // TODO(loicsharma): Unconditionally reset the keyboard
+  // once it no longer depends on the implicit view.
+  if (view()) {
     InitializeKeyboard();
   }
 }
@@ -891,7 +893,7 @@ void FlutterWindowsEngine::HandleAccessibilityMessage(
           std::get<std::string>(data_map.at(EncodableValue("message")));
       std::wstring wide_text = fml::Utf8ToWideString(text);
       // TODO(loicsharma): Route this to the correct view.
-      implicit_view_->AnnounceAlert(wide_text);
+      views_[kImplicitViewId]->AnnounceAlert(wide_text);
     }
   }
   SendPlatformMessageResponse(message->response_handle,

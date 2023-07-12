@@ -348,14 +348,13 @@ void AngleSurfaceManager::UpdateSwapInterval(int64_t surface_id) {
     return;
   }
 
-  bool enabled = IsDwmCompositionEnabled();
-
-  // OpenGL swap intervals can be used to prevent screen tearing.
-  // If enabled, the raster thread blocks until the v-blank.
+  // OpenGL swap intervals can be used to prevent screen tearing
+  // by blocking the raster thread blocks until the v-blank.
   // This is unnecessary if DWM composition is enabled.
   // See: https://www.khronos.org/opengl/wiki/Swap_Interval
   // See: https://learn.microsoft.com/windows/win32/dwm/composition-ovw
-  if (eglSwapInterval(egl_display_, enabled ? 0 : 1) != EGL_TRUE) {
+  bool interval = IsDwmCompositionEnabled() ? 0 : 1;
+  if (eglSwapInterval(egl_display_, interval) != EGL_TRUE) {
     LogEglError("Unable to update the swap interval");
     return;
   }
