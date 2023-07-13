@@ -274,6 +274,7 @@ class PlatformDispatcher {
     assert(!_views.containsKey(id));
     _views[id as int] = _createView(id);
     _viewConfigurations[id] = const _ViewConfiguration();
+    _invoke(onMetricsChanged, _onMetricsChangedZone);
   }
 
   void _removeView(Object id) {
@@ -281,6 +282,7 @@ class PlatformDispatcher {
     // TODO(dkwingsmt): Reset _implicitView?
     _views.remove(id);
     _viewConfigurations.remove(id);
+    _invoke(onMetricsChanged, _onMetricsChangedZone);
   }
 
   void _onSentViewConfigurations(List<int> viewIds) {
