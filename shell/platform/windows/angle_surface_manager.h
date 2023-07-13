@@ -20,7 +20,6 @@
 
 #include "flutter/fml/macros.h"
 #include "flutter/shell/platform/windows/window_binding_handler.h"
-#include "windows_proc_table.h"
 
 namespace flutter {
 
@@ -28,8 +27,7 @@ namespace flutter {
 // destroy surfaces
 class AngleSurfaceManager {
  public:
-  static std::unique_ptr<AngleSurfaceManager> Create(
-      WindowsProcTable& windows_proc_table);
+  static std::unique_ptr<AngleSurfaceManager> Create();
   virtual ~AngleSurfaceManager();
 
   // Creates an EGLSurface wrapper and backing DirectX 11 SwapChain
@@ -39,7 +37,8 @@ class AngleSurfaceManager {
   virtual bool CreateSurface(int64_t surface_id,
                              WindowsRenderTarget* render_target,
                              EGLint width,
-                             EGLint height);
+                             EGLint height,
+                             bool enable_vsync);
 
   // Resizes backing surface from current size to newly requested size
   // based on width and height for the specific case when width and height do
@@ -48,7 +47,8 @@ class AngleSurfaceManager {
   virtual void ResizeSurface(int64_t surface_id,
                              WindowsRenderTarget* render_target,
                              EGLint width,
-                             EGLint height);
+                             EGLint height,
+                             bool enable_vsync);
 
   // queries EGL for the dimensions of surface in physical
   // pixels returning width and height as out params.
@@ -80,8 +80,8 @@ class AngleSurfaceManager {
   // Gets the |EGLDisplay|.
   EGLDisplay egl_display() const { return egl_display_; };
 
-  // Notify the surface manager that Window's compositor has changed.
-  virtual void UpdateSwapInterval(int64_t surface_id);
+  // If enabled, makes the surface's swaps block until the v-blank.
+  virtual void SetVSyncEnabled(int64_t surface_id, bool enabled);
 
   // Gets the |ID3D11Device| chosen by ANGLE.
   bool GetDevice(ID3D11Device** device);
@@ -89,7 +89,7 @@ class AngleSurfaceManager {
  protected:
   // Creates a new surface manager retaining reference to the passed-in target
   // for the lifetime of the manager.
-  explicit AngleSurfaceManager(WindowsProcTable& windows_proc_table);
+  AngleSurfaceManager();
 
  private:
   bool Initialize();
@@ -103,12 +103,6 @@ class AngleSurfaceManager {
 
   // Whether a render surface exists for the given ID.
   bool RenderSurfaceExists(int64_t surface_id);
-
-  // Whether Window's system compositor is enabled.
-  bool IsDwmCompositionEnabled();
-
-  // Table of Win32 APIs for mocking.
-  WindowsProcTable& windows_proc_table_;
 
   // EGL representation of native display.
   EGLDisplay egl_display_;

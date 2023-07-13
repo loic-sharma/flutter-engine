@@ -20,24 +20,22 @@ namespace flutter {
 
 int AngleSurfaceManager::instance_count_ = 0;
 
-std::unique_ptr<AngleSurfaceManager> AngleSurfaceManager::Create(
-    WindowsProcTable& windows_proc_table) {
+std::unique_ptr<AngleSurfaceManager> AngleSurfaceManager::Create() {
   // TODO(loicsharma): HACK. Forces software rasterization.
   return nullptr;
 
   std::unique_ptr<AngleSurfaceManager> manager;
-  manager.reset(new AngleSurfaceManager(windows_proc_table));
+  manager.reset(new AngleSurfaceManager());
   if (!manager->initialize_succeeded_) {
     return nullptr;
   }
   return std::move(manager);
 }
 
-AngleSurfaceManager::AngleSurfaceManager(WindowsProcTable& windows_proc_table)
+AngleSurfaceManager::AngleSurfaceManager()
     : egl_config_(nullptr),
       egl_display_(EGL_NO_DISPLAY),
-      egl_context_(EGL_NO_CONTEXT),
-      windows_proc_table_(windows_proc_table) {
+      egl_context_(EGL_NO_CONTEXT) {
   initialize_succeeded_ = Initialize();
   ++instance_count_;
 }
@@ -215,7 +213,8 @@ void AngleSurfaceManager::CleanUp() {
 bool AngleSurfaceManager::CreateSurface(int64_t surface_id,
                                         WindowsRenderTarget* render_target,
                                         EGLint width,
-                                        EGLint height) {
+                                        EGLint height,
+                                        bool vsync_enabled) {
   FML_DCHECK(!RenderSurfaceExists(surface_id));
 
   if (!render_target || !initialize_succeeded_) {
@@ -240,14 +239,15 @@ bool AngleSurfaceManager::CreateSurface(int64_t surface_id,
   render_surfaces_.emplace(
       surface_id, std::make_unique<AngleSurface>(surface, width, height));
 
-  UpdateSwapInterval(surface_id);
+  SetVSyncEnabled(surface_id, vsync_enabled);
   return true;
 }
 
 void AngleSurfaceManager::ResizeSurface(int64_t surface_id,
                                         WindowsRenderTarget* render_target,
                                         EGLint width,
-                                        EGLint height) {
+                                        EGLint height,
+                                        bool vsync_enabled) {
   FML_DCHECK(RenderSurfaceExists(surface_id));
 
   EGLint existing_width, existing_height;
@@ -255,7 +255,7 @@ void AngleSurfaceManager::ResizeSurface(int64_t surface_id,
   if (width != existing_width || height != existing_height) {
     ClearContext();
     DestroySurface(surface_id);
-    if (!CreateSurface(surface_id, render_target, width, height)) {
+    if (!CreateSurface(surface_id, render_target, width, height, vsync_enabled)) {
       FML_LOG(ERROR)
           << "AngleSurfaceManager::ResizeSurface failed to create surface";
     }
@@ -324,21 +324,7 @@ bool AngleSurfaceManager::RenderSurfaceExists(int64_t surface_id) {
   return render_surfaces_.find(surface_id) != render_surfaces_.end();
 }
 
-bool AngleSurfaceManager::IsDwmCompositionEnabled() {
-  // If the Desktop Window Manager composition is enabled, the system
-  // itself synchronizes with v-sync and the swap interval can be disabled.
-  // See: https://learn.microsoft.com/windows/win32/dwm/composition-ovw
-  BOOL composition_enabled;
-  HRESULT result =
-      windows_proc_table_.DwmIsCompositionEnabled(&composition_enabled);
-  if (SUCCEEDED(result)) {
-    return composition_enabled;
-  }
-
-  return false;
-}
-
-void AngleSurfaceManager::UpdateSwapInterval(int64_t surface_id) {
+void AngleSurfaceManager::SetVSyncEnabled(int64_t surface_id, bool enabled) {
   FML_DCHECK(RenderSurfaceExists(surface_id));
 
   EGLSurface surface = render_surfaces_[surface_id]->surface;
@@ -353,8 +339,7 @@ void AngleSurfaceManager::UpdateSwapInterval(int64_t surface_id) {
   // This is unnecessary if DWM composition is enabled.
   // See: https://www.khronos.org/opengl/wiki/Swap_Interval
   // See: https://learn.microsoft.com/windows/win32/dwm/composition-ovw
-  bool interval = IsDwmCompositionEnabled() ? 0 : 1;
-  if (eglSwapInterval(egl_display_, interval) != EGL_TRUE) {
+  if (eglSwapInterval(egl_display_, enabled ? 1 : 0) != EGL_TRUE) {
     LogEglError("Unable to update the swap interval");
     return;
   }

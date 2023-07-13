@@ -378,8 +378,6 @@ class FlutterWindowsEngine {
   // The texture registrar.
   std::unique_ptr<FlutterWindowsTextureRegistrar> texture_registrar_;
 
-  WindowsProcTable windows_proc_table_;
-
   // Resolved OpenGL functions used by external texture implementations.
   GlProcs gl_procs_ = {};
 

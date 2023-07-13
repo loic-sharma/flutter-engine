@@ -199,7 +199,7 @@ FlutterWindowsEngine::FlutterWindowsEngine(
   FlutterWindowsTextureRegistrar::ResolveGlFunctions(gl_procs_);
   texture_registrar_ =
       std::make_unique<FlutterWindowsTextureRegistrar>(this, gl_procs_);
-  surface_manager_ = AngleSurfaceManager::Create(windows_proc_table_);
+  surface_manager_ = AngleSurfaceManager::Create();
   window_proc_delegate_manager_ = std::make_unique<WindowProcDelegateManager>();
   window_proc_delegate_manager_->RegisterTopLevelWindowProcDelegate(
       [](HWND hwnd, UINT msg, WPARAM wpar, LPARAM lpar, void* user_data,

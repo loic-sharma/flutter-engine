@@ -74,7 +74,8 @@ uint32_t FlutterWindowsView::GetFrameBufferId(size_t width, size_t height) {
     // Platform thread is blocked for the entire duration until the
     // resize_status_ is set to kDone.
     engine_->surface_manager()->ResizeSurface(view_id_, GetRenderTarget(),
-                                              width, height);
+                                              width, height,
+                                              binding_handler_->NeedsVSync());
     resize_status_ = ResizeState::kFrameGenerated;
   }
 
@@ -584,7 +585,8 @@ void FlutterWindowsView::CreateRenderSurface() {
   if (engine_ && engine_->surface_manager()) {
     PhysicalWindowBounds bounds = binding_handler_->GetPhysicalWindowBounds();
     engine_->surface_manager()->CreateSurface(view_id_, GetRenderTarget(),
-                                              bounds.width, bounds.height);
+                                              bounds.width, bounds.height,
+                                              binding_handler_->NeedsVSync());
 
     resize_target_width_ = bounds.width;
     resize_target_height_ = bounds.height;
@@ -661,7 +663,8 @@ void FlutterWindowsView::UpdateSemanticsEnabled(bool enabled) {
 
 void FlutterWindowsView::OnDwmCompositionChanged() {
   if (engine_->surface_manager()) {
-    engine_->surface_manager()->UpdateSwapInterval(view_id_);
+    engine_->surface_manager()->SetVSyncEnabled(view_id_,
+                                                binding_handler_->NeedsVSync());
   }
 }
 

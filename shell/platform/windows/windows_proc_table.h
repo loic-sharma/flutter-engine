@@ -26,8 +26,6 @@ class WindowsProcTable {
   virtual BOOL GetPointerType(UINT32 pointer_id,
                               POINTER_INPUT_TYPE* pointer_type);
 
-  virtual HRESULT DwmIsCompositionEnabled(BOOL* composition_enabled);
-
  private:
   using GetPointerType_ = BOOL __stdcall(UINT32 pointerId,
                                          POINTER_INPUT_TYPE* pointerType);
