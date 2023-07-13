@@ -23,14 +23,11 @@
 
 namespace flutter {
 
-class WindowsProcTable;
-
 // A manager for initializing ANGLE correctly and using it to create and
 // destroy surfaces
 class AngleSurfaceManager {
  public:
-  static std::unique_ptr<AngleSurfaceManager> Create(
-      WindowsProcTable& windows_proc_table);
+  static std::unique_ptr<AngleSurfaceManager> Create();
   virtual ~AngleSurfaceManager();
 
   // Creates an EGLSurface wrapper and backing DirectX 11 SwapChain
@@ -88,7 +85,7 @@ class AngleSurfaceManager {
  protected:
   // Creates a new surface manager retaining reference to the passed-in target
   // for the lifetime of the manager.
-  explicit AngleSurfaceManager(WindowsProcTable& windows_proc_table);
+  AngleSurfaceManager();
 
  private:
   bool Initialize();
@@ -102,12 +99,6 @@ class AngleSurfaceManager {
 
   // Update the surface's swap interval to prevent screen tearing.
   void UpdateSwapInterval();
-
-  // Whether Window's system compositor is enabled.
-  bool IsDwmCompositionEnabled();
-
-  // A wrapper around win32 APIs. Enables mocking.
-  WindowsProcTable& windows_proc_table_;
 
   // EGL representation of native display.
   EGLDisplay egl_display_;

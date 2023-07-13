@@ -4,10 +4,10 @@
 
 #include "flutter/shell/platform/windows/angle_surface_manager.h"
 
+#include <dwmapi.h>
 #include <vector>
 
 #include "flutter/fml/logging.h"
-#include "flutter/shell/platform/windows/windows_proc_table.h"
 
 // Logs an EGL error to stderr. This automatically calls eglGetError()
 // and logs the error code.
@@ -21,19 +21,27 @@ namespace flutter {
 
 int AngleSurfaceManager::instance_count_ = 0;
 
-std::unique_ptr<AngleSurfaceManager> AngleSurfaceManager::Create(
-    WindowsProcTable& windows_proc_table) {
+bool IsDwmCompositionEnabled() {
+  BOOL composition_enabled;
+  HRESULT result = ::DwmIsCompositionEnabled(&composition_enabled);
+  if (SUCCEEDED(result)) {
+    return composition_enabled;
+  }
+
+  return false;
+}
+
+std::unique_ptr<AngleSurfaceManager> AngleSurfaceManager::Create() {
   std::unique_ptr<AngleSurfaceManager> manager;
-  manager.reset(new AngleSurfaceManager(windows_proc_table));
+  manager.reset(new AngleSurfaceManager());
   if (!manager->initialize_succeeded_) {
     return nullptr;
   }
   return std::move(manager);
 }
 
-AngleSurfaceManager::AngleSurfaceManager(WindowsProcTable& windows_proc_table)
-    : windows_proc_table_(windows_proc_table),
-      egl_config_(nullptr),
+AngleSurfaceManager::AngleSurfaceManager()
+    : egl_config_(nullptr),
       egl_display_(EGL_NO_DISPLAY),
       egl_context_(EGL_NO_CONTEXT) {
   initialize_succeeded_ = Initialize();
@@ -360,19 +368,6 @@ bool AngleSurfaceManager::GetDevice(ID3D11Device** device) {
 
   resolved_device_.CopyTo(device);
   return (resolved_device_ != nullptr);
-}
-
-bool AngleSurfaceManager::IsDwmCompositionEnabled() {
-  // If the Desktop Window Manager composition is enabled, the system
-  // itself synchronizes with v-sync and the swap interval can be disabled.
-  BOOL composition_enabled;
-  HRESULT result =
-      windows_proc_table_.DwmIsCompositionEnabled(&composition_enabled);
-  if (SUCCEEDED(result)) {
-    return composition_enabled;
-  }
-
-  return false;
 }
 
 }  // namespace flutter

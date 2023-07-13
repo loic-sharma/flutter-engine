@@ -27,13 +27,11 @@ namespace testing {
 
 class MockAngleSurfaceManager : public AngleSurfaceManager {
  public:
-  MockAngleSurfaceManager() : AngleSurfaceManager(windows_proc_table_) {}
+  MockAngleSurfaceManager() {}
 
   MOCK_METHOD0(OnDwmCompositionChanged, void());
 
  private:
-  WindowsProcTable windows_proc_table_;
-
   FML_DISALLOW_COPY_AND_ASSIGN(MockAngleSurfaceManager);
 };
 
