@@ -5,6 +5,8 @@
 #include "flutter/shell/platform/windows/flutter_windows_engine.h"
 
 #include <dwmapi.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 
 #include <filesystem>
 #include <sstream>
@@ -30,6 +32,12 @@ static constexpr char kAccessibilityChannelName[] = "flutter/accessibility";
 namespace flutter {
 
 namespace {
+
+struct _FramebufferBackingStore {
+  uint32_t framebuffer_id;
+  uint32_t texture_id;
+  GlProcs gl_procs;
+};
 
 // Lifted from vsync_waiter_fallback.cc
 static std::chrono::nanoseconds SnapToNextTick(
@@ -57,8 +65,7 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
     if (!host->view()) {
       return false;
     }
-    // TODO(loicsharma): Remove single view assumption
-    return host->view(kImplicitViewId)->MakeCurrent();
+    return host->surface_manager()->MakeRenderContextCurrent();
   };
   config.open_gl.clear_current = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
@@ -379,19 +386,41 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
     }
 
     if (host->surface_manager_) {
-      // TODO: Make render context current and create the surface
+      auto gl = host->gl_procs_;
+      auto width = config->size.width;
+      auto height = config->size.height;
+
+      // Based off fl_renderer_gl_create_backing_store
+      // https://github.com/flutter/engine/blob/63e9cbe7baa3f81c54b39258dc269aa9bba3b57f/shell/platform/linux/fl_backing_store_provider.cc#L46-L61
+      auto store = std::make_unique<_FramebufferBackingStore>();
+      store->gl_procs = host->gl_procs_;
+
+      gl.glGenTextures(1, &store->texture_id);
+      gl.glGenFramebuffers(1, &store->framebuffer_id);
+
+      gl.glBindFramebuffer(GL_FRAMEBUFFER, store->framebuffer_id);
+      gl.glBindTexture(GL_TEXTURE_2D, store->texture_id);
+
+      gl.glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      gl.glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+      gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      // TODO: Linux uses GL_RGBA8 for 3rd parameter (internal format).
+      gl.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8_OES, width, height, 0, GL_RGBA,
+                      GL_UNSIGNED_BYTE, NULL);
+      gl.glBindTexture(GL_TEXTURE_2D, 0);
+
+      // TODO: Linux uses GL_FRAMEBUFFER_EXT instead of GL_FRAMEBUFFER
+      gl.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0_EXT,
+                                GL_TEXTURE_2D, store->texture_id, 0);
+
+      // https://github.com/flutter/engine/blob/519a53528b7fb8a54df4e50e861b5a9f299f0684/shell/platform/linux/fl_renderer_gl.cc#L58C1-L69
       backing_store_out->type = kFlutterBackingStoreTypeOpenGL;
       backing_store_out->open_gl.type = kFlutterOpenGLTargetTypeFramebuffer;
-      backing_store_out->open_gl.framebuffer.user_data = user_data;
-      backing_store_out->open_gl.framebuffer.name =
-          host->view()->GetFrameBufferId(config->size.width,
-                                         config->size.height);
-      // TODO: Investigate this constant more. Linux uses RGBA8 but Skia rejects
-      // that on my desktop.
-      // backing_store_out->open_gl.framebuffer.target = 0x8058 /* TODO:
-      // GR_GL_RGBA8 */;
-      backing_store_out->open_gl.framebuffer.target =
-          0x93A1 /* TODO: GR_GL_BGRA8 */;
+      backing_store_out->open_gl.framebuffer.name = store->framebuffer_id;
+      backing_store_out->open_gl.framebuffer.user_data = store.release();
+      // TODO: Linux uses logic derived from Skia here.
+      backing_store_out->open_gl.framebuffer.target = GL_BGRA8_EXT;
       backing_store_out->open_gl.framebuffer.destruction_callback =
           [](void* p) {
             // Backing store destroyed by collect_backing_store_callback.
@@ -419,9 +448,18 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
 
   compositor.collect_backing_store_callback =
       [](const FlutterBackingStore* renderer, void* user_data) -> bool {
-    // TODO: There is only a single surface manager that owns a single surface
-    // that are all destroyed when the engine is destroyed. Ideally this would
-    // support multiple surfaces and delete the corresponding surface.
+    // Software backing store's destruction callback frees the allocation.
+    if (renderer->type == kFlutterBackingStoreTypeSoftware) {
+      return true;
+    }
+
+    auto store = std::unique_ptr<_FramebufferBackingStore>(
+        static_cast<_FramebufferBackingStore*>(
+            renderer->open_gl.framebuffer.user_data));
+
+    // https://github.com/flutter/engine/blob/354bc34e72ca9f54dc1bd04af955158255d81a72/shell/platform/linux/fl_backing_store_provider.cc#L22-L23
+    store->gl_procs.glDeleteFramebuffers(1, &store->framebuffer_id);
+    store->gl_procs.glDeleteTextures(1, &store->texture_id);
     return true;
   };
 
@@ -444,6 +482,27 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
     }
 
     if (host->surface_manager_) {
+      assert(layers[0]->backing_store->type == kFlutterBackingStoreTypeOpenGL);
+      assert(layers[0]->backing_store->open_gl.type ==
+             kFlutterOpenGLTargetTypeFramebuffer);
+
+      auto gl = host->gl_procs_;
+      auto width = layers[0]->size.width;
+      auto height = layers[0]->size.height;
+
+      // This resizes the window's surface if necessary.
+      auto windowId = host->view()->GetFrameBufferId(width, height);
+
+      // See: https://stackoverflow.com/a/31487085
+      // See:
+      // https://chromium.googlesource.com/angle/angle/+/chromium/2176/tests/angle_tests/BlitFramebufferANGLETest.cpp#320
+      host->view()->MakeCurrent();
+      gl.glBindFramebuffer(GL_READ_FRAMEBUFFER_ANGLE,
+                           layers[0]->backing_store->open_gl.framebuffer.name);
+      gl.glBindFramebuffer(GL_DRAW_FRAMEBUFFER_ANGLE, windowId);
+      gl.glBlitFramebufferANGLE(0, 0, width, height, 0, 0, width, height,
+                                GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
       return host->view(view_id)->SwapBuffers();
     } else {
       const auto& backing_store = layers[0]->backing_store->software;

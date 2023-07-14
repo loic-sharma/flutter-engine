@@ -528,7 +528,7 @@ void FlutterWindowsView::SendPointerEventWithData(
 }
 
 bool FlutterWindowsView::MakeCurrent() {
-  return engine_->surface_manager()->MakeCurrent(view_id_);
+  return engine_->surface_manager()->MakeSurfaceCurrent(view_id_);
 }
 
 bool FlutterWindowsView::MakeResourceCurrent() {

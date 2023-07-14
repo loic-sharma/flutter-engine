@@ -287,7 +287,12 @@ void AngleSurfaceManager::DestroySurface(int64_t surface_id) {
   render_surfaces_.erase(surface_id);
 }
 
-bool AngleSurfaceManager::MakeCurrent(int64_t surface_id) {
+bool AngleSurfaceManager::MakeRenderContextCurrent() {
+  return (eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE,
+                         egl_context_) == EGL_TRUE);
+}
+
+bool AngleSurfaceManager::MakeSurfaceCurrent(int64_t surface_id) {
   FML_DCHECK(RenderSurfaceExists(surface_id));
 
   EGLSurface surface = render_surfaces_[surface_id]->surface;
