@@ -431,7 +431,6 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
         return false;
       }
 
-      // TODO: Support software rasterization.
       // See: EmbedderTestBackingStoreProducer::CreateSoftware
       backing_store_out->type = kFlutterBackingStoreTypeSoftware;
       backing_store_out->software.allocation = allocation;
