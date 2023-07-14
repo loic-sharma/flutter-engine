@@ -270,6 +270,7 @@ class PlatformDispatcher {
     return FlutterView._(id as int, this);
   }
 
+  // TODO(goderbauer): This should also get the ViewConfiguration instead of requiring a separate call to _updateWindowMetrics.
   void _addView(Object id) {
     assert(!_views.containsKey(id));
     _views[id as int] = _createView(id);
