@@ -4,6 +4,8 @@
 
 #include "flutter/shell/platform/windows/flutter_windows_engine.h"
 
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <dwmapi.h>
 
 #include <filesystem>
@@ -31,6 +33,12 @@ namespace flutter {
 
 namespace {
 
+struct _FramebufferBackingStore {
+  uint32_t framebuffer_id;
+  uint32_t texture_id;
+  GlProcs gl_procs;
+};
+
 // Lifted from vsync_waiter_fallback.cc
 static std::chrono::nanoseconds SnapToNextTick(
     std::chrono::nanoseconds value,
@@ -55,7 +63,7 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
     if (!host->view()) {
       return false;
     }
-    return host->view()->MakeCurrent();
+    return host->surface_manager()->MakeRenderContextCurrent();
   };
   config.open_gl.clear_current = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
@@ -65,22 +73,12 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
     return host->view()->ClearContext();
   };
   config.open_gl.present = [](void* user_data) -> bool {
-    auto host = static_cast<FlutterWindowsEngine*>(user_data);
-    if (!host->view()) {
-      return false;
-    }
-    return host->view()->SwapBuffers();
+    FML_UNREACHABLE();
   };
   config.open_gl.fbo_reset_after_present = true;
   config.open_gl.fbo_with_frame_info_callback =
       [](void* user_data, const FlutterFrameInfo* info) -> uint32_t {
-    auto host = static_cast<FlutterWindowsEngine*>(user_data);
-    if (host->view()) {
-      return host->view()->GetFrameBufferId(info->size.width,
-                                            info->size.height);
-    } else {
-      return kWindowFrameBufferID;
-    }
+    FML_UNREACHABLE();
   };
   config.open_gl.gl_proc_resolver = [](void* user_data,
                                        const char* what) -> void* {
@@ -374,7 +372,6 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
   compositor.create_backing_store_callback =
       [](const FlutterBackingStoreConfig* config,
          FlutterBackingStore* backing_store_out, void* user_data) -> bool {
-    // Based off fl_renderer_gl_create_backing_store
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
 
     if (!host->view()) {
@@ -382,41 +379,87 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
     }
 
     if (host->surface_manager_) {
-      // TODO: Make render context current and create the surface
+      // Based off fl_renderer_gl_create_backing_store
+      auto gl = host->gl_procs_;
+      auto width = config->size.width;
+      auto height = config->size.height;
+
+      // https://github.com/flutter/engine/blob/63e9cbe7baa3f81c54b39258dc269aa9bba3b57f/shell/platform/linux/fl_backing_store_provider.cc#L46-L61
+      auto store = std::make_unique<_FramebufferBackingStore>();
+      store->gl_procs = host->gl_procs_;
+
+      gl.glGenTextures(1, &store->texture_id);
+      gl.glGenFramebuffers(1, &store->framebuffer_id);
+
+      gl.glBindFramebuffer(GL_FRAMEBUFFER, store->framebuffer_id);
+      gl.glBindTexture(GL_TEXTURE_2D, store->texture_id);
+
+      gl.glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      gl.glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+      gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      // TODO: Linux uses GL_RGBA8 for 3rd parameter (internal format).
+      gl.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8_OES , width, height, 0, GL_RGBA,
+                      GL_UNSIGNED_BYTE, NULL);
+      gl.glBindTexture(GL_TEXTURE_2D, 0);
+
+      // TODO: Linux uses GL_FRAMEBUFFER_EXT instead of GL_FRAMEBUFFER
+      gl.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0_EXT,
+                                GL_TEXTURE_2D, store->texture_id, 0);
+
+      // https://github.com/flutter/engine/blob/519a53528b7fb8a54df4e50e861b5a9f299f0684/shell/platform/linux/fl_renderer_gl.cc#L58C1-L69
       backing_store_out->type = kFlutterBackingStoreTypeOpenGL;
       backing_store_out->open_gl.type = kFlutterOpenGLTargetTypeFramebuffer;
-      backing_store_out->open_gl.framebuffer.user_data = user_data;
-      backing_store_out->open_gl.framebuffer.name =
-          host->view()->GetFrameBufferId(config->size.width,
-                                         config->size.height);
-      // TODO: Investigate this constant more. Linux uses RGBA8 but Skia rejects
-      // that on my desktop.
-      // backing_store_out->open_gl.framebuffer.target = 0x8058 /* TODO:
-      // GR_GL_RGBA8 */;
-      backing_store_out->open_gl.framebuffer.target =
-          0x93A1 /* TODO: GR_GL_BGRA8 */;
+      backing_store_out->type = kFlutterBackingStoreTypeOpenGL;
+      backing_store_out->open_gl.type = kFlutterOpenGLTargetTypeFramebuffer;
+      backing_store_out->open_gl.framebuffer.name = store->framebuffer_id;
+      backing_store_out->open_gl.framebuffer.user_data = store.release();
+      // TODO: Linux uses logic derived from Skia here.
+      backing_store_out->open_gl.framebuffer.target = GL_BGRA8_EXT;
       backing_store_out->open_gl.framebuffer.destruction_callback =
           [](void* p) {
-            // Backing store destroyed by collect_backing_store_callback.
+
           };
+
+      // Create texture approach
+      /// https://github.com/flutter/engine/blob/601f0c173b8ea8ed6484b24a960d3b60b414fc66/shell/platform/windows/external_texture_pixelbuffer.cc#L53-L67
+      // GLuint texture_id;
+      // gl.glGenTextures(1, &texture_id);
+
+      // gl.glBindTexture(GL_TEXTURE_2D, texture_id);
+      // gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+      // gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      // gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      // gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+      // gl.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, config->size.width,
+      //                  config->size.height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+      //                  NULL);
+
+      ////
+      /// https://github.com/flutter/engine/blob/601f0c173b8ea8ed6484b24a960d3b60b414fc66/shell/platform/windows/external_texture_pixelbuffer.cc#L31-L38
+      // backing_store_out->type = kFlutterBackingStoreTypeOpenGL;
+      // backing_store_out->open_gl.type = kFlutterOpenGLTargetTypeTexture;
+      // backing_store_out->open_gl.texture.target = GL_TEXTURE_2D;
+      // backing_store_out->open_gl.texture.name = texture_id;
+      // backing_store_out->open_gl.texture.format = GL_RGBA8_OES;
+      // backing_store_out->open_gl.texture.destruction_callback = nullptr;
+      // backing_store_out->open_gl.texture.user_data = nullptr;
+      // backing_store_out->open_gl.texture.width = config->size.width;
+      // backing_store_out->open_gl.texture.height = config->size.height;
     } else {
       void* allocation = malloc(config->size.width * config->size.height * 4);
       if (!allocation) {
         return false;
       }
 
-      // TODO: Support software rasterization.
-      // See: EmbedderTestBackingStoreProducer::CreateSoftware
       backing_store_out->type = kFlutterBackingStoreTypeSoftware;
       backing_store_out->software.allocation = allocation;
       backing_store_out->software.destruction_callback = [](void* p) {
         free(p);
       };
-      backing_store_out->software.height =
-          config->size.height;
-      backing_store_out->software.row_bytes =
-          config->size.width *
-          4;
+      backing_store_out->software.height = config->size.height;
+      backing_store_out->software.row_bytes = config->size.width * 4;
       backing_store_out->user_data = nullptr;
     }
 
@@ -425,9 +468,17 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
 
   compositor.collect_backing_store_callback =
       [](const FlutterBackingStore* renderer, void* user_data) -> bool {
-    // TODO: There is only a single surface manager that owns a single surface
-    // that are all destroyed when the engine is destroyed. Ideally this would
-    // support multiple surfaces and delete the corresponding surface.
+    // Software backing store's destruction callback frees the allocation.
+    if (renderer->type == kFlutterBackingStoreTypeSoftware) {
+      return true;
+    }
+
+    auto store = std::unique_ptr<_FramebufferBackingStore>(
+        static_cast<_FramebufferBackingStore*>(renderer->open_gl.framebuffer.user_data));
+
+    // https://github.com/flutter/engine/blob/354bc34e72ca9f54dc1bd04af955158255d81a72/shell/platform/linux/fl_backing_store_provider.cc#L22-L23
+    store->gl_procs.glDeleteFramebuffers(1, &store->framebuffer_id);
+    store->gl_procs.glDeleteTextures(1, &store->texture_id);
     return true;
   };
 
@@ -445,6 +496,27 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
     }
 
     if (host->surface_manager_) {
+      assert(layers[0]->backing_store->type == kFlutterBackingStoreTypeOpenGL);
+      assert(layers[0]->backing_store->open_gl.type ==
+             kFlutterOpenGLTargetTypeFramebuffer);
+
+      auto gl = host->gl_procs_;
+      auto width = layers[0]->size.width;
+      auto height = layers[0]->size.height;
+
+      // This resizes the window's surface if necessary.
+      auto windowId = host->view()->GetFrameBufferId(width, height);
+
+      // See: https://stackoverflow.com/a/31487085
+      // See:
+      // https://chromium.googlesource.com/angle/angle/+/chromium/2176/tests/angle_tests/BlitFramebufferANGLETest.cpp#320
+      host->view()->MakeCurrent();
+      gl.glBindFramebuffer(GL_READ_FRAMEBUFFER_ANGLE,
+                           layers[0]->backing_store->open_gl.framebuffer.name);
+      gl.glBindFramebuffer(GL_DRAW_FRAMEBUFFER_ANGLE, windowId);
+      gl.glBlitFramebufferANGLE(0, 0, width, height, 0, 0, width, height,
+                                GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
       return host->view()->SwapBuffers();
     } else {
       const auto& backing_store = layers[0]->backing_store->software;
@@ -668,9 +740,10 @@ void FlutterWindowsEngine::SendSystemLocales() {
   // Convert the locale list to the locale pointer list that must be provided.
   std::vector<const FlutterLocale*> flutter_locale_list;
   flutter_locale_list.reserve(flutter_locales.size());
-  std::transform(flutter_locales.begin(), flutter_locales.end(),
-                 std::back_inserter(flutter_locale_list),
-                 [](const auto& arg) -> const auto* { return &arg; });
+  std::transform(
+      flutter_locales.begin(), flutter_locales.end(),
+      std::back_inserter(flutter_locale_list),
+      [](const auto& arg) -> const auto* { return &arg; });
   embedder_api_.UpdateLocales(engine_, flutter_locale_list.data(),
                               flutter_locale_list.size());
 }

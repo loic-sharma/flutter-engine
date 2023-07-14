@@ -55,9 +55,12 @@ class AngleSurfaceManager {
   // Releases the pass-in EGLSurface wrapping and backing resources if not null.
   virtual void DestroySurface();
 
+  // Binds egl_context_ to the current rendering thread. Returns true on success.
+  bool MakeRenderContextCurrent();
+
   // Binds egl_context_ to the current rendering thread and to the draw and read
   // surfaces returning a boolean result reflecting success.
-  bool MakeCurrent();
+  bool MakeSurfaceCurrent();
 
   // Clears current egl_context_
   bool ClearContext();
