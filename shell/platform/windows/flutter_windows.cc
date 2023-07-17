@@ -104,7 +104,7 @@ FlutterDesktopViewControllerRef FlutterDesktopEngineCreateViewController(
     int height,
     FlutterDesktopEngineRef engine) {
   // Create a view controller. Unlike |FlutterDesktopViewControllerCreate|,
-  // the contorller does not own its engine.
+  // the controller does not own its engine.
   auto engine_ptr = EngineFromHandle(engine);
   auto state = std::make_unique<FlutterDesktopViewControllerState>();
   state->view = CreateView(width, height, engine_ptr);

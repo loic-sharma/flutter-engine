@@ -173,7 +173,6 @@ class FlutterWindowsEngine {
   AngleSurfaceManager* surface_manager() { return surface_manager_.get(); }
 
   // Return the AccessibilityBridgeWindows for this engine's view.
-  // TODO(loicsharma): Remove this.
   std::weak_ptr<AccessibilityBridgeWindows> accessibility_bridge();
 
   WindowProcDelegateManager* window_proc_delegate_manager() {

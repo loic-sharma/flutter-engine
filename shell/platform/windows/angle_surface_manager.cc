@@ -21,9 +21,6 @@ namespace flutter {
 int AngleSurfaceManager::instance_count_ = 0;
 
 std::unique_ptr<AngleSurfaceManager> AngleSurfaceManager::Create() {
-  // TODO(loicsharma): HACK. Forces software rasterization.
-  return nullptr;
-
   std::unique_ptr<AngleSurfaceManager> manager;
   manager.reset(new AngleSurfaceManager());
   if (!manager->initialize_succeeded_) {

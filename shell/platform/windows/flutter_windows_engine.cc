@@ -4,9 +4,9 @@
 
 #include "flutter/shell/platform/windows/flutter_windows_engine.h"
 
-#include <dwmapi.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#include <dwmapi.h>
 
 #include <filesystem>
 #include <sstream>
@@ -76,9 +76,7 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
     }
     return host->view()->ClearContext();
   };
-  config.open_gl.present = [](void* user_data) -> bool {
-    FML_UNREACHABLE();
-  };
+  config.open_gl.present = [](void* user_data) -> bool { FML_UNREACHABLE(); };
   config.open_gl.fbo_reset_after_present = true;
   config.open_gl.fbo_with_frame_info_callback =
       [](void* user_data, const FlutterFrameInfo* info) -> uint32_t {
@@ -118,16 +116,12 @@ FlutterRendererConfig GetSoftwareRendererConfig() {
   FlutterRendererConfig config = {};
   config.type = kSoftware;
   config.software.struct_size = sizeof(config.software);
-  config.software.surface_present_callback = [](void* user_data,
-                                                const void* allocation,
-                                                size_t row_bytes,
-                                                size_t height) {
-    auto host = static_cast<FlutterWindowsEngine*>(user_data);
-    if (!host->view()) {
-      return false;
-    }
-    return host->view()->PresentSoftwareBitmap(allocation, row_bytes, height);
-  };
+  config.software.surface_present_callback =
+      [](void* user_data, const void* allocation, size_t row_bytes,
+         size_t height) {
+        FML_UNREACHABLE();
+        return false;
+      };
   return config;
 }
 
@@ -372,7 +366,7 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
 
   args.custom_task_runners = &custom_task_runners;
 
-    FlutterCompositor compositor = {};
+  FlutterCompositor compositor = {};
   compositor.struct_size = sizeof(FlutterCompositor);
   compositor.user_data = this;
   compositor.create_backing_store_callback =
@@ -463,8 +457,7 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
   };
 
   compositor.present_layers_callback = [](const FlutterLayer** layers,
-                                          size_t layers_count,
-                                          int64_t view_id,
+                                          size_t layers_count, int64_t view_id,
                                           void* user_data) -> bool {
     if (layers_count != 1 ||
         layers[0]->type != kFlutterLayerContentTypeBackingStore) {
@@ -474,8 +467,9 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
 
     // TODO(loicsharma): RemoveView removes the view from the views_ dictionary
-    // immediately even though removing a view from the engine is an asynchronous operation.
-    // Once that's fixed, we should be able to remove this.
+    // immediately even though removing a view from the engine is an
+    // asynchronous operation. Once that's fixed, we should be able to remove
+    // this.
     if (host->views_.find(view_id) == host->views_.end()) {
       return false;
     }
@@ -495,7 +489,7 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
       // See: https://stackoverflow.com/a/31487085
       // See:
       // https://chromium.googlesource.com/angle/angle/+/chromium/2176/tests/angle_tests/BlitFramebufferANGLETest.cpp#320
-      host->view()->MakeCurrent();
+      host->view(view_id)->MakeCurrent();
       gl.glBindFramebuffer(GL_READ_FRAMEBUFFER_ANGLE,
                            layers[0]->backing_store->open_gl.framebuffer.name);
       gl.glBindFramebuffer(GL_DRAW_FRAMEBUFFER_ANGLE, windowId);
@@ -505,9 +499,9 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
       return host->view(view_id)->SwapBuffers();
     } else {
       const auto& backing_store = layers[0]->backing_store->software;
-      return host->view(view_id)->PresentSoftwareBitmap(backing_store.allocation,
-                                                        backing_store.row_bytes,
-                                                        backing_store.height);
+      return host->view(view_id)->PresentSoftwareBitmap(
+          backing_store.allocation, backing_store.row_bytes,
+          backing_store.height);
     }
   };
   args.compositor = &compositor;
@@ -814,7 +808,8 @@ FlutterWindowsEngine::CreateKeyboardKeyHandler(
 std::unique_ptr<TextInputPlugin> FlutterWindowsEngine::CreateTextInputPlugin(
     BinaryMessenger* messenger) {
   // TODO(loicsharma): HACK. The text input plugin shouldn't accept a view in
-  // its constructor. This results in a dangling pointer if the view is destroyed.
+  // its constructor. This results in a dangling pointer if the view is
+  // destroyed.
   auto view = views_.begin()->second;
   return std::make_unique<TextInputPlugin>(messenger, view.get());
 }
@@ -878,7 +873,7 @@ void FlutterWindowsEngine::OnPreEngineRestart() {
   // Reset the keyboard's state on hot restart.
   // TODO(loicsharma): Unconditionally reset the keyboard
   // once it no longer depends on the implicit view.
-  if (view()) {
+  if (views_.size() > 0) {
     InitializeKeyboard();
   }
 }
