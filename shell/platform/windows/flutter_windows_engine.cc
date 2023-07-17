@@ -60,21 +60,11 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
   config.open_gl.struct_size = sizeof(config.open_gl);
   config.open_gl.make_current = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
-    // TODO(loicsharma): This shouldn't be necessary when RemoveView waits
-    // until the raster thread removes the view.
-    if (!host->view()) {
-      return false;
-    }
     return host->surface_manager()->MakeRenderContextCurrent();
   };
   config.open_gl.clear_current = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
-    // TODO(loicsharma): This shouldn't be necessary when RemoveView waits
-    // until the raster thread removes the view.
-    if (!host->view()) {
-      return false;
-    }
-    return host->view()->ClearContext();
+    return host->surface_manager()->ClearContext();
   };
   config.open_gl.present = [](void* user_data) -> bool { FML_UNREACHABLE(); };
   config.open_gl.fbo_reset_after_present = true;
@@ -88,12 +78,7 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
   };
   config.open_gl.make_resource_current = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
-    // TODO(loicsharma): This shouldn't be necessary when RemoveView waits
-    // until the raster thread removes the view.
-    if (!host->view()) {
-      return false;
-    }
-    return host->view()->MakeResourceCurrent();
+    return host->surface_manager()->MakeResourceCurrent();
   };
   config.open_gl.gl_external_texture_frame_callback =
       [](void* user_data, int64_t texture_id, size_t width, size_t height,
@@ -375,10 +360,6 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
     // Based off fl_renderer_gl_create_backing_store
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
 
-    if (!host->view()) {
-      return false;
-    }
-
     if (host->surface_manager_) {
       auto gl = host->gl_procs_;
       auto width = config->size.width;
@@ -484,7 +465,7 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
       auto height = layers[0]->size.height;
 
       // This resizes the window's surface if necessary.
-      auto windowId = host->view()->GetFrameBufferId(width, height);
+      auto windowId = host->view(view_id)->GetFrameBufferId(width, height);
 
       // See: https://stackoverflow.com/a/31487085
       // See:

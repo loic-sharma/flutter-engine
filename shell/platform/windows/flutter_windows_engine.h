@@ -130,17 +130,6 @@ class FlutterWindowsEngine {
     return view_id;
   }
 
-  // The view displaying this engine's content, if any. This will be null for
-  // headless engines.
-  // TODO(loicsharma): Remove this.
-  FlutterWindowsView* view() {
-    if (views_.find(kImplicitViewId) == views_.end()) {
-      return nullptr;
-    }
-
-    return views_[kImplicitViewId].get();
-  }
-
   FlutterWindowsView* view(int64_t view_id) {
     return views_[view_id].get();
   }
