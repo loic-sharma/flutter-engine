@@ -468,6 +468,7 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
       auto windowFramebuffer = host->view()->GetFrameBufferId(width, height);
 
       // Blit the backing store's FBO to the window's surface FBO.
+      // TODO: Is this the most efficient way to present the FBO?
       host->view()->MakeCurrent();
 
       gl.glBindFramebuffer(GL_READ_FRAMEBUFFER_ANGLE,
