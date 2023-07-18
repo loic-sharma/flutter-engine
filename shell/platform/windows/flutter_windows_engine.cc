@@ -540,6 +540,9 @@ bool FlutterWindowsEngine::Stop() {
 void FlutterWindowsEngine::AddView(std::unique_ptr<FlutterWindowsView> view) {
   FML_DCHECK(views_.find(view->view_id()) == views_.end());
 
+  // TODO(loicsharma): Ideally the engine wouldn't persist its ownership of
+  // the view so early. If adding the view fails, the view leaks.
+  // However, |InitializeKeyboard| requires a view to succeed.
   int64_t view_id = view->view_id();
   views_[view_id] = std::move(view);
 

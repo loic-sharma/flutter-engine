@@ -93,9 +93,14 @@ FlutterDesktopViewControllerRef FlutterDesktopViewControllerCreate(
     FlutterDesktopEngineRef engine) {
   // Create a view controller ref that owns the engine.
   auto engine_ptr = EngineFromHandle(engine);
+  auto view = CreateView(width, height, engine_ptr);
+  if (!view) {
+    return nullptr;
+  }
+
   auto state = std::make_unique<FlutterDesktopViewControllerState>();
-  state->view = CreateView(width, height, engine_ptr);
   state->engine = std::unique_ptr<flutter::FlutterWindowsEngine>(engine_ptr);
+  state->view = view;
 
   return state.release();
 }
@@ -107,16 +112,19 @@ FlutterDesktopViewControllerRef FlutterDesktopEngineCreateViewController(
   // Create a view controller. Unlike |FlutterDesktopViewControllerCreate|,
   // the controller does not own its engine.
   auto engine_ptr = EngineFromHandle(engine);
+  auto view = CreateView(width, height, engine_ptr);
+  if (!view) {
+    return nullptr;
+  }
+
   auto state = std::make_unique<FlutterDesktopViewControllerState>();
-  state->view = CreateView(width, height, engine_ptr);
+  state->view = view;
 
   return state.release();
 }
 
 void FlutterDesktopViewControllerDestroy(
     FlutterDesktopViewControllerRef controller) {
-  // The view controller and engine share ownership of the view.
-  // The view must be removed from the engine to destroy it.
   auto engine = controller->view->GetEngine();
   if (engine) {
     auto view_id = controller->view->view_id();
