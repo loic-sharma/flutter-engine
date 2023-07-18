@@ -113,9 +113,12 @@ class FlutterWindowsEngine {
   // Returns false if stopping the engine fails, or if it was not running.
   virtual bool Stop();
 
-  // Sets the view that is displaying this engine's content.
+  // Give the engine a view to render into.
   void AddView(std::unique_ptr<FlutterWindowsView> view);
 
+  // Destroy a view. The engine will no longer render into it.
+  //
+  // It is an error to attempt to destroy the implicit view.
   void DestroyView(int64_t view_id);
 
   int64_t AcquireViewId() {
