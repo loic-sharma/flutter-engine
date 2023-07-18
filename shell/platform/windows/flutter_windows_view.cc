@@ -574,9 +574,9 @@ bool FlutterWindowsView::PresentSoftwareBitmap(const void* allocation,
 void FlutterWindowsView::CreateRenderSurface() {
   if (engine_ && engine_->surface_manager()) {
     PhysicalWindowBounds bounds = binding_handler_->GetPhysicalWindowBounds();
-    engine_->surface_manager()->CreateSurface(view_id_, GetRenderTarget(),
-                                              bounds.width, bounds.height,
-                                              binding_handler_->NeedsVSync());
+    bool enable_vsync = binding_handler_->NeedsVSync();
+    engine_->surface_manager()->CreateSurface(
+        view_id_, GetRenderTarget(), bounds.width, bounds.height, enable_vsync);
 
     resize_target_width_ = bounds.width;
     resize_target_height_ = bounds.height;

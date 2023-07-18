@@ -102,8 +102,8 @@ FLUTTER_EXPORT void FlutterDesktopViewControllerDestroy(
 // Its lifetime is the same as the |controller|'s.
 FLUTTER_EXPORT FlutterDesktopEngineRef FlutterDesktopViewControllerGetEngine(
     FlutterDesktopViewControllerRef controller);
-// Returns the view managed by the given controller.
 
+// Returns the view managed by the given controller.
 FLUTTER_EXPORT FlutterDesktopViewRef
 FlutterDesktopViewControllerGetView(FlutterDesktopViewControllerRef controller);
 
@@ -158,6 +158,24 @@ FLUTTER_EXPORT bool FlutterDesktopEngineDestroy(FlutterDesktopEngineRef engine);
 FLUTTER_EXPORT bool FlutterDesktopEngineRun(FlutterDesktopEngineRef engine,
                                             const char* entry_point);
 
+// Creates a view for the given engine.
+//
+// If |engine| is not already running, the view controller will start running
+// it automatically before displaying the window.
+//
+// The caller owns the returned reference, and is responsible for calling
+// |FlutterDesktopViewControllerDestroy|. Returns a null pointer in the event of
+// an error.
+//
+// Unlike |FlutterDesktopViewControllerCreate|, this does *not* take ownership
+// of |engine| and |FlutterDesktopEngineDestroy| must be called to destroy
+// the engine.
+FLUTTER_EXPORT FlutterDesktopViewControllerRef
+FlutterDesktopEngineCreateViewController(int width,
+                                         int height,
+                                         FlutterDesktopEngineRef engine);
+
+
 // DEPRECATED: This is no longer necessary to call, Flutter will take care of
 // processing engine messages transparently through DispatchMessage.
 //
@@ -202,12 +220,6 @@ FLUTTER_EXPORT void FlutterDesktopEngineSetNextFrameCallback(
     FlutterDesktopEngineRef engine,
     VoidCallback callback,
     void* user_data);
-
-FLUTTER_EXPORT FlutterDesktopViewControllerRef
-FlutterDesktopEngineCreateViewController(
-    int width,
-    int height,
-    FlutterDesktopEngineRef engine);
 
 // ========== View ==========
 
