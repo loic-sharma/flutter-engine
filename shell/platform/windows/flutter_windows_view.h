@@ -28,6 +28,8 @@
 namespace flutter {
 
 // ID for the window frame buffer.
+// TODO: Is this correct even if there are multiple windows each
+// with their own EGLSurface?
 inline constexpr uint32_t kWindowFrameBufferID = 0;
 
 // An OS-windowing neutral abstration for flutter
