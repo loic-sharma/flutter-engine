@@ -364,7 +364,6 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
       auto width = config->size.width;
       auto height = config->size.height;
 
-      // https://github.com/flutter/engine/blob/63e9cbe7baa3f81c54b39258dc269aa9bba3b57f/shell/platform/linux/fl_backing_store_provider.cc#L46-L61
       auto store = std::make_unique<_FramebufferBackingStore>();
       store->gl_procs = host->gl_procs_;
 
@@ -379,11 +378,15 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
       gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
       gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
       // TODO: Linux uses GL_RGBA8 for 3rd parameter (internal format).
+      // See:
+      // https://github.com/flutter/engine/blob/63e9cbe7baa3f81c54b39258dc269aa9bba3b57f/shell/platform/linux/fl_backing_store_provider.cc#L56
       gl.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8_OES, width, height, 0, GL_RGBA,
                       GL_UNSIGNED_BYTE, NULL);
       gl.glBindTexture(GL_TEXTURE_2D, 0);
 
       // TODO: Linux uses GL_FRAMEBUFFER_EXT instead of GL_FRAMEBUFFER
+      // See:
+      // https://github.com/flutter/engine/blob/63e9cbe7baa3f81c54b39258dc269aa9bba3b57f/shell/platform/linux/fl_backing_store_provider.cc#L60
       gl.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0_EXT,
                                 GL_TEXTURE_2D, store->texture_id, 0);
 
@@ -394,13 +397,18 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
       backing_store_out->open_gl.framebuffer.name = store->framebuffer_id;
       backing_store_out->open_gl.framebuffer.user_data = store.release();
       // TODO: Linux uses logic derived from Skia here.
+      // See:
+      // https://github.com/flutter/engine/blob/63e9cbe7baa3f81c54b39258dc269aa9bba3b57f/shell/platform/linux/fl_backing_store_provider.cc#L80-L102
+      // TestGLSurface uses GL_BGRA8
+      // See:
+      // https://github.com/flutter/engine/blob/71bbecee301037eec63d898fcf9f6b136e4819e7/testing/test_gl_surface.cc#L348-L352
       backing_store_out->open_gl.framebuffer.target = GL_BGRA8_EXT;
       backing_store_out->open_gl.framebuffer.destruction_callback =
           [](void* p) {
             // Backing store destroyed by collect_backing_store_callback.
           };
     } else {
-      void* allocation = malloc(config->size.width * config->size.height * 4);
+      void* allocation = std::malloc(config->size.width * config->size.height * 4);
       if (!allocation) {
         return false;
       }
@@ -408,7 +416,7 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
       backing_store_out->type = kFlutterBackingStoreTypeSoftware;
       backing_store_out->software.allocation = allocation;
       backing_store_out->software.destruction_callback = [](void* p) {
-        free(p);
+        std::free(p);
       };
       backing_store_out->software.height = config->size.height;
       backing_store_out->software.row_bytes = config->size.width * 4;
