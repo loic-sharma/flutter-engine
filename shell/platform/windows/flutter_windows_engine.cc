@@ -950,7 +950,6 @@ void FlutterWindowsEngine::OnQuit(std::optional<HWND> hwnd,
 
 std::weak_ptr<AccessibilityBridgeWindows>
 FlutterWindowsEngine::accessibility_bridge() {
-  // TODO(loicsharma): Remove this helper.
   return views_[kImplicitViewId]->accessibility_bridge();
 }
 
