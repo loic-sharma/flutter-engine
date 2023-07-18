@@ -15,8 +15,6 @@
 namespace flutter {
 
 namespace {
-static constexpr int64_t kFlutterDefaultViewId = 0ll;
-
 // The maximum duration to block the platform thread for while waiting
 // for a window resize operation to complete.
 constexpr std::chrono::milliseconds kWindowResizeTimeout{100};
