@@ -60,7 +60,7 @@ class CursorHandlerTest : public WindowsTest {
 
  protected:
   FlutterWindowsEngine* engine() { return engine_.get(); }
-  FlutterWindowsView* view() { return view_.get(); }
+  FlutterWindowsView* view() { return view_; }
   MockWindowBindingHandler* window() { return window_; }
 
   void use_headless_engine() {
@@ -78,15 +78,16 @@ class CursorHandlerTest : public WindowsTest {
     EXPECT_CALL(*window_, SetView).Times(1);
     EXPECT_CALL(*window_, GetRenderTarget).WillOnce(Return(nullptr));
 
+    auto view = std::make_unique<FlutterWindowsView>(std::move(window));
     engine_ = builder.Build();
-    view_ = std::make_shared<FlutterWindowsView>(std::move(window));
+    view_ = view.get();
 
-    engine_->AddView(view_);
+    engine_->AddView(std::move(view));
   }
 
  private:
   std::unique_ptr<FlutterWindowsEngine> engine_;
-  std::shared_ptr<FlutterWindowsView> view_;
+  FlutterWindowsView* view_;
   MockWindowBindingHandler* window_;
 
   FML_DISALLOW_COPY_AND_ASSIGN(CursorHandlerTest);

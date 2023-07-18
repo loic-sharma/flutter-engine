@@ -537,7 +537,7 @@ bool FlutterWindowsEngine::Stop() {
   return false;
 }
 
-void FlutterWindowsEngine::AddView(std::shared_ptr<FlutterWindowsView> view) {
+void FlutterWindowsEngine::AddView(std::unique_ptr<FlutterWindowsView> view) {
   FML_DCHECK(views_.find(view->view_id()) == views_.end());
 
   int64_t view_id = view->view_id();
@@ -566,7 +566,7 @@ void FlutterWindowsEngine::AddView(std::shared_ptr<FlutterWindowsView> view) {
   }
 }
 
-void FlutterWindowsEngine::RemoveView(int64_t view_id) {
+void FlutterWindowsEngine::DestroyView(int64_t view_id) {
   FML_DCHECK(running());
   FML_DCHECK(views_.find(view_id) != views_.end());
   FML_DCHECK(view_id != kImplicitViewId);
@@ -791,8 +791,8 @@ std::unique_ptr<TextInputPlugin> FlutterWindowsEngine::CreateTextInputPlugin(
   // TODO(loicsharma): HACK. The text input plugin shouldn't accept a view in
   // its constructor. This results in a dangling pointer if the view is
   // destroyed.
-  auto view = views_.begin()->second;
-  return std::make_unique<TextInputPlugin>(messenger, view.get());
+  auto view = views_.begin()->second.get();
+  return std::make_unique<TextInputPlugin>(messenger, view);
 }
 
 bool FlutterWindowsEngine::RegisterExternalTexture(int64_t texture_id) {

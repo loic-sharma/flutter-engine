@@ -27,6 +27,7 @@
 #include "flutter/shell/platform/windows/flutter_desktop_messenger.h"
 #include "flutter/shell/platform/windows/flutter_project_bundle.h"
 #include "flutter/shell/platform/windows/flutter_windows_texture_registrar.h"
+#include "flutter/shell/platform/windows/flutter_windows_view.h"
 #include "flutter/shell/platform/windows/keyboard_handler_base.h"
 #include "flutter/shell/platform/windows/keyboard_key_embedder_handler.h"
 #include "flutter/shell/platform/windows/platform_handler.h"
@@ -43,8 +44,6 @@
 namespace flutter {
 
 static constexpr int64_t kImplicitViewId = 0;
-
-class FlutterWindowsView;
 
 // Update the thread priority for the Windows engine.
 static void WindowsPlatformThreadPrioritySetter(
@@ -115,12 +114,9 @@ class FlutterWindowsEngine {
   virtual bool Stop();
 
   // Sets the view that is displaying this engine's content.
-  // TODO(loicsharma): This accepts a shared pointer so that
-  // the implicit view can exist even if its controller is destroyed.
-  // Reconsider this...
-  void AddView(std::shared_ptr<FlutterWindowsView> view);
+  void AddView(std::unique_ptr<FlutterWindowsView> view);
 
-  void RemoveView(int64_t view_id);
+  void DestroyView(int64_t view_id);
 
   int64_t AcquireViewId() {
     // TODO(loicsharma): If the implicit view is disabled, the first
@@ -346,7 +342,7 @@ class FlutterWindowsEngine {
   UniqueAotDataPtr aot_data_;
 
   // The views displaying the content running in this engine.
-  std::unordered_map<int64_t, std::shared_ptr<FlutterWindowsView>> views_;
+  std::unordered_map<int64_t, std::unique_ptr<FlutterWindowsView>> views_;
 
   // Task runner for tasks posted from the engine.
   std::unique_ptr<TaskRunner> task_runner_;

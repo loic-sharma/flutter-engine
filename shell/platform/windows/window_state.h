@@ -26,7 +26,7 @@ struct FlutterDesktopViewControllerState {
   std::unique_ptr<flutter::FlutterWindowsEngine> engine;
 
   // The view that backs this state object.
-  std::shared_ptr<flutter::FlutterWindowsView> view;
+  flutter::FlutterWindowsView* view;
 };
 
 // Wrapper to distinguish the plugin registrar ref from the engine ref given out
