@@ -365,8 +365,6 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
       auto width = config->size.width;
       auto height = config->size.height;
 
-      // Based off fl_renderer_gl_create_backing_store
-      // https://github.com/flutter/engine/blob/63e9cbe7baa3f81c54b39258dc269aa9bba3b57f/shell/platform/linux/fl_backing_store_provider.cc#L46-L61
       auto store = std::make_unique<_FramebufferBackingStore>();
       store->gl_procs = host->gl_procs_;
 
@@ -374,34 +372,43 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
       gl.glGenFramebuffers(1, &store->framebuffer_id);
 
       gl.glBindFramebuffer(GL_FRAMEBUFFER, store->framebuffer_id);
-      gl.glBindTexture(GL_TEXTURE_2D, store->texture_id);
 
+      gl.glBindTexture(GL_TEXTURE_2D, store->texture_id);
       gl.glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
       gl.glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
       gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
       gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-      // TODO: Linux uses GL_RGBA8 for 3rd parameter (internal format).
       gl.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8_OES, width, height, 0, GL_RGBA,
                       GL_UNSIGNED_BYTE, NULL);
       gl.glBindTexture(GL_TEXTURE_2D, 0);
 
-      // TODO: Linux uses GL_FRAMEBUFFER_EXT instead of GL_FRAMEBUFFER
       gl.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0_EXT,
                                 GL_TEXTURE_2D, store->texture_id, 0);
 
-      // https://github.com/flutter/engine/blob/519a53528b7fb8a54df4e50e861b5a9f299f0684/shell/platform/linux/fl_renderer_gl.cc#L58C1-L69
       backing_store_out->type = kFlutterBackingStoreTypeOpenGL;
       backing_store_out->open_gl.type = kFlutterOpenGLTargetTypeFramebuffer;
       backing_store_out->open_gl.framebuffer.name = store->framebuffer_id;
       backing_store_out->open_gl.framebuffer.user_data = store.release();
-      // TODO: Linux uses logic derived from Skia here.
-      backing_store_out->open_gl.framebuffer.target = GL_BGRA8_EXT;
       backing_store_out->open_gl.framebuffer.destruction_callback =
           [](void* p) {
             // Backing store destroyed by collect_backing_store_callback.
           };
+
+      // Based off Skia's logic:
+      // https://github.com/google/skia/blob/4738ed711e03212aceec3cd502a4adb545f38e63/src/gpu/ganesh/gl/GrGLCaps.cpp#L1963-L2116
+      if (host->surface_manager_->HasExtension(
+              "GL_EXT_texture_format_BGRA8888")) {
+        backing_store_out->open_gl.framebuffer.target = GL_BGRA8_EXT;
+      } else if (host->surface_manager_->HasExtension(
+                     "GL_APPLE_texture_format_BGRA8888") &&
+                 host->surface_manager_->GlVersion(3, 0)) {
+        backing_store_out->open_gl.framebuffer.target = GL_BGRA8_EXT;
+      } else {
+        backing_store_out->open_gl.framebuffer.target = GL_RGBA8_OES;
+      }
     } else {
-      void* allocation = malloc(config->size.width * config->size.height * 4);
+      void* allocation =
+          std::malloc(config->size.width * config->size.height * 4);
       if (!allocation) {
         return false;
       }
@@ -410,7 +417,7 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
       backing_store_out->type = kFlutterBackingStoreTypeSoftware;
       backing_store_out->software.allocation = allocation;
       backing_store_out->software.destruction_callback = [](void* p) {
-        free(p);
+        std::free(p);
       };
       backing_store_out->software.height = config->size.height;
       backing_store_out->software.row_bytes = config->size.width * 4;
@@ -431,7 +438,6 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
         static_cast<_FramebufferBackingStore*>(
             renderer->open_gl.framebuffer.user_data));
 
-    // https://github.com/flutter/engine/blob/354bc34e72ca9f54dc1bd04af955158255d81a72/shell/platform/linux/fl_backing_store_provider.cc#L22-L23
     store->gl_procs.glDeleteFramebuffers(1, &store->framebuffer_id);
     store->gl_procs.glDeleteTextures(1, &store->texture_id);
     return true;
