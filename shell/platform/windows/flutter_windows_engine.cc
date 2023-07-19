@@ -6,6 +6,7 @@
 
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#include <GLES3/gl3.h>
 #include <dwmapi.h>
 
 #include <filesystem>
@@ -378,13 +379,15 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
       gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
       gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
       // TODO: Linux uses GL_RGBA8 for 3rd parameter (internal format).
+      // This has the same value as ANGLE's GL_RGBA8_OES: 0x8058.
       // See:
       // https://github.com/flutter/engine/blob/63e9cbe7baa3f81c54b39258dc269aa9bba3b57f/shell/platform/linux/fl_backing_store_provider.cc#L56
       gl.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8_OES, width, height, 0, GL_RGBA,
                       GL_UNSIGNED_BYTE, NULL);
       gl.glBindTexture(GL_TEXTURE_2D, 0);
 
-      // TODO: Linux uses GL_FRAMEBUFFER_EXT instead of GL_FRAMEBUFFER
+      // TODO: Linux uses GL_FRAMEBUFFER_EXT instead of GL_FRAMEBUFFER,
+      // however, ANGLE does not define GL_FRAMEBUFFER_EXT.
       // See:
       // https://github.com/flutter/engine/blob/63e9cbe7baa3f81c54b39258dc269aa9bba3b57f/shell/platform/linux/fl_backing_store_provider.cc#L60
       gl.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0_EXT,
@@ -396,19 +399,49 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
       backing_store_out->open_gl.type = kFlutterOpenGLTargetTypeFramebuffer;
       backing_store_out->open_gl.framebuffer.name = store->framebuffer_id;
       backing_store_out->open_gl.framebuffer.user_data = store.release();
-      // TODO: Linux uses logic derived from Skia here.
+
+      // TODO: What is the correct target to use? The options are:
+      // * GL_RGBA8_OES (0x8058)
+      // * GL_BGRA8_EXT (0x93A1)
+      //
+      // On my Windows desktop, GL_RGBA8_OES fails Skia's surface validation.
+      // I've mirrored Linux's OpenGL ES logic.
+      //
+      // Linux uses logic derived from Skia:
+      // * If on OpenGL v1.2+ with extension "GL_EXT_BGRA", use GL_RGBA8
+      // (0x8058)
+      // * If on OpenGL ES with extension "GL_EXT_texture_format_BGRA8888", use
+      // GL_BGRA8_EXT (0x93A1)
+      // * If on OpenGL ES v3.0+ with extension
+      // "GL_APPLE_texture_format_BGRA8888", use GL_BGRA8_EXT (0x93A1)
+      // * Else, use GL_RGBA8 (0x8058)
       // See:
       // https://github.com/flutter/engine/blob/63e9cbe7baa3f81c54b39258dc269aa9bba3b57f/shell/platform/linux/fl_backing_store_provider.cc#L80-L102
-      // TestGLSurface uses GL_BGRA8
-      // See:
+      //
+      // Skia logic:
+      // https://github.com/google/skia/blob/4738ed711e03212aceec3cd502a4adb545f38e63/src/gpu/ganesh/gl/GrGLCaps.cpp#L1963-L2116
+      //
+      // TestGLSurface uses GL_RGBA8 (0x8058) if on macOS, otherwise GL_BGRA8
+      // (0x93A1) See:
       // https://github.com/flutter/engine/blob/71bbecee301037eec63d898fcf9f6b136e4819e7/testing/test_gl_surface.cc#L348-L352
-      backing_store_out->open_gl.framebuffer.target = GL_BGRA8_EXT;
+      if (host->surface_manager_->HasExtension(
+              "GL_EXT_texture_format_BGRA8888")) {
+        backing_store_out->open_gl.framebuffer.target = GL_BGRA8_EXT;
+      } else if (host->surface_manager_->HasExtension(
+                     "GL_APPLE_texture_format_BGRA8888") &&
+                 host->surface_manager_->GlVersion(3, 0)) {
+        backing_store_out->open_gl.framebuffer.target = GL_BGRA8_EXT;
+      } else {
+        backing_store_out->open_gl.framebuffer.target = GL_RGBA8_OES;
+      }
+
       backing_store_out->open_gl.framebuffer.destruction_callback =
           [](void* p) {
             // Backing store destroyed by collect_backing_store_callback.
           };
     } else {
-      void* allocation = std::malloc(config->size.width * config->size.height * 4);
+      void* allocation =
+          std::malloc(config->size.width * config->size.height * 4);
       if (!allocation) {
         return false;
       }

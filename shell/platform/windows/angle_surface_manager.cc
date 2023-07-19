@@ -4,6 +4,7 @@
 
 #include "flutter/shell/platform/windows/angle_surface_manager.h"
 
+#include <GLES3/gl3.h>
 #include <vector>
 
 #include "flutter/fml/logging.h"
@@ -17,6 +18,10 @@ static void LogEglError(std::string message) {
 }
 
 namespace flutter {
+
+typedef void (*glGetIntegervProc)(GLenum pname, GLint* params);
+typedef GLubyte* (*glGetStringProc)(GLenum name);
+typedef GLubyte* (*glGetStringiProc)(GLenum name, GLuint index);
 
 int AngleSurfaceManager::instance_count_ = 0;
 
@@ -169,7 +174,76 @@ bool AngleSurfaceManager::Initialize() {
     return false;
   }
 
+  MakeRenderContextCurrent();
+  InitializeGlVersion();
+  InitializeGlExtensions();
+
   return true;
+}
+
+// Based off Skia's GrGLGetVersionFromString
+// See:
+// https://github.com/google/skia/blob/732e6019a9dd7f308bef45e19f37a8ec1bd4d7bb/src/gpu/ganesh/gl/GrGLUtil.cpp#L101-L104
+void AngleSurfaceManager::InitializeGlVersion() {
+  glGetStringProc gl_get_string =
+      reinterpret_cast<glGetStringProc>(eglGetProcAddress("glGetString"));
+
+  if (!gl_get_string) {
+    return;
+  }
+
+  int major, minor;
+  auto version = reinterpret_cast<const char*>(gl_get_string(GL_VERSION));
+  int parts = sscanf(version, "OpenGL ES %d.%d", &major, &minor);
+  if (parts != 2) {
+    return;
+  }
+
+  gl_version_major_ = major;
+  gl_version_minor_ = minor;
+}
+
+// Based off Skia's GrGLExtensions::init
+// See:
+// https://github.com/google/skia/blob/732e6019a9dd7f308bef45e19f37a8ec1bd4d7bb/src/gpu/ganesh/gl/GrGLExtensions.cpp#L68-L125
+void AngleSurfaceManager::InitializeGlExtensions() {
+  glGetIntegervProc gl_get_integerv =
+      reinterpret_cast<glGetIntegervProc>(eglGetProcAddress("glGetIntegerv"));
+  glGetStringProc gl_get_string =
+      reinterpret_cast<glGetStringProc>(eglGetProcAddress("glGetString"));
+  glGetStringiProc gl_get_stringi =
+      reinterpret_cast<glGetStringiProc>(eglGetProcAddress("glGetStringi"));
+
+  // glGetStringi is only available on OpenGL 3.0 or greater and isn't
+  // required.
+  if (!gl_get_integerv || !gl_get_string) {
+    return;
+  }
+
+  std::istringstream istream;
+  std::string extension;
+
+  if (gl_version_major_ >= 3 && gl_get_stringi) {
+    int extensions_count;
+    gl_get_integerv(GL_NUM_EXTENSIONS, &extensions_count);
+
+    for (int i = 0; i < extensions_count; i++) {
+      auto extension =
+          reinterpret_cast<const char*>(gl_get_stringi(GL_EXTENSIONS, i));
+
+      gl_extensions_.insert(std::string(extension));
+    }
+  } else {
+    istream.str(reinterpret_cast<const char*>(gl_get_string(GL_EXTENSIONS)));
+    while (std::getline(istream, extension, ' ')) {
+      gl_extensions_.insert(extension);
+    }
+  }
+
+  istream.str(::eglQueryString(egl_display_, EGL_EXTENSIONS));
+  while (std::getline(istream, extension, ' ')) {
+    gl_extensions_.insert(extension);
+  }
 }
 
 void AngleSurfaceManager::CleanUp() {
@@ -205,6 +279,14 @@ void AngleSurfaceManager::CleanUp() {
     }
     egl_display_ = EGL_NO_DISPLAY;
   }
+}
+
+bool AngleSurfaceManager::GlVersion(int major, int minor) {
+  return gl_version_major_ >= major && gl_version_minor_ >= minor;
+}
+
+bool AngleSurfaceManager::HasExtension(std::string extension) {
+  return gl_extensions_.find(extension) != gl_extensions_.end();
 }
 
 bool AngleSurfaceManager::CreateSurface(WindowsRenderTarget* render_target,

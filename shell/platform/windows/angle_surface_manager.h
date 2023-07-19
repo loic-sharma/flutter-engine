@@ -17,6 +17,7 @@
 #include <windows.h>
 #include <wrl/client.h>
 #include <memory>
+#include <unordered_set>
 
 #include "flutter/fml/macros.h"
 #include "flutter/shell/platform/windows/window_binding_handler.h"
@@ -29,6 +30,12 @@ class AngleSurfaceManager {
  public:
   static std::unique_ptr<AngleSurfaceManager> Create();
   virtual ~AngleSurfaceManager();
+
+  // Returns true if the OpenGL version is greater than or equal to the input.
+  bool GlVersion(int major, int minor);
+
+  // Returns true if the OpenGL extension is available.
+  bool HasExtension(std::string extension);
 
   // Creates an EGLSurface wrapper and backing DirectX 11 SwapChain
   // associated with window, in the appropriate format for display.
@@ -95,6 +102,8 @@ class AngleSurfaceManager {
 
  private:
   bool Initialize();
+  void InitializeGlVersion();
+  void InitializeGlExtensions();
   void CleanUp();
 
   // Attempts to initialize EGL using ANGLE.
@@ -115,6 +124,15 @@ class AngleSurfaceManager {
 
   // current frame buffer configuration.
   EGLConfig egl_config_;
+
+  // The OpenGL major version number.
+  int gl_version_major_ = 0;
+
+  // The OpenGL minor version number.
+  int gl_version_minor_ = 0;
+
+  // The available OpenGL extensions.
+  std::unordered_set<std::string> gl_extensions_;
 
   // State representing success or failure of display initialization used when
   // creating surfaces.
