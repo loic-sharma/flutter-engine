@@ -144,6 +144,8 @@ class PlatformHandlerTest : public WindowsTest {
 
     auto window = std::make_unique<NiceMock<MockWindowBindingHandler>>();
     auto view = std::make_unique<FlutterWindowsView>(std::move(window));
+
+    view->SetEngine(engine_.get());
     engine_->AddView(std::move(view));
   }
 

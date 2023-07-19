@@ -215,6 +215,7 @@ FlutterWindowsEngine::FlutterWindowsEngine(
 FlutterWindowsEngine::~FlutterWindowsEngine() {
   messenger_->SetEngine(nullptr);
   Stop();
+  views_.clear();
 }
 
 void FlutterWindowsEngine::SetSwitches(

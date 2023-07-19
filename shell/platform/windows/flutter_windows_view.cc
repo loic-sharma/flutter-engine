@@ -571,6 +571,8 @@ bool FlutterWindowsView::PresentSoftwareBitmap(const void* allocation,
 }
 
 void FlutterWindowsView::CreateRenderSurface() {
+  FML_DCHECK(has_surface_ == false);
+
   if (engine_ && engine_->surface_manager()) {
     PhysicalWindowBounds bounds = binding_handler_->GetPhysicalWindowBounds();
     bool enable_vsync = binding_handler_->NeedsVSync();
@@ -579,11 +581,12 @@ void FlutterWindowsView::CreateRenderSurface() {
 
     resize_target_width_ = bounds.width;
     resize_target_height_ = bounds.height;
+    has_surface_ = true;
   }
 }
 
 void FlutterWindowsView::DestroyRenderSurface() {
-  if (engine_ && engine_->surface_manager()) {
+  if (engine_ && has_surface_) {
     engine_->surface_manager()->DestroySurface(view_id_);
   }
 }

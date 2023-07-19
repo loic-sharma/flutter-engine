@@ -88,7 +88,7 @@ ViewControllerPtr WindowsConfigBuilder::Run() const {
   int width = 600;
   int height = 400;
   ViewControllerPtr controller(
-      FlutterDesktopViewControllerCreate(width, height, engine.release()));
+      FlutterDesktopEngineCreateViewController(width, height, engine.release()));
   if (!controller) {
     return {};
   }

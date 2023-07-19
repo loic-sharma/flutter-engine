@@ -82,6 +82,7 @@ class CursorHandlerTest : public WindowsTest {
     engine_ = builder.Build();
     view_ = view.get();
 
+    view_->SetEngine(engine_.get());
     engine_->AddView(std::move(view));
   }
 

@@ -371,6 +371,9 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
   // Currently configured WindowBindingHandler for view.
   std::unique_ptr<WindowBindingHandler> binding_handler_;
 
+  // TODO(loicsharma): Remove this.
+  bool has_surface_ = false;
+
   // Resize events are synchronized using this mutex and the corresponding
   // condition variable.
   std::mutex resize_mutex_;
