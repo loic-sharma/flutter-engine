@@ -64,7 +64,6 @@ uint32_t FlutterWindowsView::GetFrameBufferId(size_t width, size_t height) {
   std::unique_lock<std::mutex> lock(resize_mutex_);
 
   if (resize_status_ != ResizeState::kResizeStarted) {
-    // TODO(loicsharma): Should this be unique per view?
     return kWindowFrameBufferID;
   }
 
