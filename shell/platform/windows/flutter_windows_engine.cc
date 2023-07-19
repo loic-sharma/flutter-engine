@@ -498,7 +498,7 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
       auto height = layers[0]->size.height;
 
       // This resizes the window's surface if necessary.
-      auto windowFramebuffer = host->view()->GetFrameBufferId(width, height);
+      auto windowFboId = host->view()->GetFrameBufferId(width, height);
 
       // Blit the backing store's FBO to the window's surface FBO.
       // TODO: Is this the most efficient way to present the FBO?
@@ -506,7 +506,7 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
 
       gl.glBindFramebuffer(GL_READ_FRAMEBUFFER_ANGLE,
                            layers[0]->backing_store->open_gl.framebuffer.name);
-      gl.glBindFramebuffer(GL_DRAW_FRAMEBUFFER_ANGLE, windowFramebuffer);
+      gl.glBindFramebuffer(GL_DRAW_FRAMEBUFFER_ANGLE, windowFboId);
       gl.glBlitFramebufferANGLE(0, 0, width, height, 0, 0, width, height,
                                 GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
