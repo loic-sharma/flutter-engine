@@ -282,7 +282,11 @@ void AngleSurfaceManager::CleanUp() {
 }
 
 bool AngleSurfaceManager::GlVersion(int major, int minor) {
-  return gl_version_major_ >= major && gl_version_minor_ >= minor;
+  if (gl_version_major_ > major) {
+    return true;
+  }
+
+  return gl_version_major_ == major && gl_version_minor_ >= minor;
 }
 
 bool AngleSurfaceManager::HasExtension(std::string extension) {
