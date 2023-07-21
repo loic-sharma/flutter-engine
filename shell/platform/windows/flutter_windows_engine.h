@@ -114,7 +114,7 @@ class FlutterWindowsEngine {
   virtual bool Stop();
 
   // Give the engine a view to render into.
-  void AddView(std::unique_ptr<FlutterWindowsView> view);
+  void AddView(FlutterWindowsView* view);
 
   // Destroy a view. The engine will no longer render into it.
   //
@@ -130,7 +130,7 @@ class FlutterWindowsEngine {
   }
 
   FlutterWindowsView* view(int64_t view_id) {
-    return views_[view_id].get();
+    return views_[view_id];
   }
 
   // Returns the currently configured Plugin Registrar.
@@ -345,7 +345,7 @@ class FlutterWindowsEngine {
   UniqueAotDataPtr aot_data_;
 
   // The views displaying the content running in this engine.
-  std::unordered_map<int64_t, std::unique_ptr<FlutterWindowsView>> views_;
+  std::unordered_map<int64_t, FlutterWindowsView*> views_;
 
   // Task runner for tasks posted from the engine.
   std::unique_ptr<TaskRunner> task_runner_;

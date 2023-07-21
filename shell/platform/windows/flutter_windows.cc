@@ -61,18 +61,26 @@ static FlutterDesktopTextureRegistrarRef HandleForTextureRegistrar(
   return reinterpret_cast<FlutterDesktopTextureRegistrarRef>(registrar);
 }
 
-static flutter::FlutterWindowsView*
-CreateView(int width, int height, flutter::FlutterWindowsEngine* engine) {
+static FlutterDesktopViewControllerRef CreateViewController(
+    FlutterDesktopEngineRef engine_handle,
+    int width,
+    int height,
+    bool owns_engine) {
   std::unique_ptr<flutter::WindowBindingHandler> window_wrapper =
       std::make_unique<flutter::FlutterWindow>(width, height);
 
-  auto view =
+  auto engine = EngineFromHandle(engine_handle);
+  auto state = std::make_unique<FlutterDesktopViewControllerState>();
+  state->view =
       std::make_unique<flutter::FlutterWindowsView>(std::move(window_wrapper));
-  auto view_ptr = view.get();
+  state->view->SetEngine(engine);
+  state->view->CreateRenderSurface();
+  engine->AddView(state->view.get());
 
-  view_ptr->SetEngine(engine);
-  view_ptr->CreateRenderSurface();
-  engine->AddView(std::move(view));
+  // Take ownership of the engine if necessary.
+  if (owns_engine) {
+    state->engine = std::unique_ptr<flutter::FlutterWindowsEngine>(engine);
+  }
 
   // Launch the engine if necessary.
   if (!engine->running()) {
@@ -82,45 +90,23 @@ CreateView(int width, int height, flutter::FlutterWindowsEngine* engine) {
   }
 
   // Must happen after engine is running.
-  view_ptr->SendInitialBounds();
-  view_ptr->SendInitialAccessibilityFeatures();
-  return view_ptr;
+  state->view->SendInitialBounds();
+  state->view->SendInitialAccessibilityFeatures();
+  return state.release();
 }
 
 FlutterDesktopViewControllerRef FlutterDesktopViewControllerCreate(
     int width,
     int height,
     FlutterDesktopEngineRef engine) {
-  // Create a view controller ref that owns the engine.
-  auto engine_ptr = EngineFromHandle(engine);
-  auto view = CreateView(width, height, engine_ptr);
-  if (!view) {
-    return nullptr;
-  }
-
-  auto state = std::make_unique<FlutterDesktopViewControllerState>();
-  state->engine = std::unique_ptr<flutter::FlutterWindowsEngine>(engine_ptr);
-  state->view = view;
-
-  return state.release();
+  return CreateViewController(engine, width, height, /*owns_engine=*/true);
 }
 
 FlutterDesktopViewControllerRef FlutterDesktopEngineCreateViewController(
     FlutterDesktopEngineRef engine,
-    const FlutterDesktopViewControllerProperties* view_controller_properties) {
-  // Create a view controller. Unlike |FlutterDesktopViewControllerCreate|,
-  // the controller does not own its engine.
-  auto engine_ptr = EngineFromHandle(engine);
-  auto view = CreateView(view_controller_properties->width,
-                         view_controller_properties->height, engine_ptr);
-  if (!view) {
-    return nullptr;
-  }
-
-  auto state = std::make_unique<FlutterDesktopViewControllerState>();
-  state->view = view;
-
-  return state.release();
+    const FlutterDesktopViewControllerProperties* properties) {
+  return CreateViewController(engine, properties->width, properties->height,
+                              /*owns_engine=*/false);
 }
 
 void FlutterDesktopViewControllerDestroy(
@@ -146,7 +132,7 @@ FlutterDesktopEngineRef FlutterDesktopViewControllerGetEngine(
 
 FlutterDesktopViewRef FlutterDesktopViewControllerGetView(
     FlutterDesktopViewControllerRef controller) {
-  return HandleForView(controller->view);
+  return HandleForView(controller->view.get());
 }
 
 void FlutterDesktopViewControllerForceRedraw(

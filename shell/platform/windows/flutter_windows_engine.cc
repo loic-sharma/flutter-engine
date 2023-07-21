@@ -454,11 +454,15 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
 
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
 
-    // TODO(loicsharma): RemoveView removes the view from the views_ dictionary
-    // immediately even though removing a view from the engine is an
-    // asynchronous operation. Once that's fixed, we should be able to remove
-    // this.
     if (host->views_.find(view_id) == host->views_.end()) {
+      // The implicit view is special: the engine assumes it can always
+      // render to it. The embedder must ignore implicit view renders if
+      // the implicit view has been destroyed.
+      // TODO(loicsharma): Assert that the implicit view is enabled.
+      if (view_id == kImplicitViewId) {
+        return true;
+      }
+
       return false;
     }
 
@@ -544,14 +548,11 @@ bool FlutterWindowsEngine::Stop() {
   return false;
 }
 
-void FlutterWindowsEngine::AddView(std::unique_ptr<FlutterWindowsView> view) {
+void FlutterWindowsEngine::AddView(FlutterWindowsView* view) {
   FML_DCHECK(views_.find(view->view_id()) == views_.end());
 
-  // TODO(loicsharma): Ideally the engine wouldn't persist its ownership of
-  // the view so early. If adding the view fails, the view leaks.
-  // However, |InitializeKeyboard| requires a view to succeed.
   int64_t view_id = view->view_id();
-  views_[view_id] = std::move(view);
+  views_[view_id] = view;
 
   // TODO(loicsharma): HACK. This ensures the keyboard is initialized once.
   // Once the text input plugin is cleaned up we can  remove this by
@@ -579,7 +580,6 @@ void FlutterWindowsEngine::AddView(std::unique_ptr<FlutterWindowsView> view) {
 void FlutterWindowsEngine::DestroyView(int64_t view_id) {
   FML_DCHECK(running());
   FML_DCHECK(views_.find(view_id) != views_.end());
-  FML_DCHECK(view_id != kImplicitViewId);
 
   // Remove the view from the engine.
   FlutterRemoveViewInfo info = {};
@@ -801,7 +801,7 @@ std::unique_ptr<TextInputPlugin> FlutterWindowsEngine::CreateTextInputPlugin(
   // TODO(loicsharma): HACK. The text input plugin shouldn't accept a view in
   // its constructor. This results in a dangling pointer if the view is
   // destroyed.
-  auto view = views_.begin()->second.get();
+  auto view = views_.begin()->second;
   return std::make_unique<TextInputPlugin>(messenger, view);
 }
 

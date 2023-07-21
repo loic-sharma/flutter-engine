@@ -140,17 +140,18 @@ class PlatformHandlerTest : public WindowsTest {
 
   void use_engine_with_view() {
     FlutterWindowsEngineBuilder builder{GetContext()};
-    engine_ = builder.Build();
 
     auto window = std::make_unique<NiceMock<MockWindowBindingHandler>>();
-    auto view = std::make_unique<FlutterWindowsView>(std::move(window));
+    view_ = std::make_unique<FlutterWindowsView>(std::move(window));
+    engine_ = builder.Build();
 
-    view->SetEngine(engine_.get());
-    engine_->AddView(std::move(view));
+    view_->SetEngine(engine_.get());
+    engine_->AddView(view_.get());
   }
 
  private:
   std::unique_ptr<FlutterWindowsEngine> engine_;
+  std::unique_ptr<FlutterWindowsView> view_;
 
   FML_DISALLOW_COPY_AND_ASSIGN(PlatformHandlerTest);
 };
