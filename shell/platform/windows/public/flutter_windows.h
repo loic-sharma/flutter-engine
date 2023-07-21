@@ -86,8 +86,7 @@ typedef struct {
 // controller is destroyed. If creating the view controller fails, the engine
 // will be destroyed immediately.
 //
-// If |engine| is not already running, the view controller will start running
-// it automatically before displaying the window.
+// The |engine| will be started if it is not already running.
 //
 // The caller owns the returned reference, and is responsible for calling
 // FlutterDesktopViewControllerDestroy. Returns a null pointer in the event of
@@ -170,8 +169,7 @@ FLUTTER_EXPORT bool FlutterDesktopEngineRun(FlutterDesktopEngineRef engine,
 
 // Creates a view for the given engine.
 //
-// If |engine| is not already running, the view controller will start running
-// it automatically before displaying the window.
+// The |engine| will be started if it is not already running.
 //
 // The caller owns the returned reference, and is responsible for calling
 // |FlutterDesktopViewControllerDestroy|. Returns a null pointer in the event of
