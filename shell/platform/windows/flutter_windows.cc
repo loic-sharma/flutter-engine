@@ -61,8 +61,8 @@ static FlutterDesktopTextureRegistrarRef HandleForTextureRegistrar(
   return reinterpret_cast<FlutterDesktopTextureRegistrarRef>(registrar);
 }
 
-static flutter::FlutterWindowsView* CreateView(
-  int width, int height, flutter::FlutterWindowsEngine* engine) {
+static flutter::FlutterWindowsView*
+CreateView(int width, int height, flutter::FlutterWindowsEngine* engine) {
   std::unique_ptr<flutter::WindowBindingHandler> window_wrapper =
       std::make_unique<flutter::FlutterWindow>(width, height);
 
@@ -106,13 +106,13 @@ FlutterDesktopViewControllerRef FlutterDesktopViewControllerCreate(
 }
 
 FlutterDesktopViewControllerRef FlutterDesktopEngineCreateViewController(
-    int width,
-    int height,
-    FlutterDesktopEngineRef engine) {
+    FlutterDesktopEngineRef engine,
+    const FlutterDesktopViewControllerProperties* view_controller_properties) {
   // Create a view controller. Unlike |FlutterDesktopViewControllerCreate|,
   // the controller does not own its engine.
   auto engine_ptr = EngineFromHandle(engine);
-  auto view = CreateView(width, height, engine_ptr);
+  auto view = CreateView(view_controller_properties->width,
+                         view_controller_properties->height, engine_ptr);
   if (!view) {
     return nullptr;
   }

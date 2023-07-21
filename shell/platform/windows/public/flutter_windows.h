@@ -67,6 +67,16 @@ typedef struct {
 
 } FlutterDesktopEngineProperties;
 
+// Properties for configuring a Flutter view controller.
+typedef struct {
+  // The view's initial width.
+  int width;
+
+  // The view's initial height.
+  int height;
+
+} FlutterDesktopViewControllerProperties;
+
 // ========== View Controller ==========
 
 // Creates a view that hosts and displays the given engine instance.
@@ -171,10 +181,9 @@ FLUTTER_EXPORT bool FlutterDesktopEngineRun(FlutterDesktopEngineRef engine,
 // of |engine| and |FlutterDesktopEngineDestroy| must be called to destroy
 // the engine.
 FLUTTER_EXPORT FlutterDesktopViewControllerRef
-FlutterDesktopEngineCreateViewController(int width,
-                                         int height,
-                                         FlutterDesktopEngineRef engine);
-
+FlutterDesktopEngineCreateViewController(
+    FlutterDesktopEngineRef engine,
+    const FlutterDesktopViewControllerProperties* view_controller_properties);
 
 // DEPRECATED: This is no longer necessary to call, Flutter will take care of
 // processing engine messages transparently through DispatchMessage.

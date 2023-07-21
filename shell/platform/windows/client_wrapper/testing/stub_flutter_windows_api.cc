@@ -46,11 +46,11 @@ FlutterDesktopViewControllerRef FlutterDesktopViewControllerCreate(
 }
 
 FlutterDesktopViewControllerRef FlutterDesktopEngineCreateViewController(
-    int width,
-    int height,
-    FlutterDesktopEngineRef engine) {
+    FlutterDesktopEngineRef engine,
+    const FlutterDesktopViewControllerProperties* properties) {
   if (s_stub_implementation) {
-    return s_stub_implementation->EngineCreateViewController(width, height, engine);
+    return s_stub_implementation->EngineCreateViewController(engine,
+                                                             properties);
   }
   return nullptr;
 }

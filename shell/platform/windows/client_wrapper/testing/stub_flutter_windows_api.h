@@ -36,8 +36,10 @@ class StubFlutterWindowsApi {
   }
 
   // Called for FlutterDesktopEngineCreateViewController.
-  virtual FlutterDesktopViewControllerRef
-  EngineCreateViewController(int width, int height, FlutterDesktopEngineRef engine) {
+  virtual FlutterDesktopViewControllerRef EngineCreateViewController(
+      FlutterDesktopEngineRef engine,
+      const FlutterDesktopViewControllerProperties*
+          view_controller_properties) {
     return nullptr;
   }
 
