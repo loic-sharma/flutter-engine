@@ -37,7 +37,8 @@ static gboolean fl_mock_renderer_collect_backing_store(
 // Implements FlRenderer::present_layers.
 static gboolean fl_mock_renderer_present_layers(FlRenderer* self,
                                                 const FlutterLayer** layers,
-                                                size_t layers_count) {
+                                                size_t layers_count,
+                                                int64_t view_id) {
   return TRUE;
 }
 

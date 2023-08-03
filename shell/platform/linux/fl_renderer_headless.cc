@@ -13,7 +13,7 @@ G_DEFINE_TYPE(FlRendererHeadless, fl_renderer_headless, fl_renderer_get_type())
 // Implements FlRenderer::create_contexts.
 static gboolean fl_renderer_headless_create_contexts(FlRenderer* renderer,
                                                      GtkWidget* widget,
-                                                     GdkGLContext** visible,
+                                                     GdkGLContext** main,
                                                      GdkGLContext** resource,
                                                      GError** error) {
   return FALSE;
@@ -37,7 +37,8 @@ static gboolean fl_renderer_headless_collect_backing_store(
 // Implements FlRenderer::present_layers.
 static gboolean fl_renderer_headless_present_layers(FlRenderer* self,
                                                     const FlutterLayer** layers,
-                                                    size_t layers_count) {
+                                                    size_t layers_count,
+                                                    int64_t view_id) {
   return FALSE;
 }
 

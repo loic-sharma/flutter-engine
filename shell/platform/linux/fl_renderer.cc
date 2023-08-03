@@ -6,6 +6,7 @@
 
 #include <epoxy/egl.h>
 #include <epoxy/gl.h>
+#include <unordered_map>
 
 #include "flutter/shell/platform/embedder/embedder.h"
 #include "flutter/shell/platform/linux/fl_backing_store_provider.h"
@@ -26,27 +27,78 @@ typedef struct {
   // true if frame was completed; resizing is not synchronized until first frame
   // was rendered
   bool had_first_frame;
+} FlRendererView;
 
-  GdkGLContext* main_context;
-  GdkGLContext* resource_context;
+typedef struct {
+  FlEngine* engine = nullptr;
+  GdkGLContext* main_context = nullptr;
+  GdkGLContext* resource_context = nullptr;
+
+  std::unordered_map<int64_t, FlRendererView*> views;
 } FlRendererPrivate;
 
 G_DEFINE_TYPE_WITH_PRIVATE(FlRenderer, fl_renderer, G_TYPE_OBJECT)
 
-static void fl_renderer_unblock_main_thread(FlRenderer* self) {
+static void fl_renderer_block_main_thread(FlRenderer* self, int64_t view_id) {
   FlRendererPrivate* priv = reinterpret_cast<FlRendererPrivate*>(
       fl_renderer_get_instance_private(self));
-  if (priv->blocking_main_thread) {
-    priv->blocking_main_thread = false;
+  // Determine if a view has already blocked the main thread.
+  bool main_thread_blocked = false;
+  for (auto const& pair : priv->views) {
+    if (pair.second->blocking_main_thread) {
+      main_thread_blocked = true;
+      break;
+    }
+  }
 
-    FlTaskRunner* runner =
-        fl_engine_get_task_runner(fl_view_get_engine(priv->view));
-    fl_task_runner_release_main_thread(runner);
+  // Update our state and block the main thread if it isn't already.
+  priv->views[view_id]->blocking_main_thread = true;
+
+  if (!main_thread_blocked) {
+    FlTaskRunner* runner = fl_engine_get_task_runner(priv->engine);
+    fl_task_runner_block_main_thread(runner);
   }
 }
 
+static void fl_renderer_unblock_main_thread(FlRenderer* self, int64_t view_id) {
+  FlRendererPrivate* priv = reinterpret_cast<FlRendererPrivate*>(
+      fl_renderer_get_instance_private(self));
+  // No-op if the view isn't blocking the main thread.
+  if (!priv->views[view_id]->blocking_main_thread) {
+    return;
+  }
+
+  // Update the view's state and unblock the main thread if this was the last
+  // view blocking the main thread.
+  priv->views[view_id]->blocking_main_thread = false;
+
+  for (auto const& pair : priv->views) {
+    if (pair.second->blocking_main_thread) {
+      return;
+    }
+  }
+
+  FlTaskRunner* runner = fl_engine_get_task_runner(priv->engine);
+  fl_task_runner_release_main_thread(runner);
+}
+
 static void fl_renderer_dispose(GObject* self) {
-  fl_renderer_unblock_main_thread(FL_RENDERER(self));
+  FlRendererPrivate* priv = reinterpret_cast<FlRendererPrivate*>(
+      fl_renderer_get_instance_private(FL_RENDERER(self)));
+
+  bool unblock_main_thread = false;
+  for (auto pair : priv->views) {
+    FlRendererView* view = pair.second;
+    if (view->blocking_main_thread) {
+      unblock_main_thread = true;
+    }
+    delete view;
+  }
+
+  if (unblock_main_thread) {
+    FlTaskRunner* runner = fl_engine_get_task_runner(priv->engine);
+    fl_task_runner_release_main_thread(runner);
+  }
   G_OBJECT_CLASS(fl_renderer_parent_class)->dispose(self);
 }
 
@@ -60,26 +112,50 @@ gboolean fl_renderer_start(FlRenderer* self, FlView* view, GError** error) {
   g_return_val_if_fail(FL_IS_RENDERER(self), FALSE);
   FlRendererPrivate* priv = reinterpret_cast<FlRendererPrivate*>(
       fl_renderer_get_instance_private(self));
-  priv->view = view;
-  gboolean result = FL_RENDERER_GET_CLASS(self)->create_contexts(
+  // Initialize the renderer if this is the first view that's added.
+  if (priv->engine == nullptr) {
+    gboolean result = FL_RENDERER_GET_CLASS(self)->create_contexts(
       self, GTK_WIDGET(view), &priv->main_context, &priv->resource_context,
       error);
+    
+    if (result) {
+      gdk_gl_context_realize(priv->main_context, error);
+      gdk_gl_context_realize(priv->resource_context, error);
+    }
 
-  if (result) {
-    gdk_gl_context_realize(priv->main_context, error);
-    gdk_gl_context_realize(priv->resource_context, error);
+    if (*error != nullptr) {
+      return FALSE;
+    }
+
+    priv->engine = fl_view_get_engine(view);
+    priv->views = std::unordered_map<int64_t, FlRendererView*>{};
   }
 
-  if (*error != nullptr) {
-    return FALSE;
-  }
+  FlRendererView* state = new FlRendererView;
+  state->view = view;
+  state->blocking_main_thread = false;
+  state->had_first_frame = false;
+
+  int64_t view_id = fl_view_get_id(view);
+  priv->views[view_id] = state;
   return TRUE;
 }
 
-FlView* fl_renderer_get_view(FlRenderer* self) {
+void fl_renderer_remove(FlRenderer* self, int64_t view_id) {
   FlRendererPrivate* priv = reinterpret_cast<FlRendererPrivate*>(
       fl_renderer_get_instance_private(self));
-  return priv->view;
+
+  fl_renderer_unblock_main_thread(self, view_id);
+
+  FlRendererView* view = priv->views[view_id];
+  priv->views.erase(view_id);
+  delete view;
+}
+
+FlView* fl_renderer_get_view(FlRenderer* self, int64_t view_id) {
+  FlRendererPrivate* priv = reinterpret_cast<FlRendererPrivate*>(
+      fl_renderer_get_instance_private(self));
+  return priv->views[view_id]->view;
 }
 
 GdkGLContext* fl_renderer_get_context(FlRenderer* self) {
@@ -118,6 +194,7 @@ gboolean fl_renderer_clear_current(FlRenderer* self, GError** error) {
 }
 
 guint32 fl_renderer_get_fbo(FlRenderer* self) {
+  // TODO
   // There is only one frame buffer object - always return that.
   return 0;
 }
@@ -126,6 +203,12 @@ gboolean fl_renderer_create_backing_store(
     FlRenderer* self,
     const FlutterBackingStoreConfig* config,
     FlutterBackingStore* backing_store_out) {
+  FlRendererPrivate* priv = reinterpret_cast<FlRendererPrivate*>(
+      fl_renderer_get_instance_private(self));
+  if (!priv->main_context) {
+    return FALSE;
+  }
+
   return FL_RENDERER_GET_CLASS(self)->create_backing_store(self, config,
                                                            backing_store_out);
 }
@@ -133,46 +216,53 @@ gboolean fl_renderer_create_backing_store(
 gboolean fl_renderer_collect_backing_store(
     FlRenderer* self,
     const FlutterBackingStore* backing_store) {
+  FlRendererPrivate* priv = reinterpret_cast<FlRendererPrivate*>(
+      fl_renderer_get_instance_private(self));
+  if (!priv->main_context) {
+    return FALSE;
+  }
+
   return FL_RENDERER_GET_CLASS(self)->collect_backing_store(self,
                                                             backing_store);
 }
 
 void fl_renderer_wait_for_frame(FlRenderer* self,
+                                int64_t view_id,
                                 int target_width,
                                 int target_height) {
   FlRendererPrivate* priv = reinterpret_cast<FlRendererPrivate*>(
       fl_renderer_get_instance_private(self));
+  FlRendererView* view = priv->views[view_id];
 
-  priv->target_width = target_width;
-  priv->target_height = target_height;
+  view->target_width = target_width;
+  view->target_height = target_height;
 
-  if (priv->had_first_frame && !priv->blocking_main_thread) {
-    priv->blocking_main_thread = true;
-    FlTaskRunner* runner =
-        fl_engine_get_task_runner(fl_view_get_engine(priv->view));
-    fl_task_runner_block_main_thread(runner);
+  if (view->had_first_frame && !view->blocking_main_thread) {
+    fl_renderer_block_main_thread(self, view_id);
   }
 }
 
 gboolean fl_renderer_present_layers(FlRenderer* self,
                                     const FlutterLayer** layers,
-                                    size_t layers_count) {
+                                    size_t layers_count,
+                                    int64_t view_id) {
   FlRendererPrivate* priv = reinterpret_cast<FlRendererPrivate*>(
       fl_renderer_get_instance_private(self));
+  FlRendererView* view = priv->views[view_id];
 
   // ignore incoming frame with wrong dimensions in trivial case with just one
   // layer
-  if (priv->blocking_main_thread && layers_count == 1 &&
+  if (view->blocking_main_thread && layers_count == 1 &&
       layers[0]->offset.x == 0 && layers[0]->offset.y == 0 &&
-      (layers[0]->size.width != priv->target_width ||
-       layers[0]->size.height != priv->target_height)) {
+      (layers[0]->size.width != view->target_width ||
+       layers[0]->size.height != view->target_height)) {
     return true;
   }
 
-  priv->had_first_frame = true;
+  view->had_first_frame = true;
 
-  fl_renderer_unblock_main_thread(self);
+  fl_renderer_unblock_main_thread(self, view_id);
 
   return FL_RENDERER_GET_CLASS(self)->present_layers(self, layers,
-                                                     layers_count);
+                                                     layers_count, view_id);
 }

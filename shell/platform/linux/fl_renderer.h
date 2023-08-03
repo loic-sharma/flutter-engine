@@ -39,8 +39,7 @@ struct _FlRendererClass {
   /**
    * Virtual method called when Flutter needs #GdkGLContext to render.
    * @renderer: an #FlRenderer.
-   * @widget: the widget being rendered on.
-   * @visible: (out): the GL context for visible surface.
+   * @visible: (out): the GL context for rendering.
    * @resource: (out): the GL context for resource loading.
    * @error: (allow-none): #GError location to store the error occurring, or
    * %NULL to ignore.
@@ -49,7 +48,7 @@ struct _FlRendererClass {
    */
   gboolean (*create_contexts)(FlRenderer* renderer,
                               GtkWidget* widget,
-                              GdkGLContext** visible,
+                              GdkGLContext** main,
                               GdkGLContext** resource,
                               GError** error);
 
@@ -96,7 +95,8 @@ struct _FlRendererClass {
    */
   gboolean (*present_layers)(FlRenderer* renderer,
                              const FlutterLayer** layers,
-                             size_t layers_count);
+                             size_t layers_count,
+                             int64_t view_id);
 };
 
 /**
@@ -112,13 +112,15 @@ struct _FlRendererClass {
  */
 gboolean fl_renderer_start(FlRenderer* renderer, FlView* view, GError** error);
 
+void fl_renderer_remove(FlRenderer* renderer, int64_t view_id);
+
 /**
  * fl_renderer_get_view:
  * @renderer: an #FlRenderer.
  *
  * Returns: targeted #FlView or %NULL if headless.
  */
-FlView* fl_renderer_get_view(FlRenderer* renderer);
+FlView* fl_renderer_get_view(FlRenderer* renderer, int64_t view_id);
 
 /**
  * fl_renderer_get_context:
@@ -228,7 +230,8 @@ gboolean fl_renderer_collect_backing_store(
  */
 gboolean fl_renderer_present_layers(FlRenderer* renderer,
                                     const FlutterLayer** layers,
-                                    size_t layers_count);
+                                    size_t layers_count,
+                                    int64_t view_id);
 
 /**
  * fl_renderer_wait_for_frame:
@@ -241,6 +244,7 @@ gboolean fl_renderer_present_layers(FlRenderer* renderer,
  * processed.
  */
 void fl_renderer_wait_for_frame(FlRenderer* renderer,
+                                int64_t view_id,
                                 int target_width,
                                 int target_height);
 

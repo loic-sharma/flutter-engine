@@ -16,12 +16,21 @@ G_DEFINE_TYPE(FlRendererGL, fl_renderer_gl, fl_renderer_get_type())
 // Implements FlRenderer::create_contexts.
 static gboolean fl_renderer_gl_create_contexts(FlRenderer* renderer,
                                                GtkWidget* widget,
-                                               GdkGLContext** visible,
+                                               GdkGLContext** main,
                                                GdkGLContext** resource,
                                                GError** error) {
+  // GDK4.6+
+  // GdkDisplay* display = gdk_display_get_default();
+  
+  // *main = gdk_display_create_gl_context(display, error);
+  // *resource = gdk_display_create_gl_context(display, error);
+
+  // GDK3. Create a context whose framebuffer format matches
+  // the widget's window. The created context is disconnected from the window
+  // or surface.
   GdkWindow* window = gtk_widget_get_parent_window(widget);
 
-  *visible = gdk_window_create_gl_context(window, error);
+  *main = gdk_window_create_gl_context(window, error);
 
   if (*error != nullptr) {
     return FALSE;
@@ -92,8 +101,9 @@ static gboolean fl_renderer_gl_collect_backing_store(
 // Implements FlRenderer::present_layers.
 static gboolean fl_renderer_gl_present_layers(FlRenderer* renderer,
                                               const FlutterLayer** layers,
-                                              size_t layers_count) {
-  FlView* view = fl_renderer_get_view(renderer);
+                                              size_t layers_count,
+                                              int64_t view_id) {
+  FlView* view = fl_renderer_get_view(renderer, view_id);
   GdkGLContext* context = fl_renderer_get_context(renderer);
   if (!view || !context) {
     return FALSE;

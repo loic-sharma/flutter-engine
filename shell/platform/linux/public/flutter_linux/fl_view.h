@@ -42,11 +42,23 @@ G_DECLARE_FINAL_TYPE(FlView, fl_view, FL, VIEW, GtkBox)
  * fl_view_new:
  * @project: The project to show.
  *
- * Creates a widget to show Flutter application.
+ * Creates a widget to show Flutter application. This creates a new engine.
  *
  * Returns: a new #FlView.
  */
 FlView* fl_view_new(FlDartProject* project);
+
+/**
+ * fl_view_new_with_engine:
+ * @engine: The engine that the view should be associated with.
+ * @width: The widget's width
+ * @height: The widget's height
+ *
+ * Creates a widget to show Flutter application.
+ *
+ * Returns: a new #FlView.
+ */
+FlView* fl_view_new_with_engine(FlEngine* engine, int width, int height);
 
 /**
  * fl_view_get_engine:
@@ -57,6 +69,16 @@ FlView* fl_view_new(FlDartProject* project);
  * Returns: an #FlEngine.
  */
 FlEngine* fl_view_get_engine(FlView* view);
+
+/**
+ * fl_view_get_id:
+ * @view: an #FlView.
+ * 
+ * Gets the view's ID.
+ * 
+ * Returns: the view's ID.
+ */
+int64_t fl_view_get_id(FlView* view);
 
 G_END_DECLS
 

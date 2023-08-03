@@ -27,17 +27,24 @@
 
 static constexpr int kMicrosecondsPerMillisecond = 1000;
 
+static size_t generate_id() {
+  // TODO(loicsharma): View IDs should start at 1 if the implicit view is
+  // disabled.
+  static std::atomic_int64_t last_id{0};
+  return last_id++;
+}
+
 struct _FlView {
   GtkBox parent_instance;
 
   // Project being run.
   FlDartProject* project;
 
-  // Rendering output.
-  FlRenderer* renderer;
-
   // Engine running @project.
   FlEngine* engine;
+
+  // The view's ID.
+  int64_t view_id;
 
   // Pointer button state recorded for sending status updates.
   int64_t button_state;
@@ -67,7 +74,7 @@ struct _FlView {
   gulong window_state_cb_id;  // Signal connection ID for window-state-changed
 };
 
-enum { kPropFlutterProject = 1, kPropLast };
+enum { kPropFlutterProject = 1, kPropEngine = 2, kPropLast };
 
 static void fl_view_plugin_registry_iface_init(
     FlPluginRegistryInterface* iface);
@@ -171,9 +178,9 @@ static gboolean send_pointer_button_event(FlView* self, GdkEventButton* event) {
   fl_keyboard_manager_sync_modifier_if_needed(self->keyboard_manager,
                                               event->state, event->time);
   fl_engine_send_mouse_pointer_event(
-      self->engine, phase, event->time * kMicrosecondsPerMillisecond,
-      event->x * scale_factor, event->y * scale_factor, 0, 0,
-      self->button_state);
+      self->engine, self->view_id, phase,
+      event->time * kMicrosecondsPerMillisecond, event->x * scale_factor,
+      event->y * scale_factor, 0, 0, self->button_state);
 
   return TRUE;
 }
@@ -188,7 +195,7 @@ static void check_pointer_inside(FlView* self, GdkEvent* event) {
       gint scale_factor = gtk_widget_get_scale_factor(GTK_WIDGET(self));
 
       fl_engine_send_mouse_pointer_event(
-          self->engine, kAdd,
+          self->engine, self->view_id, kAdd,
           gdk_event_get_time(event) * kMicrosecondsPerMillisecond,
           x * scale_factor, y * scale_factor, 0, 0, self->button_state);
     }
@@ -201,7 +208,7 @@ static void handle_geometry_changed(FlView* self) {
   gtk_widget_get_allocation(GTK_WIDGET(self), &allocation);
   gint scale_factor = gtk_widget_get_scale_factor(GTK_WIDGET(self));
   fl_engine_send_window_metrics_event(
-      self->engine, allocation.width * scale_factor,
+      self->engine, self->view_id, allocation.width * scale_factor,
       allocation.height * scale_factor, scale_factor);
 
   // Make sure the view has been realized and its size has been allocated before
@@ -212,7 +219,9 @@ static void handle_geometry_changed(FlView* self) {
   // Note: `gtk_widget_init()` initializes the size allocation to 1x1.
   if (allocation.width > 1 && allocation.height > 1 &&
       gtk_widget_get_realized(GTK_WIDGET(self))) {
-    fl_renderer_wait_for_frame(self->renderer, allocation.width * scale_factor,
+    FlRenderer* renderer = fl_engine_get_renderer(self->engine);
+    fl_renderer_wait_for_frame(renderer, self->view_id,
+                               allocation.width * scale_factor,
                                allocation.height * scale_factor);
   }
 }
@@ -320,9 +329,9 @@ static void fl_view_scrolling_delegate_iface_init(
          double scroll_delta_y, int64_t buttons) {
         FlView* self = FL_VIEW(view_delegate);
         if (self->engine != nullptr) {
-          fl_engine_send_mouse_pointer_event(self->engine, phase, timestamp, x,
-                                             y, scroll_delta_x, scroll_delta_y,
-                                             buttons);
+          fl_engine_send_mouse_pointer_event(self->engine, self->view_id, phase,
+                                             timestamp, x, y, scroll_delta_x,
+                                             scroll_delta_y, buttons);
         }
       };
   iface->send_pointer_pan_zoom_event =
@@ -331,9 +340,9 @@ static void fl_view_scrolling_delegate_iface_init(
          double scale, double rotation) {
         FlView* self = FL_VIEW(view_delegate);
         if (self->engine != nullptr) {
-          fl_engine_send_pointer_pan_zoom_event(self->engine, timestamp, x, y,
-                                                phase, pan_x, pan_y, scale,
-                                                rotation);
+          fl_engine_send_pointer_pan_zoom_event(self->engine, self->view_id,
+                                                timestamp, x, y, phase, pan_x,
+                                                pan_y, scale, rotation);
         };
       };
 }
@@ -400,7 +409,7 @@ static gboolean motion_notify_event_cb(GtkWidget* widget,
   fl_keyboard_manager_sync_modifier_if_needed(self->keyboard_manager,
                                               event->state, event->time);
   fl_engine_send_mouse_pointer_event(
-      self->engine, self->button_state != 0 ? kMove : kHover,
+      self->engine, self->view_id, self->button_state != 0 ? kMove : kHover,
       event->time * kMicrosecondsPerMillisecond, event->x * scale_factor,
       event->y * scale_factor, 0, 0, self->button_state);
 
@@ -438,9 +447,9 @@ static gboolean leave_notify_event_cb(GtkWidget* widget,
   if (self->pointer_inside && self->button_state == 0) {
     gint scale_factor = gtk_widget_get_scale_factor(GTK_WIDGET(self));
     fl_engine_send_mouse_pointer_event(
-        self->engine, kRemove, event->time * kMicrosecondsPerMillisecond,
-        event->x * scale_factor, event->y * scale_factor, 0, 0,
-        self->button_state);
+        self->engine, self->view_id, kRemove,
+        event->time * kMicrosecondsPerMillisecond, event->x * scale_factor,
+        event->y * scale_factor, 0, 0, self->button_state);
     self->pointer_inside = FALSE;
   }
 
@@ -534,7 +543,8 @@ static void realize_cb(GtkWidget* widget) {
 
   init_keyboard(self);
 
-  if (!fl_renderer_start(self->renderer, self, &error)) {
+  FlRenderer* renderer = fl_engine_get_renderer(self->engine);
+  if (!fl_renderer_start(renderer, self, &error)) {
     g_warning("Failed to start Flutter renderer: %s", error->message);
     return;
   }
@@ -555,12 +565,14 @@ static void configure_cb(GtkWidget* widget, GdkEventConfigure event) {
 static void fl_view_constructed(GObject* object) {
   FlView* self = FL_VIEW(object);
 
-  self->renderer = FL_RENDERER(fl_renderer_gl_new());
-  self->engine = fl_engine_new(self->project, self->renderer);
-  fl_engine_set_update_semantics_node_handler(
-      self->engine, update_semantics_node_cb, self, nullptr);
-  fl_engine_set_on_pre_engine_restart_handler(
-      self->engine, on_pre_engine_restart_cb, self, nullptr);
+  self->view_id = generate_id();
+  if (!self->engine) {
+    self->engine = fl_engine_new_headless(self->project);
+    fl_engine_set_update_semantics_node_handler(
+        self->engine, update_semantics_node_cb, self, nullptr);
+    fl_engine_set_on_pre_engine_restart_handler(
+        self->engine, on_pre_engine_restart_cb, self, nullptr);
+  }
 
   // Must initialize the keymap before the keyboard.
   self->keymap = gdk_keymap_get_for_display(gdk_display_get_default());
@@ -623,6 +635,10 @@ static void fl_view_set_property(GObject* object,
       g_set_object(&self->project,
                    static_cast<FlDartProject*>(g_value_get_object(value)));
       break;
+    case kPropEngine:
+      g_set_object(&self->engine,
+                   static_cast<FlEngine*>(g_value_get_object(value)));
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
       break;
@@ -638,6 +654,8 @@ static void fl_view_get_property(GObject* object,
   switch (prop_id) {
     case kPropFlutterProject:
       g_value_set_object(value, self->project);
+    case kPropEngine:
+      g_value_set_object(value, self->engine);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -661,6 +679,8 @@ static void fl_view_dispose(GObject* object) {
   FlView* self = FL_VIEW(object);
 
   if (self->engine != nullptr) {
+    fl_renderer_remove(fl_engine_get_renderer(self->engine), self->view_id);
+
     fl_engine_set_update_semantics_node_handler(self->engine, nullptr, nullptr,
                                                 nullptr);
     fl_engine_set_on_pre_engine_restart_handler(self->engine, nullptr, nullptr,
@@ -674,7 +694,6 @@ static void fl_view_dispose(GObject* object) {
   }
 
   g_clear_object(&self->project);
-  g_clear_object(&self->renderer);
   g_clear_object(&self->engine);
   g_clear_object(&self->accessibility_plugin);
   g_clear_object(&self->keyboard_manager);
@@ -726,6 +745,13 @@ static void fl_view_class_init(FlViewClass* klass) {
           static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
                                    G_PARAM_STATIC_STRINGS)));
 
+  g_object_class_install_property(
+      G_OBJECT_CLASS(klass), kPropEngine,
+      g_param_spec_object(
+          "engine", "engine", "Engine in use", fl_engine_get_type(),
+          static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
+                                   G_PARAM_STATIC_STRINGS)));
+
   gtk_widget_class_set_accessible_type(GTK_WIDGET_CLASS(klass),
                                        fl_view_accessible_get_type());
 }
@@ -737,13 +763,26 @@ static void fl_view_init(FlView* self) {
 }
 
 G_MODULE_EXPORT FlView* fl_view_new(FlDartProject* project) {
-  return static_cast<FlView*>(
-      g_object_new(fl_view_get_type(), "flutter-project", project, nullptr));
+  return static_cast<FlView*>(g_object_new(fl_view_get_type(),
+                                           "flutter-project", project, "engine",
+                                           nullptr, nullptr));
+}
+
+G_MODULE_EXPORT FlView* fl_view_new_with_engine(FlEngine* engine, int width, int height) {
+  // TODO(loicsharma): Use width and height parameters.
+  return static_cast<FlView*>(g_object_new(fl_view_get_type(),
+                                           "flutter-project", nullptr, "engine",
+                                           engine, nullptr));
 }
 
 G_MODULE_EXPORT FlEngine* fl_view_get_engine(FlView* self) {
   g_return_val_if_fail(FL_IS_VIEW(self), nullptr);
   return self->engine;
+}
+
+G_MODULE_EXPORT int64_t fl_view_get_id(FlView* view) {
+  g_return_val_if_fail(FL_IS_VIEW(view), 0);
+  return view->view_id;
 }
 
 void fl_view_set_textures(FlView* self,

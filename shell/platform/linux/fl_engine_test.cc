@@ -16,6 +16,8 @@
 // MOCK_ENGINE_PROC is leaky by design
 // NOLINTBEGIN(clang-analyzer-core.StackAddressEscape)
 
+static constexpr int kImplicitViewId = 0;
+
 // Checks sending window metrics events works.
 TEST(FlEngineTest, WindowMetrics) {
   g_autoptr(FlEngine) engine = make_mock_engine();
@@ -37,7 +39,7 @@ TEST(FlEngineTest, WindowMetrics) {
   g_autoptr(GError) error = nullptr;
   EXPECT_TRUE(fl_engine_start(engine, &error));
   EXPECT_EQ(error, nullptr);
-  fl_engine_send_window_metrics_event(engine, 3840, 2160, 2.0);
+  fl_engine_send_window_metrics_event(engine, kImplicitViewId, 3840, 2160, 2.0);
 
   EXPECT_TRUE(called);
 }
@@ -71,8 +73,9 @@ TEST(FlEngineTest, MousePointer) {
   g_autoptr(GError) error = nullptr;
   EXPECT_TRUE(fl_engine_start(engine, &error));
   EXPECT_EQ(error, nullptr);
-  fl_engine_send_mouse_pointer_event(engine, kDown, 1234567890, 800, 600, 1.2,
-                                     -3.4, kFlutterPointerButtonMouseSecondary);
+  fl_engine_send_mouse_pointer_event(engine, kImplicitViewId, kDown, 1234567890,
+                                     800, 600, 1.2, -3.4,
+                                     kFlutterPointerButtonMouseSecondary);
 
   EXPECT_TRUE(called);
 }
@@ -108,8 +111,9 @@ TEST(FlEngineTest, PointerPanZoom) {
   g_autoptr(GError) error = nullptr;
   EXPECT_TRUE(fl_engine_start(engine, &error));
   EXPECT_EQ(error, nullptr);
-  fl_engine_send_pointer_pan_zoom_event(engine, 1234567890, 800, 600,
-                                        kPanZoomUpdate, 1.5, 2.5, 3.5, 4.5);
+  fl_engine_send_pointer_pan_zoom_event(engine, kImplicitViewId, 1234567890,
+                                        800, 600, kPanZoomUpdate, 1.5, 2.5, 3.5,
+                                        4.5);
 
   EXPECT_TRUE(called);
 }

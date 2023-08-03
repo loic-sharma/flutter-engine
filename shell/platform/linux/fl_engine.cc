@@ -19,14 +19,13 @@
 #include "flutter/shell/platform/linux/fl_pixel_buffer_texture_private.h"
 #include "flutter/shell/platform/linux/fl_plugin_registrar_private.h"
 #include "flutter/shell/platform/linux/fl_renderer.h"
+#include "flutter/shell/platform/linux/fl_renderer_gl.h"
 #include "flutter/shell/platform/linux/fl_renderer_headless.h"
 #include "flutter/shell/platform/linux/fl_settings_plugin.h"
 #include "flutter/shell/platform/linux/fl_texture_gl_private.h"
 #include "flutter/shell/platform/linux/fl_texture_registrar_private.h"
 #include "flutter/shell/platform/linux/public/flutter_linux/fl_plugin_registry.h"
 #include "flutter/shell/platform/linux/public/flutter_linux/fl_string_codec.h"
-
-static constexpr int64_t kFlutterDefaultViewId = 0ll;
 
 // Unique number associated with platform tasks.
 static constexpr size_t kPlatformTaskRunnerIdentifier = 1;
@@ -187,6 +186,8 @@ static bool compositor_create_backing_store_callback(
     const FlutterBackingStoreConfig* config,
     FlutterBackingStore* backing_store_out,
     void* user_data) {
+  // TODO: Switch user data to the engine. Get the renderer from the engine
+  // or return false.
   g_return_val_if_fail(FL_IS_RENDERER(user_data), false);
   return fl_renderer_create_backing_store(FL_RENDERER(user_data), config,
                                           backing_store_out);
@@ -196,6 +197,8 @@ static bool compositor_create_backing_store_callback(
 static bool compositor_collect_backing_store_callback(
     const FlutterBackingStore* renderer,
     void* user_data) {
+  // TODO: Switch user data to the engine. Get the renderer from the engine
+  // or return false.
   g_return_val_if_fail(FL_IS_RENDERER(user_data), false);
   return fl_renderer_collect_backing_store(FL_RENDERER(user_data), renderer);
 }
@@ -207,7 +210,7 @@ static bool compositor_present_layers_callback(const FlutterLayer** layers,
                                                void* user_data) {
   g_return_val_if_fail(FL_IS_RENDERER(user_data), false);
   return fl_renderer_present_layers(FL_RENDERER(user_data), layers,
-                                    layers_count);
+                                    layers_count, view_id);
 }
 
 // Flutter engine rendering callbacks.
@@ -478,7 +481,7 @@ FlEngine* fl_engine_new(FlDartProject* project, FlRenderer* renderer) {
 }
 
 G_MODULE_EXPORT FlEngine* fl_engine_new_headless(FlDartProject* project) {
-  g_autoptr(FlRendererHeadless) renderer = fl_renderer_headless_new();
+  g_autoptr(FlRendererGL) renderer = fl_renderer_gl_new();
   return fl_engine_new(project, FL_RENDERER(renderer));
 }
 
@@ -592,6 +595,10 @@ gboolean fl_engine_start(FlEngine* self, GError** error) {
 
 FlutterEngineProcTable* fl_engine_get_embedder_api(FlEngine* self) {
   return &(self->embedder_api);
+}
+
+FlRenderer* fl_engine_get_renderer(FlEngine* self) {
+  return self->renderer;
 }
 
 void fl_engine_set_platform_message_handler(
@@ -760,6 +767,7 @@ void fl_engine_send_window_state_event(FlEngine* self,
 }
 
 void fl_engine_send_window_metrics_event(FlEngine* self,
+                                         int64_t view_id,
                                          size_t width,
                                          size_t height,
                                          double pixel_ratio) {
@@ -769,8 +777,6 @@ void fl_engine_send_window_metrics_event(FlEngine* self,
     return;
   }
 
-  // TODO(dkwingsmt)
-  int64_t view_id = kFlutterDefaultViewId;
   FlutterWindowMetricsEvent event = {};
   event.struct_size = sizeof(FlutterWindowMetricsEvent);
   event.width = width;
@@ -780,6 +786,7 @@ void fl_engine_send_window_metrics_event(FlEngine* self,
 }
 
 void fl_engine_send_mouse_pointer_event(FlEngine* self,
+                                        int64_t view_id,
                                         FlutterPointerPhase phase,
                                         size_t timestamp,
                                         double x,
@@ -795,6 +802,7 @@ void fl_engine_send_mouse_pointer_event(FlEngine* self,
 
   FlutterPointerEvent fl_event = {};
   fl_event.struct_size = sizeof(fl_event);
+  fl_event.view_id = view_id;
   fl_event.phase = phase;
   fl_event.timestamp = timestamp;
   fl_event.x = x;
@@ -811,6 +819,7 @@ void fl_engine_send_mouse_pointer_event(FlEngine* self,
 }
 
 void fl_engine_send_pointer_pan_zoom_event(FlEngine* self,
+                                           int64_t view_id,
                                            size_t timestamp,
                                            double x,
                                            double y,
@@ -827,6 +836,7 @@ void fl_engine_send_pointer_pan_zoom_event(FlEngine* self,
 
   FlutterPointerEvent fl_event = {};
   fl_event.struct_size = sizeof(fl_event);
+  fl_event.view_id = view_id;
   fl_event.timestamp = timestamp;
   fl_event.x = x;
   fl_event.y = y;
@@ -837,9 +847,6 @@ void fl_engine_send_pointer_pan_zoom_event(FlEngine* self,
   fl_event.rotation = rotation;
   fl_event.device = kPointerPanZoomDeviceId;
   fl_event.device_kind = kFlutterPointerDeviceKindTrackpad;
-  // TODO(loicsharma): This assumes all pointer events are on the implicit
-  // view and should be updated to support multiple views.
-  fl_event.view_id = 0;
   self->embedder_api.SendPointerEvent(self->engine, &fl_event, 1);
 }
 

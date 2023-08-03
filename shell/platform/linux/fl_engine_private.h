@@ -89,6 +89,8 @@ FlEngine* fl_engine_new(FlDartProject* project, FlRenderer* renderer);
  */
 FlutterEngineProcTable* fl_engine_get_embedder_api(FlEngine* engine);
 
+FlRenderer* fl_engine_get_renderer(FlEngine* engine);
+
 /**
  * fl_engine_set_platform_message_handler:
  * @engine: an #FlEngine.
@@ -156,6 +158,7 @@ gboolean fl_engine_start(FlEngine* engine, GError** error);
 /**
  * fl_engine_send_window_metrics_event:
  * @engine: an #FlEngine.
+ * @view_id: The ID of the view.
  * @width: width of the window in pixels.
  * @height: height of the window in pixels.
  * @pixel_ratio: scale factor for window.
@@ -163,6 +166,7 @@ gboolean fl_engine_start(FlEngine* engine, GError** error);
  * Sends a window metrics event to the engine.
  */
 void fl_engine_send_window_metrics_event(FlEngine* engine,
+                                         int64_t view_id,
                                          size_t width,
                                          size_t height,
                                          double pixel_ratio);
@@ -182,6 +186,7 @@ void fl_engine_send_window_state_event(FlEngine* engine,
 /**
  * fl_engine_send_mouse_pointer_event:
  * @engine: an #FlEngine.
+ * @view_id: view ID.
  * @phase: mouse phase.
  * @timestamp: time when event occurred in microseconds.
  * @x: x location of mouse cursor.
@@ -193,6 +198,7 @@ void fl_engine_send_window_state_event(FlEngine* engine,
  * Sends a mouse pointer event to the engine.
  */
 void fl_engine_send_mouse_pointer_event(FlEngine* engine,
+                                        int64_t view_id,
                                         FlutterPointerPhase phase,
                                         size_t timestamp,
                                         double x,
@@ -202,6 +208,7 @@ void fl_engine_send_mouse_pointer_event(FlEngine* engine,
                                         int64_t buttons);
 
 void fl_engine_send_pointer_pan_zoom_event(FlEngine* self,
+                                           int64_t view_id,
                                            size_t timestamp,
                                            double x,
                                            double y,
