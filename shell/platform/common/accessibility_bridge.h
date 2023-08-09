@@ -173,10 +173,15 @@ class AccessibilityBridge
     double elevation;
     double thickness;
     std::string label;
+    std::vector<FlutterStringAttribute*> label_attributes;
     std::string hint;
+    std::vector<FlutterStringAttribute*> hint_attributes;
     std::string value;
+    std::vector<FlutterStringAttribute*> value_attributes;
     std::string increased_value;
+    std::vector<FlutterStringAttribute*> increased_value_attributes;
     std::string decreased_value;
+    std::vector<FlutterStringAttribute*> decreased_value_attributes;
     std::string tooltip;
     FlutterTextDirection text_direction;
     FlutterRect rect;
@@ -223,6 +228,8 @@ class AccessibilityBridge
                                              const SemanticsNode& node);
   void SetIntAttributesFromFlutterUpdate(ui::AXNodeData& node_data,
                                          const SemanticsNode& node);
+  void SetStringAttributesFromFlutterUpdate(ui::AXNodeData& node_data,
+                                            const SemanticsNode& node);
   void SetIntListAttributesFromFlutterUpdate(ui::AXNodeData& node_data,
                                              const SemanticsNode& node);
   void SetStringListAttributesFromFlutterUpdate(ui::AXNodeData& node_data,

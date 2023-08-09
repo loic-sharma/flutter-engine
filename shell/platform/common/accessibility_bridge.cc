@@ -19,6 +19,25 @@ constexpr int kHasScrollingAction =
     FlutterSemanticsAction::kFlutterSemanticsActionScrollUp |
     FlutterSemanticsAction::kFlutterSemanticsActionScrollDown;
 
+static void SetStringAttributes(
+    ui::AXNodeData& node_data,
+    std::vector<FlutterStringAttribute*> attributes) {
+  for (auto i = 0; i < attributes.size(); i++) {
+    auto attribute = attributes[i];
+    switch (attribute->type) {
+      case FlutterStringAttributeType::kLocale: {
+        auto locale = std::string(attribute->locale->locale);
+        node_data.AddStringAttribute(ax::mojom::StringAttribute::kLanguage,
+                                     locale);
+        break;
+      }
+      case FlutterStringAttributeType::kSpellOut: {
+        break;
+      }
+    }
+  }
+}
+
 // AccessibilityBridge
 AccessibilityBridge::AccessibilityBridge()
     : tree_(std::make_unique<ui::AXTree>()) {
@@ -278,6 +297,7 @@ void AccessibilityBridge::ConvertFlutterUpdate(const SemanticsNode& node,
   SetActionsFromFlutterUpdate(node_data, node);
   SetBooleanAttributesFromFlutterUpdate(node_data, node);
   SetIntAttributesFromFlutterUpdate(node_data, node);
+  SetStringAttributesFromFlutterUpdate(node_data, node);
   SetIntListAttributesFromFlutterUpdate(node_data, node);
   SetStringListAttributesFromFlutterUpdate(node_data, node);
   SetNameFromFlutterUpdate(node_data, node);
@@ -487,6 +507,22 @@ void AccessibilityBridge::SetIntAttributesFromFlutterUpdate(
   }
 }
 
+void AccessibilityBridge::SetStringAttributesFromFlutterUpdate(
+    ui::AXNodeData& node_data,
+    const SemanticsNode& node) {
+  // Flutter string attributes can be on a sub-range of a single value.
+  // However, an AX node's string attributes affect all string values for the
+  // node. The AX node cannot have multiple string attributes of the same type.
+  // Thus, Flutter's string attributes might be lost here.
+  // TODO(loicsharma): Should we split nodes if they have multiple string
+  // attributes?
+  SetStringAttributes(node_data, node.decreased_value_attributes);
+  SetStringAttributes(node_data, node.increased_value_attributes);
+  SetStringAttributes(node_data, node.value_attributes);
+  SetStringAttributes(node_data, node.hint_attributes);
+  SetStringAttributes(node_data, node.label_attributes);
+}
+
 void AccessibilityBridge::SetIntListAttributesFromFlutterUpdate(
     ui::AXNodeData& node_data,
     const SemanticsNode& node) {
@@ -590,17 +626,44 @@ AccessibilityBridge::FromFlutterSemanticsNode(
   if (flutter_node.label) {
     result.label = std::string(flutter_node.label);
   }
+  if (flutter_node.label_attribute_count > 0) {
+    result.label_attributes = std::vector<FlutterStringAttribute*>(
+        flutter_node.label_attributes,
+        flutter_node.label_attributes + flutter_node.label_attribute_count);
+  }
   if (flutter_node.hint) {
     result.hint = std::string(flutter_node.hint);
+  }
+  if (flutter_node.hint_attribute_count > 0) {
+    result.hint_attributes = std::vector<FlutterStringAttribute*>(
+        flutter_node.hint_attributes,
+        flutter_node.hint_attributes + flutter_node.hint_attribute_count);
   }
   if (flutter_node.value) {
     result.value = std::string(flutter_node.value);
   }
+  if (flutter_node.value_attribute_count > 0) {
+    result.value_attributes = std::vector<FlutterStringAttribute*>(
+        flutter_node.value_attributes,
+        flutter_node.value_attributes + flutter_node.value_attribute_count);
+  }
   if (flutter_node.increased_value) {
     result.increased_value = std::string(flutter_node.increased_value);
   }
+  if (flutter_node.increased_value_attribute_count > 0) {
+    result.increased_value_attributes = std::vector<FlutterStringAttribute*>(
+        flutter_node.increased_value_attributes,
+        flutter_node.increased_value_attributes +
+            flutter_node.increased_value_attribute_count);
+  }
   if (flutter_node.decreased_value) {
     result.decreased_value = std::string(flutter_node.decreased_value);
+  }
+  if (flutter_node.decreased_value_attribute_count > 0) {
+    result.decreased_value_attributes = std::vector<FlutterStringAttribute*>(
+        flutter_node.decreased_value_attributes,
+        flutter_node.decreased_value_attributes +
+            flutter_node.decreased_value_attribute_count);
   }
   if (flutter_node.tooltip) {
     result.tooltip = std::string(flutter_node.tooltip);

@@ -72,7 +72,7 @@ void EmbedderSemanticsUpdate::AddNode(const SemanticsNode& node) {
 }
 
 void EmbedderSemanticsUpdate::AddAction(
-    const flutter::CustomAccessibilityAction& action) {
+    const CustomAccessibilityAction& action) {
   // Do not add new members to FlutterSemanticsCustomAction.
   // This would break the forward compatibility of FlutterSemanticsUpdate.
   // All new members must be added to FlutterSemanticsCustomAction2 instead.
@@ -103,6 +103,14 @@ EmbedderSemanticsUpdate2::EmbedderSemanticsUpdate2(
     AddAction(value.second);
   }
 
+  for (size_t i = 0; i < nodes_.size(); i++) {
+    node_pointers_.push_back(&nodes_[i]);
+  }
+
+  for (size_t i = 0; i < actions_.size(); i++) {
+    action_pointers_.push_back(&actions_[i]);
+  }
+
   update_ = {
       .struct_size = sizeof(FlutterSemanticsUpdate2),
       .node_count = node_pointers_.size(),
@@ -114,7 +122,7 @@ EmbedderSemanticsUpdate2::EmbedderSemanticsUpdate2(
 
 EmbedderSemanticsUpdate2::~EmbedderSemanticsUpdate2() {}
 
-void EmbedderSemanticsUpdate2::AddNode(const flutter::SemanticsNode& node) {
+void EmbedderSemanticsUpdate2::AddNode(const SemanticsNode& node) {
   SkMatrix transform = node.transform.asM33();
   FlutterTransformation flutter_transform{
       transform.get(SkMatrix::kMScaleX), transform.get(SkMatrix::kMSkewX),
@@ -122,6 +130,15 @@ void EmbedderSemanticsUpdate2::AddNode(const flutter::SemanticsNode& node) {
       transform.get(SkMatrix::kMScaleY), transform.get(SkMatrix::kMTransY),
       transform.get(SkMatrix::kMPersp0), transform.get(SkMatrix::kMPersp1),
       transform.get(SkMatrix::kMPersp2)};
+
+  auto label_attributes = CreateStringAttributes(node.labelAttributes);
+  auto hint_attributes = CreateStringAttributes(node.hintAttributes);
+  auto value_attributes = CreateStringAttributes(node.valueAttributes);
+  auto increased_value_attributes =
+      CreateStringAttributes(node.increasedValueAttributes);
+  auto decreased_value_attributes =
+      CreateStringAttributes(node.decreasedValueAttributes);
+
   nodes_.push_back({
       sizeof(FlutterSemanticsNode2),
       node.id,
@@ -152,12 +169,21 @@ void EmbedderSemanticsUpdate2::AddNode(const flutter::SemanticsNode& node) {
       node.customAccessibilityActions.data(),
       node.platformViewId,
       node.tooltip.c_str(),
+      label_attributes.first,
+      label_attributes.second,
+      hint_attributes.first,
+      hint_attributes.second,
+      value_attributes.first,
+      value_attributes.second,
+      increased_value_attributes.first,
+      increased_value_attributes.second,
+      decreased_value_attributes.first,
+      decreased_value_attributes.second,
   });
-  node_pointers_.push_back(&nodes_.back());
 }
 
 void EmbedderSemanticsUpdate2::AddAction(
-    const flutter::CustomAccessibilityAction& action) {
+    const CustomAccessibilityAction& action) {
   actions_.push_back({
       sizeof(FlutterSemanticsCustomAction2),
       action.id,
@@ -165,7 +191,60 @@ void EmbedderSemanticsUpdate2::AddAction(
       action.label.c_str(),
       action.hint.c_str(),
   });
-  action_pointers_.push_back(&actions_.back());
+}
+
+std::pair<size_t, FlutterStringAttribute**>
+EmbedderSemanticsUpdate2::CreateStringAttributes(
+    const StringAttributes& attributes) {
+  // Minimize allocations if attributes are empty.
+  if (attributes.empty()) {
+    return std::make_pair(0, nullptr);
+  }
+
+  auto result = std::make_unique<std::vector<FlutterStringAttribute*>>();
+  result->reserve(attributes.size());
+
+  for (const auto& attribute : attributes) {
+    auto embedder_attribute = std::make_unique<FlutterStringAttribute>();
+    embedder_attribute->struct_size = sizeof(FlutterStringAttribute);
+    embedder_attribute->start = attribute->start;
+    embedder_attribute->end = attribute->end;
+
+    switch (attribute->type) {
+      case StringAttributeType::kLocale: {
+        std::shared_ptr<flutter::LocaleStringAttribute> locale_attribute =
+            std::static_pointer_cast<flutter::LocaleStringAttribute>(attribute);
+
+        auto embedder_locale = std::make_unique<FlutterLocaleStringAttribute>();
+        embedder_locale->struct_size = sizeof(FlutterLocaleStringAttribute);
+        embedder_locale->locale = locale_attribute->locale.c_str();
+        locale_attributes_.push_back(std::move(embedder_locale));
+
+        embedder_attribute->type = FlutterStringAttributeType::kLocale;
+        embedder_attribute->locale = locale_attributes_.back().get();
+        break;
+      }
+      case flutter::StringAttributeType::kSpellOut: {
+        auto embedder_spell_out =
+            std::make_unique<FlutterSpellOutStringAttribute>();
+        embedder_spell_out->struct_size =
+            sizeof(FlutterSpellOutStringAttribute);
+        spell_out_attributes_.push_back(std::move(embedder_spell_out));
+
+        embedder_attribute->type = FlutterStringAttributeType::kSpellOut;
+        embedder_attribute->spell_out = spell_out_attributes_.back().get();
+        break;
+      }
+    }
+
+    string_attributes_.push_back(std::move(embedder_attribute));
+    result->push_back(string_attributes_.back().get());
+  }
+
+  node_string_attributes_.push_back(std::move(result));
+
+  return std::make_pair(node_string_attributes_.back()->size(),
+                        node_string_attributes_.back()->data());
 }
 
 }  // namespace flutter

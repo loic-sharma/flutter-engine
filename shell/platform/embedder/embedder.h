@@ -31,6 +31,9 @@
 // - Instead of array of structures, prefer array of pointers to structures.
 //   This ensures that array indexing does not break if members are added
 //   to the structure.
+// - Instead of unions of structures, prefer unions of pointers to structures.
+//   This ensures that that adding members to the structs does not break
+//   the ABI of the union.
 //
 // These changes are allowed:
 // - Adding new struct members at the end of a structure as long as the struct
@@ -1064,6 +1067,31 @@ typedef int64_t FlutterPlatformViewIdentifier;
 FLUTTER_EXPORT
 extern const int32_t kFlutterSemanticsNodeIdBatchEnd;
 
+typedef enum {
+  kSpellOut,
+  kLocale,
+} FlutterStringAttributeType;
+
+typedef struct {
+  size_t struct_size;
+} FlutterSpellOutStringAttribute;
+
+typedef struct {
+  size_t struct_size;
+  const char* locale;
+} FlutterLocaleStringAttribute;
+
+typedef struct {
+  size_t struct_size;
+  FlutterStringAttributeType type;
+  int32_t start;
+  int32_t end;
+  union {
+    FlutterSpellOutStringAttribute* spell_out;
+    FlutterLocaleStringAttribute* locale;
+  };
+} FlutterStringAttribute;
+
 /// A node that represents some semantic data.
 ///
 /// The semantics tree is maintained during the semantics phase of the pipeline
@@ -1215,6 +1243,17 @@ typedef struct {
   FlutterPlatformViewIdentifier platform_view_id;
   /// A textual tooltip attached to the node.
   const char* tooltip;
+
+  size_t label_attribute_count;
+  FlutterStringAttribute** label_attributes;
+  size_t hint_attribute_count;
+  FlutterStringAttribute** hint_attributes;
+  size_t value_attribute_count;
+  FlutterStringAttribute** value_attributes;
+  size_t increased_value_attribute_count;
+  FlutterStringAttribute** increased_value_attributes;
+  size_t decreased_value_attribute_count;
+  FlutterStringAttribute** decreased_value_attributes;
 } FlutterSemanticsNode2;
 
 /// `FlutterSemanticsCustomAction` ID used as a sentinel to signal the end of a
