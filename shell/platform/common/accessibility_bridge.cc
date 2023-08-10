@@ -19,25 +19,6 @@ constexpr int kHasScrollingAction =
     FlutterSemanticsAction::kFlutterSemanticsActionScrollUp |
     FlutterSemanticsAction::kFlutterSemanticsActionScrollDown;
 
-static void SetStringAttributes(
-    ui::AXNodeData& node_data,
-    std::vector<FlutterStringAttribute*> attributes) {
-  for (auto i = 0; i < attributes.size(); i++) {
-    auto attribute = attributes[i];
-    switch (attribute->type) {
-      case FlutterStringAttributeType::kLocale: {
-        auto locale = std::string(attribute->locale->locale);
-        node_data.AddStringAttribute(ax::mojom::StringAttribute::kLanguage,
-                                     locale);
-        break;
-      }
-      case FlutterStringAttributeType::kSpellOut: {
-        break;
-      }
-    }
-  }
-}
-
 // AccessibilityBridge
 AccessibilityBridge::AccessibilityBridge()
     : tree_(std::make_unique<ui::AXTree>()) {
@@ -523,6 +504,23 @@ void AccessibilityBridge::SetStringAttributesFromFlutterUpdate(
   SetStringAttributes(node_data, node.label_attributes);
 }
 
+void AccessibilityBridge::SetStringAttributes(
+    ui::AXNodeData& node_data,
+    const std::vector<StringAttribute>& attributes) {
+  for (auto it = attributes.begin(); it != attributes.end(); it++) {
+    switch (it->type) {
+      case FlutterStringAttributeType::kLocale: {
+        node_data.AddStringAttribute(ax::mojom::StringAttribute::kLanguage,
+                                     it->locale);
+        break;
+      }
+      case FlutterStringAttributeType::kSpellOut: {
+        break;
+      }
+    }
+  }
+}
+
 void AccessibilityBridge::SetIntListAttributesFromFlutterUpdate(
     ui::AXNodeData& node_data,
     const SemanticsNode& node) {
@@ -626,45 +624,30 @@ AccessibilityBridge::FromFlutterSemanticsNode(
   if (flutter_node.label) {
     result.label = std::string(flutter_node.label);
   }
-  if (flutter_node.label_attribute_count > 0) {
-    result.label_attributes = std::vector<FlutterStringAttribute*>(
-        flutter_node.label_attributes,
-        flutter_node.label_attributes + flutter_node.label_attribute_count);
-  }
   if (flutter_node.hint) {
     result.hint = std::string(flutter_node.hint);
-  }
-  if (flutter_node.hint_attribute_count > 0) {
-    result.hint_attributes = std::vector<FlutterStringAttribute*>(
-        flutter_node.hint_attributes,
-        flutter_node.hint_attributes + flutter_node.hint_attribute_count);
   }
   if (flutter_node.value) {
     result.value = std::string(flutter_node.value);
   }
-  if (flutter_node.value_attribute_count > 0) {
-    result.value_attributes = std::vector<FlutterStringAttribute*>(
-        flutter_node.value_attributes,
-        flutter_node.value_attributes + flutter_node.value_attribute_count);
-  }
   if (flutter_node.increased_value) {
     result.increased_value = std::string(flutter_node.increased_value);
-  }
-  if (flutter_node.increased_value_attribute_count > 0) {
-    result.increased_value_attributes = std::vector<FlutterStringAttribute*>(
-        flutter_node.increased_value_attributes,
-        flutter_node.increased_value_attributes +
-            flutter_node.increased_value_attribute_count);
   }
   if (flutter_node.decreased_value) {
     result.decreased_value = std::string(flutter_node.decreased_value);
   }
-  if (flutter_node.decreased_value_attribute_count > 0) {
-    result.decreased_value_attributes = std::vector<FlutterStringAttribute*>(
-        flutter_node.decreased_value_attributes,
-        flutter_node.decreased_value_attributes +
-            flutter_node.decreased_value_attribute_count);
-  }
+  result.label_attributes = FromFlutterStringAttributes(
+      flutter_node.label_attribute_count, flutter_node.label_attributes);
+  result.hint_attributes = FromFlutterStringAttributes(
+      flutter_node.hint_attribute_count, flutter_node.hint_attributes);
+  result.value_attributes = FromFlutterStringAttributes(
+      flutter_node.value_attribute_count, flutter_node.value_attributes);
+  result.increased_value_attributes =
+      FromFlutterStringAttributes(flutter_node.increased_value_attribute_count,
+                                  flutter_node.increased_value_attributes);
+  result.decreased_value_attributes =
+      FromFlutterStringAttributes(flutter_node.decreased_value_attribute_count,
+                                  flutter_node.decreased_value_attributes);
   if (flutter_node.tooltip) {
     result.tooltip = std::string(flutter_node.tooltip);
   }
@@ -697,6 +680,30 @@ AccessibilityBridge::FromFlutterSemanticsCustomAction(
   if (flutter_custom_action.hint) {
     result.hint = std::string(flutter_custom_action.hint);
   }
+  return result;
+}
+
+std::vector<AccessibilityBridge::StringAttribute>
+AccessibilityBridge::FromFlutterStringAttributes(
+    size_t attribute_count,
+    FlutterStringAttribute** attributes) {
+  std::vector<StringAttribute> result;
+  result.reserve(attribute_count);
+
+  for (size_t i = 0; i < attribute_count; i++) {
+    auto flutter_attribute = attributes[i];
+    StringAttribute attribute;
+    attribute.type = flutter_attribute->type;
+    attribute.start = flutter_attribute->start;
+    attribute.end = flutter_attribute->end;
+
+    if (flutter_attribute->type == FlutterStringAttributeType::kLocale) {
+      attribute.locale = std::string(flutter_attribute->locale->locale);
+    }
+
+    result.push_back(attribute);
+  }
+
   return result;
 }
 

@@ -158,6 +158,14 @@ class AccessibilityBridge
   CreateFlutterPlatformNodeDelegate() = 0;
 
  private:
+  // See FlutterStringAttribute in embedder.h
+  typedef struct {
+    FlutterStringAttributeType type;
+    int32_t start;
+    int32_t end;
+    std::string locale;  // Empty if not locale string attribute type
+  } StringAttribute;
+
   // See FlutterSemanticsNode in embedder.h
   typedef struct {
     int32_t id;
@@ -173,15 +181,15 @@ class AccessibilityBridge
     double elevation;
     double thickness;
     std::string label;
-    std::vector<FlutterStringAttribute*> label_attributes;
     std::string hint;
-    std::vector<FlutterStringAttribute*> hint_attributes;
     std::string value;
-    std::vector<FlutterStringAttribute*> value_attributes;
     std::string increased_value;
-    std::vector<FlutterStringAttribute*> increased_value_attributes;
     std::string decreased_value;
-    std::vector<FlutterStringAttribute*> decreased_value_attributes;
+    std::vector<StringAttribute> label_attributes;
+    std::vector<StringAttribute> hint_attributes;
+    std::vector<StringAttribute> value_attributes;
+    std::vector<StringAttribute> increased_value_attributes;
+    std::vector<StringAttribute> decreased_value_attributes;
     std::string tooltip;
     FlutterTextDirection text_direction;
     FlutterRect rect;
@@ -230,6 +238,9 @@ class AccessibilityBridge
                                          const SemanticsNode& node);
   void SetStringAttributesFromFlutterUpdate(ui::AXNodeData& node_data,
                                             const SemanticsNode& node);
+  void SetStringAttributes(
+      ui::AXNodeData& node_data,
+      const std::vector<AccessibilityBridge::StringAttribute>& attributes);
   void SetIntListAttributesFromFlutterUpdate(ui::AXNodeData& node_data,
                                              const SemanticsNode& node);
   void SetStringListAttributesFromFlutterUpdate(ui::AXNodeData& node_data,
@@ -245,6 +256,9 @@ class AccessibilityBridge
       const FlutterSemanticsNode2& flutter_node);
   SemanticsCustomAction FromFlutterSemanticsCustomAction(
       const FlutterSemanticsCustomAction2& flutter_custom_action);
+  std::vector<StringAttribute> FromFlutterStringAttributes(
+      size_t attribute_count,
+      FlutterStringAttribute** attributes);
 
   // |AXTreeObserver|
   void OnNodeWillBeDeleted(ui::AXTree* tree, ui::AXNode* node) override;
