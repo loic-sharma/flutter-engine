@@ -541,7 +541,9 @@ static void realize_cb(GtkWidget* widget) {
   g_signal_connect(toplevel_window, "delete-event",
                    G_CALLBACK(window_delete_event_cb), self);
 
-  init_keyboard(self);
+  if (self->view_id == 0) {
+    init_keyboard(self);
+  }
 
   FlRenderer* renderer = fl_engine_get_renderer(self->engine);
   if (!fl_renderer_start(renderer, self, &error)) {
@@ -552,6 +554,10 @@ static void realize_cb(GtkWidget* widget) {
   if (!fl_engine_start(self->engine, &error)) {
     g_warning("Failed to start Flutter engine: %s", error->message);
     return;
+  }
+
+  if (self->view_id != 0) {
+    fl_engine_add_view(self->engine, self);
   }
 
   handle_geometry_changed(self);

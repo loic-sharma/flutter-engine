@@ -43,6 +43,7 @@ struct _FlEngine {
   // Thread the GLib main loop is running on.
   GThread* thread;
 
+  bool running;
   FlDartProject* project;
   FlRenderer* renderer;
   FlBinaryMessenger* binary_messenger;
@@ -488,6 +489,10 @@ G_MODULE_EXPORT FlEngine* fl_engine_new_headless(FlDartProject* project) {
 gboolean fl_engine_start(FlEngine* self, GError** error) {
   g_return_val_if_fail(FL_IS_ENGINE(self), FALSE);
 
+  if (self->running) {
+    return TRUE;
+  }
+
   self->task_runner = fl_task_runner_new(self);
 
   FlutterRendererConfig config = {};
@@ -590,6 +595,7 @@ gboolean fl_engine_start(FlEngine* self, GError** error) {
     g_warning("Failed to enable accessibility features on Flutter engine");
   }
 
+  self->running = true;
   return TRUE;
 }
 
@@ -599,6 +605,13 @@ FlutterEngineProcTable* fl_engine_get_embedder_api(FlEngine* self) {
 
 FlRenderer* fl_engine_get_renderer(FlEngine* self) {
   return self->renderer;
+}
+
+void fl_engine_add_view(FlEngine* self, FlView* view) {
+  FlutterAddViewInfo info = {};
+  // TODO(loicsharma): Struct size
+  info.view_id = fl_view_get_id(view);
+  self->embedder_api.AddView(self->engine, &info);
 }
 
 void fl_engine_set_platform_message_handler(

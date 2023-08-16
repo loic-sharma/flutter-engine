@@ -90,6 +90,7 @@ FlEngine* fl_engine_new(FlDartProject* project, FlRenderer* renderer);
 FlutterEngineProcTable* fl_engine_get_embedder_api(FlEngine* engine);
 
 FlRenderer* fl_engine_get_renderer(FlEngine* engine);
+void fl_engine_add_view(FlEngine* engine, FlView* view);
 
 /**
  * fl_engine_set_platform_message_handler:

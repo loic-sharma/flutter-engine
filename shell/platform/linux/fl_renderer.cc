@@ -16,6 +16,7 @@ G_DEFINE_QUARK(fl_renderer_error_quark, fl_renderer_error)
 
 typedef struct {
   FlView* view;
+  // GdkGLContext* visible;
 
   // target dimension for resizing
   int target_width;
@@ -131,8 +132,16 @@ gboolean fl_renderer_start(FlRenderer* self, FlView* view, GError** error) {
     priv->views = std::unordered_map<int64_t, FlRendererView*>{};
   }
 
+  // GdkWindow* window = gtk_widget_get_parent_window(GTK_WIDGET(view));
+  // GdkGLContext* visible = gdk_window_create_gl_context(window, error);
+
+  // if (*error != nullptr) {
+  //   return FALSE;
+  // }
+
   FlRendererView* state = new FlRendererView;
   state->view = view;
+  // state->visible = visible;
   state->blocking_main_thread = false;
   state->had_first_frame = false;
 
@@ -158,10 +167,11 @@ FlView* fl_renderer_get_view(FlRenderer* self, int64_t view_id) {
   return priv->views[view_id]->view;
 }
 
-GdkGLContext* fl_renderer_get_context(FlRenderer* self) {
+GdkGLContext* fl_renderer_get_context(FlRenderer* self, int64_t view_id) {
   FlRendererPrivate* priv = reinterpret_cast<FlRendererPrivate*>(
       fl_renderer_get_instance_private(self));
-  return priv->main_context;
+    return priv->main_context;
+//  return priv->views[view_id]->visible;
 }
 
 void* fl_renderer_get_proc_address(FlRenderer* self, const char* name) {

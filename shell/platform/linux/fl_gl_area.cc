@@ -96,6 +96,7 @@ static gboolean fl_gl_area_draw(GtkWidget* widget, cairo_t* cr) {
     gdk_cairo_draw_from_gl(cr, gtk_widget_get_window(widget), texture_id,
                            GL_TEXTURE, scale, geometry.x, geometry.y,
                            geometry.width, geometry.height);
+    g_object_unref(texture);
   }
 
   return TRUE;

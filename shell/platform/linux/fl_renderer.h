@@ -128,7 +128,7 @@ FlView* fl_renderer_get_view(FlRenderer* renderer, int64_t view_id);
  *
  * Returns: GL context for GLAreas or %NULL if headless.
  */
-GdkGLContext* fl_renderer_get_context(FlRenderer* renderer);
+GdkGLContext* fl_renderer_get_context(FlRenderer* renderer, int64_t view_id);
 
 /**
  * fl_renderer_get_proc_address:

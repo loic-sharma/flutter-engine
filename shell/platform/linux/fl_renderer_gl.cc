@@ -104,7 +104,7 @@ static gboolean fl_renderer_gl_present_layers(FlRenderer* renderer,
                                               size_t layers_count,
                                               int64_t view_id) {
   FlView* view = fl_renderer_get_view(renderer, view_id);
-  GdkGLContext* context = fl_renderer_get_context(renderer);
+  GdkGLContext* context = fl_renderer_get_context(renderer, view_id);
   if (!view || !context) {
     return FALSE;
   }
@@ -118,6 +118,12 @@ static gboolean fl_renderer_gl_present_layers(FlRenderer* renderer,
         auto framebuffer = &backing_store->open_gl.framebuffer;
         g_ptr_array_add(textures, reinterpret_cast<FlBackingStoreProvider*>(
                                       framebuffer->user_data));
+
+        // The engine may choose to collect the backing store immediately after
+        // present completes. However, the underlying draw call is async.
+        // Ensure the backing store provider isn't destroyed until after the
+        // draw completes.
+        g_object_ref(framebuffer->user_data);
       } break;
       case kFlutterLayerContentTypePlatformView: {
         // Currently unsupported.
