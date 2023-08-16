@@ -16,7 +16,6 @@ G_DEFINE_QUARK(fl_renderer_error_quark, fl_renderer_error)
 
 typedef struct {
   FlView* view;
-  // GdkGLContext* visible;
 
   // target dimension for resizing
   int target_width;
@@ -28,6 +27,9 @@ typedef struct {
   // true if frame was completed; resizing is not synchronized until first frame
   // was rendered
   bool had_first_frame;
+
+  // Uncomment this to use separate OpenGL contexts per view.
+  // GdkGLContext* visible;
 } FlRendererView;
 
 typedef struct {
@@ -132,6 +134,7 @@ gboolean fl_renderer_start(FlRenderer* self, FlView* view, GError** error) {
     priv->views = std::unordered_map<int64_t, FlRendererView*>{};
   }
 
+  // Uncomment this to use separate OpenGL contexts per view.
   // GdkWindow* window = gtk_widget_get_parent_window(GTK_WIDGET(view));
   // GdkGLContext* visible = gdk_window_create_gl_context(window, error);
 
@@ -141,6 +144,7 @@ gboolean fl_renderer_start(FlRenderer* self, FlView* view, GError** error) {
 
   FlRendererView* state = new FlRendererView;
   state->view = view;
+  // Uncomment this to use separate OpenGL contexts per view.
   // state->visible = visible;
   state->blocking_main_thread = false;
   state->had_first_frame = false;
@@ -170,7 +174,11 @@ FlView* fl_renderer_get_view(FlRenderer* self, int64_t view_id) {
 GdkGLContext* fl_renderer_get_context(FlRenderer* self, int64_t view_id) {
   FlRendererPrivate* priv = reinterpret_cast<FlRendererPrivate*>(
       fl_renderer_get_instance_private(self));
+
+  // Use a single OpenGL context for all views.
   return priv->main_context;
+
+  // Uncomment this to use separate OpenGL contexts per view.
   // return priv->views[view_id]->visible;
 }
 

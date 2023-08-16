@@ -187,8 +187,6 @@ static bool compositor_create_backing_store_callback(
     const FlutterBackingStoreConfig* config,
     FlutterBackingStore* backing_store_out,
     void* user_data) {
-  // TODO: Switch user data to the engine. Get the renderer from the engine
-  // or return false.
   g_return_val_if_fail(FL_IS_RENDERER(user_data), false);
   return fl_renderer_create_backing_store(FL_RENDERER(user_data), config,
                                           backing_store_out);
@@ -198,10 +196,12 @@ static bool compositor_create_backing_store_callback(
 static bool compositor_collect_backing_store_callback(
     const FlutterBackingStore* renderer,
     void* user_data) {
-  // TODO: Switch user data to the engine. Get the renderer from the engine
-  // or return false.
-  g_return_val_if_fail(FL_IS_RENDERER(user_data), false);
-  return fl_renderer_collect_backing_store(FL_RENDERER(user_data), renderer);
+  // The GL area queues draw operations to itself and might still need the
+  // backing store. The GL area will destroy the backing store when the draw
+  // completes.
+  // g_return_val_if_fail(FL_IS_RENDERER(user_data), false);
+  // return fl_renderer_collect_backing_store(FL_RENDERER(user_data), renderer);
+  return true;
 }
 
 // Called when embedder should composite contents of each layer onto the screen.
@@ -482,6 +482,7 @@ FlEngine* fl_engine_new(FlDartProject* project, FlRenderer* renderer) {
 }
 
 G_MODULE_EXPORT FlEngine* fl_engine_new_headless(FlDartProject* project) {
+  // TODO: Consider exposing a separate constructor `fl_engine_new_gl`.
   g_autoptr(FlRendererGL) renderer = fl_renderer_gl_new();
   return fl_engine_new(project, FL_RENDERER(renderer));
 }
@@ -554,6 +555,11 @@ gboolean fl_engine_start(FlEngine* self, GError** error) {
   compositor.collect_backing_store_callback =
       compositor_collect_backing_store_callback;
   compositor.present_layers_callback = compositor_present_layers_callback;
+  // TODO(loicsharma): The Linux embedder's present callback returns before it's
+  // drawn the backing store (the GL area queues a draw operation to itself).
+  // Force the engine to always create new backing stores to avoid situations
+  // where the engine attempts to reuse a backing store while a draw is pending.
+  compositor.avoid_backing_store_cache = true;
   args.compositor = &compositor;
 
   if (self->embedder_api.RunsAOTCompiledDartCode()) {
@@ -609,7 +615,8 @@ FlRenderer* fl_engine_get_renderer(FlEngine* self) {
 
 void fl_engine_add_view(FlEngine* self, FlView* view) {
   FlutterAddViewInfo info = {};
-  // TODO(loicsharma): Struct size
+  // TODO(loicsharma): Embedder API struct should have struct_size member.
+  // info.struct_size = sizeof(FlutterAddViewInfo);
   info.view_id = fl_view_get_id(view);
   self->embedder_api.AddView(self->engine, &info);
 }

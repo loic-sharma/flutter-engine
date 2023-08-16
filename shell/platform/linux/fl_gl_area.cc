@@ -76,11 +76,20 @@ static void fl_gl_area_size_allocate(GtkWidget* widget,
   }
 }
 
+// TODO(loicsharma): This is copied from fl_pixel_buffer_texture.cc
+static void check_gl_error(int line) {
+  GLenum err = glGetError();
+  if (err) {
+    g_warning("glGetError %x (%s:%d)\n", err, __FILE__, line);
+  }
+}
+
 // Implements GtkWidget::draw.
 static gboolean fl_gl_area_draw(GtkWidget* widget, cairo_t* cr) {
   FlGLArea* self = FL_GL_AREA(widget);
 
   gdk_gl_context_make_current(self->context);
+  check_gl_error(__LINE__);
 
   gint scale = gtk_widget_get_scale_factor(widget);
 
@@ -96,7 +105,12 @@ static gboolean fl_gl_area_draw(GtkWidget* widget, cairo_t* cr) {
     gdk_cairo_draw_from_gl(cr, gtk_widget_get_window(widget), texture_id,
                            GL_TEXTURE, scale, geometry.x, geometry.y,
                            geometry.width, geometry.height);
+    check_gl_error(__LINE__);
+
+    // TODO(loicsharma): This destroys the backing store. Ideally backing stores
+    // would be cached and reused if possible.
     g_object_unref(texture);
+    check_gl_error(__LINE__);
   }
 
   return TRUE;

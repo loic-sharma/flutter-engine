@@ -39,7 +39,7 @@ struct _FlRendererClass {
   /**
    * Virtual method called when Flutter needs #GdkGLContext to render.
    * @renderer: an #FlRenderer.
-   * @visible: (out): the GL context for rendering.
+   * @main: (out): the GL context for rendering.
    * @resource: (out): the GL context for resource loading.
    * @error: (allow-none): #GError location to store the error occurring, or
    * %NULL to ignore.
