@@ -21,7 +21,7 @@ static gboolean fl_renderer_gl_create_contexts(FlRenderer* renderer,
                                                GError** error) {
   // GDK4.6+
   // GdkDisplay* display = gdk_display_get_default();
-  
+
   // *main = gdk_display_create_gl_context(display, error);
   // *resource = gdk_display_create_gl_context(display, error);
 

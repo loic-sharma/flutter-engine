@@ -774,7 +774,9 @@ G_MODULE_EXPORT FlView* fl_view_new(FlDartProject* project) {
                                            nullptr, nullptr));
 }
 
-G_MODULE_EXPORT FlView* fl_view_new_with_engine(FlEngine* engine, int width, int height) {
+G_MODULE_EXPORT FlView* fl_view_new_with_engine(FlEngine* engine,
+                                                int width,
+                                                int height) {
   // TODO(loicsharma): Use width and height parameters.
   return static_cast<FlView*>(g_object_new(fl_view_get_type(),
                                            "flutter-project", nullptr, "engine",

@@ -116,9 +116,9 @@ gboolean fl_renderer_start(FlRenderer* self, FlView* view, GError** error) {
   // Initialize the renderer if this is the first view that's added.
   if (priv->engine == nullptr) {
     gboolean result = FL_RENDERER_GET_CLASS(self)->create_contexts(
-      self, GTK_WIDGET(view), &priv->main_context, &priv->resource_context,
-      error);
-    
+        self, GTK_WIDGET(view), &priv->main_context, &priv->resource_context,
+        error);
+
     if (result) {
       gdk_gl_context_realize(priv->main_context, error);
       gdk_gl_context_realize(priv->resource_context, error);
@@ -170,8 +170,8 @@ FlView* fl_renderer_get_view(FlRenderer* self, int64_t view_id) {
 GdkGLContext* fl_renderer_get_context(FlRenderer* self, int64_t view_id) {
   FlRendererPrivate* priv = reinterpret_cast<FlRendererPrivate*>(
       fl_renderer_get_instance_private(self));
-    return priv->main_context;
-//  return priv->views[view_id]->visible;
+  return priv->main_context;
+  // return priv->views[view_id]->visible;
 }
 
 void* fl_renderer_get_proc_address(FlRenderer* self, const char* name) {
@@ -273,6 +273,6 @@ gboolean fl_renderer_present_layers(FlRenderer* self,
 
   fl_renderer_unblock_main_thread(self, view_id);
 
-  return FL_RENDERER_GET_CLASS(self)->present_layers(self, layers,
-                                                     layers_count, view_id);
+  return FL_RENDERER_GET_CLASS(self)->present_layers(self, layers, layers_count,
+                                                     view_id);
 }

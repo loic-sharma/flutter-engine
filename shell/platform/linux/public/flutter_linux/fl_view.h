@@ -73,9 +73,9 @@ FlEngine* fl_view_get_engine(FlView* view);
 /**
  * fl_view_get_id:
  * @view: an #FlView.
- * 
+ *
  * Gets the view's ID.
- * 
+ *
  * Returns: the view's ID.
  */
 int64_t fl_view_get_id(FlView* view);
