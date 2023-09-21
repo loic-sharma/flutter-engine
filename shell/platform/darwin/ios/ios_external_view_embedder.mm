@@ -69,7 +69,9 @@ DlCanvas* IOSExternalViewEmbedder::CompositeEmbeddedView(int64_t view_id) {
 void IOSExternalViewEmbedder::SubmitFrame(
     GrDirectContext* context,
     const std::shared_ptr<impeller::AiksContext>& aiks_context,
+    int64_t view_id,
     std::unique_ptr<SurfaceFrame> frame) {
+  // TODO(dkwingsmt): Use view_id
   TRACE_EVENT0("flutter", "IOSExternalViewEmbedder::SubmitFrame");
   FML_CHECK(platform_views_controller_);
   platform_views_controller_->SubmitFrame(context, ios_context_, std::move(frame));

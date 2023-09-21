@@ -121,6 +121,7 @@ class MockExternalViewEmbedder : public ExternalViewEmbedder {
               SubmitFrame,
               (GrDirectContext * context,
                const std::shared_ptr<impeller::AiksContext>& aiks_context,
+               int64_t view_id,
                std::unique_ptr<SurfaceFrame> frame),
               (override));
   MOCK_METHOD(void,
