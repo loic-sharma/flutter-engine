@@ -69,6 +69,12 @@ class ImageFilterMutation {
   const SkRect filter_rect_;
 };
 
+struct ViewDimension {
+  int64_t view_id;
+  SkISize frame_size;
+  double device_pixel_ratio;
+};
+
 // Stores mutation information like clipping or kTransform.
 //
 // The `type` indicates the type of the mutation: kClipRect, kTransform and etc.
@@ -388,9 +394,8 @@ class ExternalViewEmbedder {
   // The `raster_thread_merger` will be null if |SupportsDynamicThreadMerging|
   // returns false.
   virtual void BeginFrame(
-      SkISize frame_size,
       GrDirectContext* context,
-      double device_pixel_ratio,
+      const std::vector<ViewDimension>& frame_info,
       fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) = 0;
 
   virtual void PrerollCompositeEmbeddedView(

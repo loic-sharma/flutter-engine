@@ -566,7 +566,9 @@ std::unique_ptr<FrameItem> Rasterizer::DrawToSurfacesUnsafe(
   compositor_context_->ui_time().SetLapTime(
       frame_timings_recorder.GetBuildDuration());
 
-  // First traverse: Filter out discarded trees
+  // First traverse: Filter out discarded trees and derive view_dimensions.
+  std::vector<ViewDimension> view_dimensions;
+  view_dimensions.reserve(tasks.size());
   auto task_iter = tasks.begin();
   while (task_iter != tasks.end()) {
     if (delegate_.ShouldDiscardLayerTree(task_iter->view_id,
@@ -574,6 +576,9 @@ std::unique_ptr<FrameItem> Rasterizer::DrawToSurfacesUnsafe(
       last_draw_statuses_[task_iter->view_id] = DrawSurfaceStatus::kDiscarded;
       task_iter = tasks.erase(task_iter);
     } else {
+      view_dimensions.push_back({task_iter->view_id,
+                                 task_iter->layer_tree->frame_size(),
+                                 task_iter->device_pixel_ratio});
       ++task_iter;
     }
   }
@@ -586,10 +591,8 @@ std::unique_ptr<FrameItem> Rasterizer::DrawToSurfacesUnsafe(
   if (external_view_embedder_) {
     FML_DCHECK(!external_view_embedder_->GetUsedThisFrame());
     external_view_embedder_->SetUsedThisFrame(true);
-    external_view_embedder_->BeginFrame(
-        // TODO(dkwingsmt): Add all views here.
-        tasks.front().layer_tree->frame_size(), surface_->GetContext(),
-        tasks.front().device_pixel_ratio, raster_thread_merger_);
+    external_view_embedder_->BeginFrame(surface_->GetContext(), view_dimensions,
+                                        raster_thread_merger_);
   }
 
   std::optional<fml::TimePoint> presentation_time = std::nullopt;

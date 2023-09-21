@@ -27,6 +27,8 @@ namespace testing {
 using ::testing::ByMove;
 using ::testing::Return;
 
+constexpr int64_t kImplicitViewId = 0;
+
 class TestAndroidSurfaceFactory : public AndroidSurfaceFactory {
  public:
   using TestSurfaceProducer =
@@ -104,6 +106,15 @@ TaskRunners GetTaskRunnersForFixture() {
   };
 }
 
+static std::vector<ViewDimension> SingleViewDimension(
+    int view_id,
+    SkISize frame_size,
+    double device_pixel_ratio) {
+  std::vector<ViewDimension> result;
+  result.push_back({view_id, frame_size, device_pixel_ratio});
+  return result;
+}
+
 TEST(AndroidExternalViewEmbedder, CompositeEmbeddedView) {
   auto android_context = AndroidContext(AndroidRenderingAPI::kSoftware);
   auto embedder = std::make_unique<AndroidExternalViewEmbedder>(
@@ -144,8 +155,9 @@ TEST(AndroidExternalViewEmbedder, RasterizerRunsOnPlatformThread) {
   ASSERT_FALSE(raster_thread_merger->IsMerged());
 
   EXPECT_CALL(*jni_mock, FlutterViewBeginFrame());
-  embedder->BeginFrame(SkISize::Make(10, 20), nullptr, 1.0,
-                       raster_thread_merger);
+  embedder->BeginFrame(
+      nullptr, SingleViewDimension(kImplicitViewId, SkISize::Make(10, 20), 1.0),
+      raster_thread_merger);
   // Push a platform view.
   embedder->PrerollCompositeEmbeddedView(
       0, std::make_unique<EmbeddedViewParams>());
@@ -197,8 +209,10 @@ TEST(AndroidExternalViewEmbedder, PlatformViewRect) {
       GetThreadMergerFromPlatformThread(&rasterizer_thread);
 
   EXPECT_CALL(*jni_mock, FlutterViewBeginFrame());
-  embedder->BeginFrame(SkISize::Make(100, 100), nullptr, 1.5,
-                       raster_thread_merger);
+  embedder->BeginFrame(
+      nullptr,
+      SingleViewDimension(kImplicitViewId, SkISize::Make(100, 100), 1.5),
+      raster_thread_merger);
 
   MutatorsStack stack;
   SkMatrix matrix;
@@ -225,8 +239,10 @@ TEST(AndroidExternalViewEmbedder, PlatformViewRectChangedParams) {
       GetThreadMergerFromPlatformThread(&rasterizer_thread);
 
   EXPECT_CALL(*jni_mock, FlutterViewBeginFrame());
-  embedder->BeginFrame(SkISize::Make(100, 100), nullptr, 1.5,
-                       raster_thread_merger);
+  embedder->BeginFrame(
+      nullptr,
+      SingleViewDimension(kImplicitViewId, SkISize::Make(100, 100), 1.5),
+      raster_thread_merger);
 
   auto view_id = 0;
 
@@ -327,7 +343,9 @@ TEST(AndroidExternalViewEmbedder, SubmitFrame) {
   // ------------------ Second frame ------------------ //
   {
     EXPECT_CALL(*jni_mock, FlutterViewBeginFrame());
-    embedder->BeginFrame(frame_size, nullptr, 1.5, raster_thread_merger);
+    embedder->BeginFrame(nullptr,
+                         SingleViewDimension(kImplicitViewId, frame_size, 1.5),
+                         raster_thread_merger);
 
     // Add an Android view.
     MutatorsStack stack1;
@@ -395,7 +413,9 @@ TEST(AndroidExternalViewEmbedder, SubmitFrame) {
   // ------------------ Third frame ------------------ //
   {
     EXPECT_CALL(*jni_mock, FlutterViewBeginFrame());
-    embedder->BeginFrame(frame_size, nullptr, 1.5, raster_thread_merger);
+    embedder->BeginFrame(nullptr,
+                         SingleViewDimension(kImplicitViewId, frame_size, 1.5),
+                         raster_thread_merger);
 
     // Add an Android view.
     MutatorsStack stack1;
@@ -499,7 +519,9 @@ TEST(AndroidExternalViewEmbedder, OverlayCoverTwoPlatformViews) {
   auto raster_thread_merger = GetThreadMergerFromPlatformThread();
 
   EXPECT_CALL(*jni_mock, FlutterViewBeginFrame());
-  embedder->BeginFrame(frame_size, nullptr, 1.5, raster_thread_merger);
+  embedder->BeginFrame(nullptr,
+                       SingleViewDimension(kImplicitViewId, frame_size, 1.5),
+                       raster_thread_merger);
 
   {
     // Add first Android view.
@@ -597,7 +619,9 @@ TEST(AndroidExternalViewEmbedder, SubmitFrameOverlayComposition) {
   auto raster_thread_merger = GetThreadMergerFromPlatformThread();
 
   EXPECT_CALL(*jni_mock, FlutterViewBeginFrame());
-  embedder->BeginFrame(frame_size, nullptr, 1.5, raster_thread_merger);
+  embedder->BeginFrame(nullptr,
+                       SingleViewDimension(kImplicitViewId, frame_size, 1.5),
+                       raster_thread_merger);
 
   {
     // Add first Android view.
@@ -700,7 +724,9 @@ TEST(AndroidExternalViewEmbedder, SubmitFramePlatformViewWithoutAnyOverlay) {
   auto raster_thread_merger = GetThreadMergerFromPlatformThread();
 
   EXPECT_CALL(*jni_mock, FlutterViewBeginFrame());
-  embedder->BeginFrame(frame_size, nullptr, 1.5, raster_thread_merger);
+  embedder->BeginFrame(nullptr,
+                       SingleViewDimension(kImplicitViewId, frame_size, 1.5),
+                       raster_thread_merger);
 
   {
     // Add Android view.
@@ -743,8 +769,9 @@ TEST(AndroidExternalViewEmbedder, DoesNotCallJNIPlatformThreadOnlyMethods) {
   auto raster_thread_merger = GetThreadMergerFromRasterThread(&platform_thread);
 
   EXPECT_CALL(*jni_mock, FlutterViewBeginFrame()).Times(0);
-  embedder->BeginFrame(SkISize::Make(10, 20), nullptr, 1.0,
-                       raster_thread_merger);
+  embedder->BeginFrame(
+      nullptr, SingleViewDimension(kImplicitViewId, SkISize::Make(10, 20), 1.0),
+      raster_thread_merger);
 
   EXPECT_CALL(*jni_mock, FlutterViewEndFrame()).Times(0);
   embedder->EndFrame(/*should_resubmit_frame=*/false, raster_thread_merger);
@@ -792,7 +819,9 @@ TEST(AndroidExternalViewEmbedder, DestroyOverlayLayersOnSizeChange) {
   // ------------------ First frame ------------------ //
   {
     EXPECT_CALL(*jni_mock, FlutterViewBeginFrame());
-    embedder->BeginFrame(frame_size, nullptr, 1.5, raster_thread_merger);
+    embedder->BeginFrame(nullptr,
+                         SingleViewDimension(kImplicitViewId, frame_size, 1.5),
+                         raster_thread_merger);
 
     // Add an Android view.
     MutatorsStack stack1;
@@ -834,8 +863,9 @@ TEST(AndroidExternalViewEmbedder, DestroyOverlayLayersOnSizeChange) {
   EXPECT_CALL(*jni_mock, FlutterViewDestroyOverlaySurfaces());
   EXPECT_CALL(*jni_mock, FlutterViewBeginFrame());
   // Change the frame size.
-  embedder->BeginFrame(SkISize::Make(30, 40), nullptr, 1.0,
-                       raster_thread_merger);
+  embedder->BeginFrame(
+      nullptr, SingleViewDimension(kImplicitViewId, SkISize::Make(30, 40), 1.0),
+      raster_thread_merger);
 }
 
 TEST(AndroidExternalViewEmbedder, DoesNotDestroyOverlayLayersOnSizeChange) {
@@ -880,7 +910,9 @@ TEST(AndroidExternalViewEmbedder, DoesNotDestroyOverlayLayersOnSizeChange) {
     auto raster_thread_merger =
         GetThreadMergerFromPlatformThread(&rasterizer_thread);
     EXPECT_CALL(*jni_mock, FlutterViewBeginFrame());
-    embedder->BeginFrame(frame_size, nullptr, 1.5, raster_thread_merger);
+    embedder->BeginFrame(nullptr,
+                         SingleViewDimension(kImplicitViewId, frame_size, 1.5),
+                         raster_thread_merger);
 
     // Add an Android view.
     MutatorsStack stack1;
@@ -922,8 +954,9 @@ TEST(AndroidExternalViewEmbedder, DoesNotDestroyOverlayLayersOnSizeChange) {
   EXPECT_CALL(*jni_mock, FlutterViewBeginFrame()).Times(0);
 
   fml::Thread platform_thread("platform");
-  embedder->BeginFrame(SkISize::Make(30, 40), nullptr, 1.0,
-                       GetThreadMergerFromRasterThread(&platform_thread));
+  embedder->BeginFrame(
+      nullptr, SingleViewDimension(kImplicitViewId, SkISize::Make(30, 40), 1.0),
+      GetThreadMergerFromRasterThread(&platform_thread));
 }
 
 TEST(AndroidExternalViewEmbedder, SupportsDynamicThreadMerging) {
@@ -949,8 +982,9 @@ TEST(AndroidExternalViewEmbedder, DisableThreadMerger) {
 
   EXPECT_CALL(*jni_mock, FlutterViewBeginFrame()).Times(0);
 
-  embedder->BeginFrame(SkISize::Make(10, 20), nullptr, 1.0,
-                       raster_thread_merger);
+  embedder->BeginFrame(
+      nullptr, SingleViewDimension(kImplicitViewId, SkISize::Make(10, 20), 1.0),
+      raster_thread_merger);
   // Push a platform view.
   embedder->PrerollCompositeEmbeddedView(
       0, std::make_unique<EmbeddedViewParams>());
@@ -999,7 +1033,9 @@ TEST(AndroidExternalViewEmbedder, Teardown) {
   auto raster_thread_merger =
       GetThreadMergerFromPlatformThread(&rasterizer_thread);
 
-  embedder->BeginFrame(frame_size, nullptr, 1.5, raster_thread_merger);
+  embedder->BeginFrame(nullptr,
+                       SingleViewDimension(kImplicitViewId, frame_size, 1.5),
+                       raster_thread_merger);
 
   // Add an Android view.
   MutatorsStack stack;

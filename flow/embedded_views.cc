@@ -4,6 +4,8 @@
 
 #include "flutter/flow/embedded_views.h"
 
+#include "flutter/flow/layers/layer_tree.h"
+
 namespace flutter {
 
 DisplayListEmbedderViewSlice::DisplayListEmbedderViewSlice(SkRect view_bounds) {

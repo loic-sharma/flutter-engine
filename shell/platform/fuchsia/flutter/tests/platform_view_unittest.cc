@@ -46,9 +46,8 @@ class MockExternalViewEmbedder : public flutter::ExternalViewEmbedder {
 
   void CancelFrame() override {}
   void BeginFrame(
-      SkISize frame_size,
       GrDirectContext* context,
-      double device_pixel_ratio,
+      const std::vector<ViewDimension>& view_dimensions,
       fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) override {}
 
   void SubmitFrame(GrDirectContext* context,

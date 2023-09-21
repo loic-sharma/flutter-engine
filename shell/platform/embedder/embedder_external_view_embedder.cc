@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "flutter/common/constants.h"
 #include "flutter/shell/platform/embedder/embedder_layers.h"
 #include "flutter/shell/platform/embedder/embedder_render_target.h"
 #include "third_party/skia/include/gpu/GrDirectContext.h"
@@ -51,14 +52,19 @@ void EmbedderExternalViewEmbedder::CancelFrame() {
 
 // |ExternalViewEmbedder|
 void EmbedderExternalViewEmbedder::BeginFrame(
-    SkISize frame_size,
     GrDirectContext* context,
-    double device_pixel_ratio,
+    const std::vector<ViewDimension>& view_dimensions,
     fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {
   Reset();
 
-  pending_frame_size_ = frame_size;
-  pending_device_pixel_ratio_ = device_pixel_ratio;
+  // TODO(dkwingsmt): The rasterizer only supports rendering a single view
+  // and that view must be the implicit view. Properly support multi-view
+  // in the future.
+  FML_CHECK(view_dimensions.size() == 1u);
+  FML_DCHECK(view_dimensions.front().view_id == kFlutterImplicitViewId);
+
+  pending_frame_size_ = view_dimensions.front().frame_size;
+  pending_device_pixel_ratio_ = view_dimensions.front().device_pixel_ratio;
   pending_surface_transformation_ = GetSurfaceTransformation();
 
   static const auto kRootViewIdentifier =

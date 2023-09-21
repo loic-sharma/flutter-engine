@@ -24,7 +24,9 @@
 
 using testing::_;
 using testing::ByMove;
+using testing::Field;
 using testing::NiceMock;
+using testing::Property;
 using testing::Return;
 using testing::ReturnRef;
 
@@ -42,6 +44,18 @@ std::list<LayerTreeTask> SingleLayerTreeList(
   tasks.emplace_back(view_id, std::move(layer_tree), pixel_ratio);
   return tasks;
 }
+
+inline constexpr auto IsSingleViewDimension =
+    [](int view_id, SkISize frame_size, double device_pixel_ratio) -> auto {
+  return AllOf(
+      Property("size", &std::vector<ViewDimension>::size, 1),
+      Property(
+          "first element", &std::vector<ViewDimension>::front,
+          AllOf(Field("view ID", &ViewDimension::view_id, view_id),
+                Field("frame size", &ViewDimension::frame_size, frame_size),
+                Field("device pixel ratio", &ViewDimension::device_pixel_ratio,
+                      device_pixel_ratio))));
+};
 
 class MockDelegate : public Rasterizer::Delegate {
  public:
@@ -90,9 +104,8 @@ class MockExternalViewEmbedder : public ExternalViewEmbedder {
   MOCK_METHOD(void, CancelFrame, (), (override));
   MOCK_METHOD(void,
               BeginFrame,
-              (SkISize frame_size,
-               GrDirectContext* context,
-               double device_pixel_ratio,
+              (GrDirectContext * context,
+               const std::vector<ViewDimension>& view_dimensions,
                fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger),
               (override));
   MOCK_METHOD(void,
@@ -208,8 +221,11 @@ TEST(RasterizerTest,
       .WillOnce(Return(ByMove(std::make_unique<GLContextDefaultResult>(true))));
 
   EXPECT_CALL(*external_view_embedder,
-              BeginFrame(/*frame_size=*/SkISize(), /*context=*/nullptr,
-                         /*device_pixel_ratio=*/2.0,
+              BeginFrame(/*context=*/nullptr,
+                         IsSingleViewDimension(kImplicitViewId,
+                                               /*frame_size=*/SkISize(),
+                                               /*device_pixel_ratio=*/2.0),
+
                          /*raster_thread_merger=*/
                          fml::RefPtr<fml::RasterThreadMerger>(nullptr)))
       .Times(1);
@@ -280,8 +296,10 @@ TEST(
       .WillOnce(Return(ByMove(std::make_unique<GLContextDefaultResult>(true))));
 
   EXPECT_CALL(*external_view_embedder,
-              BeginFrame(/*frame_size=*/SkISize(), /*context=*/nullptr,
-                         /*device_pixel_ratio=*/2.0,
+              BeginFrame(/*context=*/nullptr,
+                         IsSingleViewDimension(kImplicitViewId,
+                                               /*frame_size=*/SkISize(),
+                                               /*device_pixel_ratio=*/2.0),
                          /*raster_thread_merger=*/_))
       .Times(1);
   EXPECT_CALL(*external_view_embedder, SubmitFrame).Times(0);
@@ -354,8 +372,10 @@ TEST(
       .WillRepeatedly(Return(true));
 
   EXPECT_CALL(*external_view_embedder,
-              BeginFrame(/*frame_size=*/SkISize(), /*context=*/nullptr,
-                         /*device_pixel_ratio=*/2.0,
+              BeginFrame(/*context=*/nullptr,
+                         IsSingleViewDimension(kImplicitViewId,
+                                               /*frame_size=*/SkISize(),
+                                               /*device_pixel_ratio=*/2.0),
                          /*raster_thread_merger=*/_))
       .Times(1);
   EXPECT_CALL(*external_view_embedder, SubmitFrame).Times(1);
@@ -430,8 +450,10 @@ TEST(RasterizerTest,
       .WillRepeatedly(Return(true));
 
   EXPECT_CALL(*external_view_embedder,
-              BeginFrame(/*frame_size=*/SkISize(), /*context=*/nullptr,
-                         /*device_pixel_ratio=*/2.0,
+              BeginFrame(/*context=*/nullptr,
+                         IsSingleViewDimension(kImplicitViewId,
+                                               /*frame_size=*/SkISize(),
+                                               /*device_pixel_ratio=*/2.0),
                          /*raster_thread_merger=*/_))
       .Times(2);
   EXPECT_CALL(*external_view_embedder, SubmitFrame).Times(2);
@@ -540,8 +562,10 @@ TEST(RasterizerTest, externalViewEmbedderDoesntEndFrameWhenNotUsedThisFrame) {
   rasterizer->Setup(std::move(surface));
 
   EXPECT_CALL(*external_view_embedder,
-              BeginFrame(/*frame_size=*/SkISize(), /*context=*/nullptr,
-                         /*device_pixel_ratio=*/2.0,
+              BeginFrame(/*context=*/nullptr,
+                         IsSingleViewDimension(kImplicitViewId,
+                                               /*frame_size=*/SkISize(),
+                                               /*device_pixel_ratio=*/2.0),
                          /*raster_thread_merger=*/_))
       .Times(0);
   EXPECT_CALL(

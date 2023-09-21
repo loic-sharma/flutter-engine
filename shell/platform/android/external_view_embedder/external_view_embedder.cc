@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "flutter/shell/platform/android/external_view_embedder/external_view_embedder.h"
+#include "flutter/common/constants.h"
 #include "flutter/fml/synchronization/waitable_event.h"
 #include "flutter/fml/trace_event.h"
 
@@ -257,11 +258,18 @@ void AndroidExternalViewEmbedder::Reset() {
 
 // |ExternalViewEmbedder|
 void AndroidExternalViewEmbedder::BeginFrame(
-    SkISize frame_size,
     GrDirectContext* context,
-    double device_pixel_ratio,
+    const std::vector<ViewDimension>& view_dimensions,
     fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {
   Reset();
+
+  // TODO(dkwingsmt): The rasterizer only supports rendering a single view
+  // and that view must be the implicit view. Properly support multi-view
+  // in the future.
+  FML_CHECK(view_dimensions.size() == 1u);
+  FML_DCHECK(view_dimensions.front().view_id == kFlutterImplicitViewId);
+  SkISize frame_size = view_dimensions.front().frame_size;
+  double device_pixel_ratio = view_dimensions.front().device_pixel_ratio;
 
   // The surface size changed. Therefore, destroy existing surfaces as
   // the existing surfaces in the pool can't be recycled.
