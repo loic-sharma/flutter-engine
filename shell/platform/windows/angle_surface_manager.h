@@ -35,6 +35,8 @@ class AngleSurfaceManager {
   // associated with window, in the appropriate format for display.
   // Target represents the visual entity to bind to.  Width and
   // height represent dimensions surface is created at.
+  //
+  // This binds |egl_context_| to the current thread.
   virtual bool CreateSurface(WindowsRenderTarget* render_target,
                              EGLint width,
                              EGLint height,
@@ -44,6 +46,8 @@ class AngleSurfaceManager {
   // based on width and height for the specific case when width and height do
   // not match current surface dimensions.  Target represents the visual entity
   // to bind to.
+  //
+  // This binds |egl_context_| to the current thread.
   virtual void ResizeSurface(WindowsRenderTarget* render_target,
                              EGLint width,
                              EGLint height,
@@ -60,8 +64,11 @@ class AngleSurfaceManager {
   // surfaces returning a boolean result reflecting success.
   bool MakeCurrent();
 
-  // Clears current egl_context_
+  // Clears the |egl_context_| draw and read surfaces.
   bool ClearContext();
+
+  // Unbinds the |egl_context_| from the current thread.
+  bool ReleaseContext();
 
   // Binds egl_resource_context_ to the current rendering thread and to the draw
   // and read surfaces returning a boolean result reflecting success.
