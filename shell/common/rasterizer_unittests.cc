@@ -45,7 +45,7 @@ std::list<LayerTreeTask> SingleLayerTreeList(
   return tasks;
 }
 
-inline constexpr auto IsSingleViewDimension =
+inline constexpr auto kSingleViewDimension =
     [](int view_id, SkISize frame_size, double device_pixel_ratio) -> auto {
   return AllOf(
       Property("size", &std::vector<ViewDimension>::size, 1),
@@ -223,9 +223,9 @@ TEST(RasterizerTest,
 
   EXPECT_CALL(*external_view_embedder,
               BeginFrame(/*context=*/nullptr,
-                         IsSingleViewDimension(kImplicitViewId,
-                                               /*frame_size=*/SkISize(),
-                                               /*device_pixel_ratio=*/2.0),
+                         kSingleViewDimension(kImplicitViewId,
+                                              /*frame_size=*/SkISize(),
+                                              /*device_pixel_ratio=*/2.0),
 
                          /*raster_thread_merger=*/
                          fml::RefPtr<fml::RasterThreadMerger>(nullptr)))
@@ -298,9 +298,9 @@ TEST(
 
   EXPECT_CALL(*external_view_embedder,
               BeginFrame(/*context=*/nullptr,
-                         IsSingleViewDimension(kImplicitViewId,
-                                               /*frame_size=*/SkISize(),
-                                               /*device_pixel_ratio=*/2.0),
+                         kSingleViewDimension(kImplicitViewId,
+                                              /*frame_size=*/SkISize(),
+                                              /*device_pixel_ratio=*/2.0),
                          /*raster_thread_merger=*/_))
       .Times(1);
   EXPECT_CALL(*external_view_embedder, SubmitFrame).Times(0);
@@ -374,9 +374,9 @@ TEST(
 
   EXPECT_CALL(*external_view_embedder,
               BeginFrame(/*context=*/nullptr,
-                         IsSingleViewDimension(kImplicitViewId,
-                                               /*frame_size=*/SkISize(),
-                                               /*device_pixel_ratio=*/2.0),
+                         kSingleViewDimension(kImplicitViewId,
+                                              /*frame_size=*/SkISize(),
+                                              /*device_pixel_ratio=*/2.0),
                          /*raster_thread_merger=*/_))
       .Times(1);
   EXPECT_CALL(*external_view_embedder, SubmitFrame).Times(1);
@@ -452,9 +452,9 @@ TEST(RasterizerTest,
 
   EXPECT_CALL(*external_view_embedder,
               BeginFrame(/*context=*/nullptr,
-                         IsSingleViewDimension(kImplicitViewId,
-                                               /*frame_size=*/SkISize(),
-                                               /*device_pixel_ratio=*/2.0),
+                         kSingleViewDimension(kImplicitViewId,
+                                              /*frame_size=*/SkISize(),
+                                              /*device_pixel_ratio=*/2.0),
                          /*raster_thread_merger=*/_))
       .Times(2);
   EXPECT_CALL(*external_view_embedder, SubmitFrame).Times(2);
@@ -564,9 +564,9 @@ TEST(RasterizerTest, externalViewEmbedderDoesntEndFrameWhenNotUsedThisFrame) {
 
   EXPECT_CALL(*external_view_embedder,
               BeginFrame(/*context=*/nullptr,
-                         IsSingleViewDimension(kImplicitViewId,
-                                               /*frame_size=*/SkISize(),
-                                               /*device_pixel_ratio=*/2.0),
+                         kSingleViewDimension(kImplicitViewId,
+                                              /*frame_size=*/SkISize(),
+                                              /*device_pixel_ratio=*/2.0),
                          /*raster_thread_merger=*/_))
       .Times(0);
   EXPECT_CALL(
