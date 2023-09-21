@@ -57,7 +57,7 @@ void EmbedderExternalViewEmbedder::BeginFrame(
     fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {
   Reset();
 
-  // TODO(dkwingsmt): The rasterizer only supports rendering a single view
+  // TODO(dkwingsmt): This class only supports rendering a single view
   // and that view must be the implicit view. Properly support multi-view
   // in the future.
   FML_CHECK(view_dimensions.size() == 1u);

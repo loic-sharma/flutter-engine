@@ -4,6 +4,8 @@
 
 #import "flutter/shell/platform/darwin/ios/ios_external_view_embedder.h"
 
+#include "flutter/common/constants.h"
+
 namespace flutter {
 
 IOSExternalViewEmbedder::IOSExternalViewEmbedder(
@@ -31,12 +33,18 @@ void IOSExternalViewEmbedder::CancelFrame() {
 
 // |ExternalViewEmbedder|
 void IOSExternalViewEmbedder::BeginFrame(
-    SkISize frame_size,
     GrDirectContext* context,
-    double device_pixel_ratio,
+    const std::vector<ViewDimension>& view_dimensions,
     fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {
   TRACE_EVENT0("flutter", "IOSExternalViewEmbedder::BeginFrame");
   FML_CHECK(platform_views_controller_);
+  // TODO(dkwingsmt): This class only supports rendering a single view
+  // and that view must be the implicit view. Properly support multi-view
+  // in the future.
+  FML_CHECK(view_dimensions.size() == 1u);
+  FML_DCHECK(view_dimensions.front().view_id == kFlutterImplicitViewId);
+  SkISize frame_size = view_dimensions.front().frame_size;
+
   platform_views_controller_->BeginFrame(frame_size);
 }
 
