@@ -69,6 +69,9 @@ void AndroidExternalViewEmbedder::SubmitFrame(
     int64_t native_view_id,
     std::unique_ptr<SurfaceFrame> frame) {
   TRACE_EVENT0("flutter", "AndroidExternalViewEmbedder::SubmitFrame");
+  // TODO(dkwingsmt): This class only supports rendering into the implicit view.
+  // Properly support multi-view in the future.
+  FML_DCHECK(native_view_id == kFlutterImplicitViewId);
 
   if (!FrameHasPlatformLayers()) {
     frame->Submit();
