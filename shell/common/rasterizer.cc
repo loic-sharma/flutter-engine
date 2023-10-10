@@ -579,14 +579,12 @@ std::unique_ptr<FrameItem> Rasterizer::DrawToSurfacesUnsafe(
   auto task_iter = tasks.begin();
   while (task_iter != tasks.end()) {
     LayerTreeTask& task = **task_iter;
-    if (delegate_.ShouldDiscardLayerTree(task.view_id,
-                                         *task.layer_tree)) {
+    if (delegate_.ShouldDiscardLayerTree(task.view_id, *task.layer_tree)) {
       EnsureViewRecord(task.view_id).last_draw_status =
           DrawSurfaceStatus::kDiscarded;
       task_iter = tasks.erase(task_iter);
     } else {
-      view_dimensions.push_back({task.view_id,
-                                 task.layer_tree->frame_size(),
+      view_dimensions.push_back({task.view_id, task.layer_tree->frame_size(),
                                  task.device_pixel_ratio});
       ++task_iter;
     }
