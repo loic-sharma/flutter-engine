@@ -23,6 +23,7 @@
 #include "flutter/fml/paths.h"
 #include "flutter/fml/trace_event.h"
 #include "flutter/runtime/dart_vm.h"
+#include "flutter/shell/common/base64.h"
 #include "flutter/shell/common/engine.h"
 #include "flutter/shell/common/skia_event_tracer_impl.h"
 #include "flutter/shell/common/switches.h"
@@ -39,7 +40,6 @@
 #include "third_party/skia/include/codec/SkWbmpDecoder.h"
 #include "third_party/skia/include/codec/SkWebpDecoder.h"
 #include "third_party/skia/include/core/SkGraphics.h"
-#include "third_party/skia/include/utils/SkBase64.h"
 #include "third_party/tonic/common/log.h"
 
 namespace flutter {
@@ -144,6 +144,23 @@ void PerformInitializationTasks(Settings& settings) {
 
 }  // namespace
 
+std::pair<DartVMRef, fml::RefPtr<const DartSnapshot>>
+Shell::InferVmInitDataFromSettings(Settings& settings) {
+  // Always use the `vm_snapshot` and `isolate_snapshot` provided by the
+  // settings to launch the VM.  If the VM is already running, the snapshot
+  // arguments are ignored.
+  auto vm_snapshot = DartSnapshot::VMSnapshotFromSettings(settings);
+  auto isolate_snapshot = DartSnapshot::IsolateSnapshotFromSettings(settings);
+  auto vm = DartVMRef::Create(settings, vm_snapshot, isolate_snapshot);
+
+  // If the settings did not specify an `isolate_snapshot`, fall back to the
+  // one the VM was launched with.
+  if (!isolate_snapshot) {
+    isolate_snapshot = vm->GetVMData()->GetIsolateSnapshot();
+  }
+  return {std::move(vm), isolate_snapshot};
+}
+
 std::unique_ptr<Shell> Shell::Create(
     const PlatformData& platform_data,
     const TaskRunners& task_runners,
@@ -156,19 +173,7 @@ std::unique_ptr<Shell> Shell::Create(
 
   TRACE_EVENT0("flutter", "Shell::Create");
 
-  // Always use the `vm_snapshot` and `isolate_snapshot` provided by the
-  // settings to launch the VM.  If the VM is already running, the snapshot
-  // arguments are ignored.
-  auto vm_snapshot = DartSnapshot::VMSnapshotFromSettings(settings);
-  auto isolate_snapshot = DartSnapshot::IsolateSnapshotFromSettings(settings);
-  auto vm = DartVMRef::Create(settings, vm_snapshot, isolate_snapshot);
-  FML_CHECK(vm) << "Must be able to initialize the VM.";
-
-  // If the settings did not specify an `isolate_snapshot`, fall back to the
-  // one the VM was launched with.
-  if (!isolate_snapshot) {
-    isolate_snapshot = vm->GetVMData()->GetIsolateSnapshot();
-  }
+  auto [vm, isolate_snapshot] = InferVmInitDataFromSettings(settings);
   auto resource_cache_limit_calculator =
       std::make_shared<ResourceCacheLimitCalculator>(
           settings.resource_cache_max_bytes_threshold);
@@ -1238,7 +1243,7 @@ void Shell::OnAnimatorDraw(std::shared_ptr<FramePipeline> pipeline) {
 }
 
 // |Animator::Delegate|
-void Shell::OnAnimatorDrawLastLayerTree(
+void Shell::OnAnimatorDrawLastLayerTrees(
     std::unique_ptr<FrameTimingsRecorder> frame_timings_recorder) {
   FML_DCHECK(is_set_up_);
 
@@ -1246,7 +1251,7 @@ void Shell::OnAnimatorDrawLastLayerTree(
       [rasterizer = rasterizer_->GetWeakPtr(),
        frame_timings_recorder = std::move(frame_timings_recorder)]() mutable {
         if (rasterizer) {
-          rasterizer->DrawLastLayerTree(std::move(frame_timings_recorder));
+          rasterizer->DrawLastLayerTrees(std::move(frame_timings_recorder));
         }
       });
 
@@ -1835,11 +1840,10 @@ bool Shell::OnServiceProtocolGetSkSLs(
   PersistentCache* persistent_cache = PersistentCache::GetCacheForProcess();
   std::vector<PersistentCache::SkSLCache> sksls = persistent_cache->LoadSkSLs();
   for (const auto& sksl : sksls) {
-    size_t b64_size =
-        SkBase64::Encode(sksl.value->data(), sksl.value->size(), nullptr);
+    size_t b64_size = Base64::EncodedSize(sksl.value->size());
     sk_sp<SkData> b64_data = SkData::MakeUninitialized(b64_size + 1);
     char* b64_char = static_cast<char*>(b64_data->writable_data());
-    SkBase64::Encode(sksl.value->data(), sksl.value->size(), b64_char);
+    Base64::Encode(sksl.value->data(), sksl.value->size(), b64_char);
     b64_char[b64_size] = 0;  // make it null terminated for printing
     rapidjson::Value shader_value(b64_char, response->GetAllocator());
     std::string_view key_view(reinterpret_cast<const char*>(sksl.key->data()),
@@ -1982,7 +1986,7 @@ bool Shell::OnServiceProtocolRenderFrameWithRasterStats(
     frame_timings_recorder->RecordBuildEnd(now);
 
     last_layer_tree->enable_leaf_layer_tracing(true);
-    rasterizer_->DrawLastLayerTree(std::move(frame_timings_recorder));
+    rasterizer_->DrawLastLayerTrees(std::move(frame_timings_recorder));
     last_layer_tree->enable_leaf_layer_tracing(false);
 
     rapidjson::Value snapshots;
