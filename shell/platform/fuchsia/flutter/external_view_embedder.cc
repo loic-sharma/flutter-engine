@@ -108,9 +108,8 @@ flutter::PostPrerollResult ExternalViewEmbedder::PostPrerollAction(
 }
 
 void ExternalViewEmbedder::BeginFrame(
-    SkISize frame_size,
     GrDirectContext* context,
-    double device_pixel_ratio,
+    const std::vector<ViewDimension>& view_dimensions,
     fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {
   TRACE_EVENT0("flutter", "ExternalViewEmbedder::BeginFrame");
 
@@ -135,6 +134,7 @@ void ExternalViewEmbedder::EndFrame(
 void ExternalViewEmbedder::SubmitFrame(
     GrDirectContext* context,
     const std::shared_ptr<impeller::AiksContext>& aiks_context,
+    int64_t native_view_id,
     std::unique_ptr<flutter::SurfaceFrame> frame) {
   TRACE_EVENT0("flutter", "ExternalViewEmbedder::SubmitFrame");
   std::vector<std::unique_ptr<SurfaceProducerSurface>> frame_surfaces;

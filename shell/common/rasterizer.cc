@@ -574,7 +574,9 @@ std::unique_ptr<FrameItem> Rasterizer::DrawToSurfacesUnsafe(
   compositor_context_->ui_time().SetLapTime(
       frame_timings_recorder.GetBuildDuration());
 
-  // First traverse: Filter out discarded trees
+  // First traverse: Filter out discarded trees and derive view_dimensions.
+  std::vector<ViewDimension> view_dimensions;
+  view_dimensions.reserve(tasks.size());
   auto task_iter = tasks.begin();
   while (task_iter != tasks.end()) {
     LayerTreeTask& task = **task_iter;
@@ -583,6 +585,8 @@ std::unique_ptr<FrameItem> Rasterizer::DrawToSurfacesUnsafe(
           DrawSurfaceStatus::kDiscarded;
       task_iter = tasks.erase(task_iter);
     } else {
+      view_dimensions.push_back({task.view_id, task.layer_tree->frame_size(),
+                                 task.device_pixel_ratio});
       ++task_iter;
     }
   }
@@ -595,11 +599,8 @@ std::unique_ptr<FrameItem> Rasterizer::DrawToSurfacesUnsafe(
   if (external_view_embedder_) {
     FML_DCHECK(!external_view_embedder_->GetUsedThisFrame());
     external_view_embedder_->SetUsedThisFrame(true);
-    external_view_embedder_->BeginFrame(
-        // TODO(dkwingsmt): Add all views here.
-        // See https://github.com/flutter/flutter/issues/135530, item 4.
-        tasks.front()->layer_tree->frame_size(), surface_->GetContext(),
-        tasks.front()->device_pixel_ratio, raster_thread_merger_);
+    external_view_embedder_->BeginFrame(surface_->GetContext(), view_dimensions,
+                                        raster_thread_merger_);
   }
 
   std::optional<fml::TimePoint> presentation_time = std::nullopt;
@@ -752,8 +753,9 @@ DrawSurfaceStatus Rasterizer::DrawToSurfaceUnsafe(
     if (external_view_embedder_ &&
         (!raster_thread_merger_ || raster_thread_merger_->IsMerged())) {
       FML_DCHECK(!frame->IsSubmitted());
-      external_view_embedder_->SubmitFrame(
-          surface_->GetContext(), surface_->GetAiksContext(), std::move(frame));
+      external_view_embedder_->SubmitFrame(surface_->GetContext(),
+                                           surface_->GetAiksContext(), view_id,
+                                           std::move(frame));
     } else {
       frame->Submit();
     }

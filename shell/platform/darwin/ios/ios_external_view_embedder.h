@@ -32,9 +32,8 @@ class IOSExternalViewEmbedder : public ExternalViewEmbedder {
 
   // |ExternalViewEmbedder|
   void BeginFrame(
-      SkISize frame_size,
       GrDirectContext* context,
-      double device_pixel_ratio,
+      const std::vector<ViewDimension>& view_dimensions,
       fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) override;
 
   // |ExternalViewEmbedder|
@@ -52,6 +51,7 @@ class IOSExternalViewEmbedder : public ExternalViewEmbedder {
   // |ExternalViewEmbedder|
   void SubmitFrame(GrDirectContext* context,
                    const std::shared_ptr<impeller::AiksContext>& aiks_context,
+                   int64_t native_view_id,
                    std::unique_ptr<SurfaceFrame> frame) override;
 
   // |ExternalViewEmbedder|

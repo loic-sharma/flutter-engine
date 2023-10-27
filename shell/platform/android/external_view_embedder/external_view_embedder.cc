@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "flutter/shell/platform/android/external_view_embedder/external_view_embedder.h"
+#include "flutter/common/constants.h"
 #include "flutter/fml/synchronization/waitable_event.h"
 #include "flutter/fml/trace_event.h"
 
@@ -65,8 +66,12 @@ SkRect AndroidExternalViewEmbedder::GetViewRect(int64_t view_id) const {
 void AndroidExternalViewEmbedder::SubmitFrame(
     GrDirectContext* context,
     const std::shared_ptr<impeller::AiksContext>& aiks_context,
+    int64_t native_view_id,
     std::unique_ptr<SurfaceFrame> frame) {
   TRACE_EVENT0("flutter", "AndroidExternalViewEmbedder::SubmitFrame");
+  // TODO(dkwingsmt): This class only supports rendering into the implicit view.
+  // Properly support multi-view in the future.
+  FML_DCHECK(native_view_id == kFlutterImplicitViewId);
 
   if (!FrameHasPlatformLayers()) {
     frame->Submit();
@@ -257,11 +262,18 @@ void AndroidExternalViewEmbedder::Reset() {
 
 // |ExternalViewEmbedder|
 void AndroidExternalViewEmbedder::BeginFrame(
-    SkISize frame_size,
     GrDirectContext* context,
-    double device_pixel_ratio,
+    const std::vector<ViewDimension>& view_dimensions,
     fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {
   Reset();
+
+  // TODO(dkwingsmt): This class only supports rendering a single view
+  // and that view must be the implicit view. Properly support multi-view
+  // in the future.
+  FML_CHECK(view_dimensions.size() == 1u);
+  FML_DCHECK(view_dimensions.front().view_id == kFlutterImplicitViewId);
+  SkISize frame_size = view_dimensions.front().frame_size;
+  double device_pixel_ratio = view_dimensions.front().device_pixel_ratio;
 
   // The surface size changed. Therefore, destroy existing surfaces as
   // the existing surfaces in the pool can't be recycled.

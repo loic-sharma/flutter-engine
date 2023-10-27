@@ -52,14 +52,19 @@ void EmbedderExternalViewEmbedder::CancelFrame() {
 
 // |ExternalViewEmbedder|
 void EmbedderExternalViewEmbedder::BeginFrame(
-    SkISize frame_size,
     GrDirectContext* context,
-    double device_pixel_ratio,
+    const std::vector<ViewDimension>& view_dimensions,
     fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {
   Reset();
 
-  pending_frame_size_ = frame_size;
-  pending_device_pixel_ratio_ = device_pixel_ratio;
+  // TODO(dkwingsmt): This class only supports rendering a single view
+  // and that view must be the implicit view. Properly support multi-view
+  // in the future.
+  FML_CHECK(view_dimensions.size() == 1u);
+  FML_DCHECK(view_dimensions.front().view_id == kFlutterImplicitViewId);
+
+  pending_frame_size_ = view_dimensions.front().frame_size;
+  pending_device_pixel_ratio_ = view_dimensions.front().device_pixel_ratio;
   pending_surface_transformation_ = GetSurfaceTransformation();
 
   static const auto kRootViewIdentifier =
@@ -129,6 +134,7 @@ static FlutterBackingStoreConfig MakeBackingStoreConfig(
 void EmbedderExternalViewEmbedder::SubmitFrame(
     GrDirectContext* context,
     const std::shared_ptr<impeller::AiksContext>& aiks_context,
+    int64_t native_view_id,
     std::unique_ptr<SurfaceFrame> frame) {
   int64_t native_view_id = kFlutterImplicitViewId;
   auto [matched_render_targets, pending_keys] =

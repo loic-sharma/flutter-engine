@@ -24,7 +24,9 @@
 
 using testing::_;
 using testing::ByMove;
+using testing::Field;
 using testing::NiceMock;
+using testing::Property;
 using testing::Return;
 using testing::ReturnRef;
 
@@ -43,6 +45,18 @@ std::vector<std::unique_ptr<LayerTreeTask>> SingleLayerTreeList(
       view_id, std::move(layer_tree), pixel_ratio));
   return tasks;
 }
+
+inline constexpr auto kSingleViewDimension =
+    [](int view_id, SkISize frame_size, double device_pixel_ratio) -> auto {
+  return AllOf(
+      Property("size", &std::vector<ViewDimension>::size, 1),
+      Property(
+          "first element", &std::vector<ViewDimension>::front,
+          AllOf(Field("view ID", &ViewDimension::view_id, view_id),
+                Field("frame size", &ViewDimension::frame_size, frame_size),
+                Field("device pixel ratio", &ViewDimension::device_pixel_ratio,
+                      device_pixel_ratio))));
+};
 
 class MockDelegate : public Rasterizer::Delegate {
  public:
@@ -91,9 +105,8 @@ class MockExternalViewEmbedder : public ExternalViewEmbedder {
   MOCK_METHOD(void, CancelFrame, (), (override));
   MOCK_METHOD(void,
               BeginFrame,
-              (SkISize frame_size,
-               GrDirectContext* context,
-               double device_pixel_ratio,
+              (GrDirectContext * context,
+               const std::vector<ViewDimension>& view_dimensions,
                fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger),
               (override));
   MOCK_METHOD(void,
@@ -109,6 +122,7 @@ class MockExternalViewEmbedder : public ExternalViewEmbedder {
               SubmitFrame,
               (GrDirectContext * context,
                const std::shared_ptr<impeller::AiksContext>& aiks_context,
+               int64_t native_view_id,
                std::unique_ptr<SurfaceFrame> frame),
               (override));
   MOCK_METHOD(void,
@@ -199,7 +213,8 @@ TEST(RasterizerTest,
   framebuffer_info.supports_readback = true;
 
   auto surface_frame = std::make_unique<SurfaceFrame>(
-      /*surface=*/nullptr, framebuffer_info,
+      /*surface=*/
+      nullptr, framebuffer_info,
       /*submit_callback=*/[](const SurfaceFrame&, DlCanvas*) { return true; },
       /*frame_size=*/SkISize::Make(800, 600));
   EXPECT_CALL(*surface, AllowsDrawingWhenGpuDisabled()).WillOnce(Return(true));
@@ -209,8 +224,11 @@ TEST(RasterizerTest,
       .WillOnce(Return(ByMove(std::make_unique<GLContextDefaultResult>(true))));
 
   EXPECT_CALL(*external_view_embedder,
-              BeginFrame(/*frame_size=*/SkISize(), /*context=*/nullptr,
-                         /*device_pixel_ratio=*/2.0,
+              BeginFrame(/*context=*/nullptr,
+                         kSingleViewDimension(kImplicitViewId,
+                                              /*frame_size=*/SkISize(),
+                                              /*device_pixel_ratio=*/2.0),
+
                          /*raster_thread_merger=*/
                          fml::RefPtr<fml::RasterThreadMerger>(nullptr)))
       .Times(1);
@@ -271,7 +289,8 @@ TEST(
   SurfaceFrame::FramebufferInfo framebuffer_info;
   framebuffer_info.supports_readback = true;
   auto surface_frame = std::make_unique<SurfaceFrame>(
-      /*surface=*/nullptr, framebuffer_info,
+      /*surface=*/
+      nullptr, framebuffer_info,
       /*submit_callback=*/[](const SurfaceFrame&, DlCanvas*) { return true; },
       /*frame_size=*/SkISize::Make(800, 600));
   EXPECT_CALL(*surface, AllowsDrawingWhenGpuDisabled()).WillOnce(Return(true));
@@ -281,8 +300,10 @@ TEST(
       .WillOnce(Return(ByMove(std::make_unique<GLContextDefaultResult>(true))));
 
   EXPECT_CALL(*external_view_embedder,
-              BeginFrame(/*frame_size=*/SkISize(), /*context=*/nullptr,
-                         /*device_pixel_ratio=*/2.0,
+              BeginFrame(/*context=*/nullptr,
+                         kSingleViewDimension(kImplicitViewId,
+                                              /*frame_size=*/SkISize(),
+                                              /*device_pixel_ratio=*/2.0),
                          /*raster_thread_merger=*/_))
       .Times(1);
   EXPECT_CALL(*external_view_embedder, SubmitFrame).Times(0);
@@ -343,7 +364,8 @@ TEST(
   framebuffer_info.supports_readback = true;
 
   auto surface_frame = std::make_unique<SurfaceFrame>(
-      /*surface=*/nullptr, framebuffer_info,
+      /*surface=*/
+      nullptr, framebuffer_info,
       /*submit_callback=*/[](const SurfaceFrame&, DlCanvas*) { return true; },
       /*frame_size=*/SkISize::Make(800, 600));
   EXPECT_CALL(*surface, AllowsDrawingWhenGpuDisabled()).WillOnce(Return(true));
@@ -355,8 +377,10 @@ TEST(
       .WillRepeatedly(Return(true));
 
   EXPECT_CALL(*external_view_embedder,
-              BeginFrame(/*frame_size=*/SkISize(), /*context=*/nullptr,
-                         /*device_pixel_ratio=*/2.0,
+              BeginFrame(/*context=*/nullptr,
+                         kSingleViewDimension(kImplicitViewId,
+                                              /*frame_size=*/SkISize(),
+                                              /*device_pixel_ratio=*/2.0),
                          /*raster_thread_merger=*/_))
       .Times(1);
   EXPECT_CALL(*external_view_embedder, SubmitFrame).Times(1);
@@ -412,11 +436,13 @@ TEST(RasterizerTest,
   framebuffer_info.supports_readback = true;
 
   auto surface_frame1 = std::make_unique<SurfaceFrame>(
-      /*surface=*/nullptr, framebuffer_info,
+      /*surface=*/
+      nullptr, framebuffer_info,
       /*submit_callback=*/[](const SurfaceFrame&, DlCanvas*) { return true; },
       /*frame_size=*/SkISize::Make(800, 600));
   auto surface_frame2 = std::make_unique<SurfaceFrame>(
-      /*surface=*/nullptr, framebuffer_info,
+      /*surface=*/
+      nullptr, framebuffer_info,
       /*submit_callback=*/[](const SurfaceFrame&, DlCanvas*) { return true; },
       /*frame_size=*/SkISize::Make(800, 600));
   EXPECT_CALL(*surface, AllowsDrawingWhenGpuDisabled())
@@ -431,8 +457,10 @@ TEST(RasterizerTest,
       .WillRepeatedly(Return(true));
 
   EXPECT_CALL(*external_view_embedder,
-              BeginFrame(/*frame_size=*/SkISize(), /*context=*/nullptr,
-                         /*device_pixel_ratio=*/2.0,
+              BeginFrame(/*context=*/nullptr,
+                         kSingleViewDimension(kImplicitViewId,
+                                              /*frame_size=*/SkISize(),
+                                              /*device_pixel_ratio=*/2.0),
                          /*raster_thread_merger=*/_))
       .Times(2);
   EXPECT_CALL(*external_view_embedder, SubmitFrame).Times(2);
@@ -541,8 +569,10 @@ TEST(RasterizerTest, externalViewEmbedderDoesntEndFrameWhenNotUsedThisFrame) {
   rasterizer->Setup(std::move(surface));
 
   EXPECT_CALL(*external_view_embedder,
-              BeginFrame(/*frame_size=*/SkISize(), /*context=*/nullptr,
-                         /*device_pixel_ratio=*/2.0,
+              BeginFrame(/*context=*/nullptr,
+                         kSingleViewDimension(kImplicitViewId,
+                                              /*frame_size=*/SkISize(),
+                                              /*device_pixel_ratio=*/2.0),
                          /*raster_thread_merger=*/_))
       .Times(0);
   EXPECT_CALL(
@@ -645,7 +675,8 @@ TEST(RasterizerTest,
   SurfaceFrame::FramebufferInfo framebuffer_info;
   framebuffer_info.supports_readback = true;
   auto surface_frame = std::make_unique<SurfaceFrame>(
-      /*surface=*/nullptr, /*framebuffer_info=*/framebuffer_info,
+      /*surface=*/
+      nullptr, /*framebuffer_info=*/framebuffer_info,
       /*submit_callback=*/[](const SurfaceFrame&, DlCanvas*) { return true; },
       /*frame_size=*/SkISize::Make(800, 600));
   EXPECT_CALL(*surface, AllowsDrawingWhenGpuDisabled()).WillOnce(Return(true));
@@ -704,7 +735,8 @@ TEST(
   framebuffer_info.supports_readback = true;
 
   auto surface_frame = std::make_unique<SurfaceFrame>(
-      /*surface=*/nullptr, /*framebuffer_info=*/framebuffer_info,
+      /*surface=*/
+      nullptr, /*framebuffer_info=*/framebuffer_info,
       /*submit_callback=*/[](const SurfaceFrame&, DlCanvas*) { return true; },
       /*frame_size=*/SkISize::Make(800, 600));
   EXPECT_CALL(*surface, AllowsDrawingWhenGpuDisabled()).WillOnce(Return(true));
@@ -764,7 +796,8 @@ TEST(
   framebuffer_info.supports_readback = true;
 
   auto surface_frame = std::make_unique<SurfaceFrame>(
-      /*surface=*/nullptr, /*framebuffer_info=*/framebuffer_info,
+      /*surface=*/
+      nullptr, /*framebuffer_info=*/framebuffer_info,
       /*submit_callback=*/[](const SurfaceFrame&, DlCanvas*) { return true; },
       /*frame_size=*/SkISize::Make(800, 600));
   EXPECT_CALL(*surface, AllowsDrawingWhenGpuDisabled()).WillOnce(Return(false));
@@ -823,7 +856,8 @@ TEST(
   framebuffer_info.supports_readback = true;
 
   auto surface_frame = std::make_unique<SurfaceFrame>(
-      /*surface=*/nullptr, /*framebuffer_info=*/framebuffer_info,
+      /*surface=*/
+      nullptr, /*framebuffer_info=*/framebuffer_info,
       /*submit_callback=*/[](const SurfaceFrame&, DlCanvas*) { return true; },
       /*frame_size=*/SkISize::Make(800, 600));
   EXPECT_CALL(*surface, AllowsDrawingWhenGpuDisabled()).WillOnce(Return(false));
@@ -945,7 +979,8 @@ TEST(RasterizerTest,
         SurfaceFrame::FramebufferInfo framebuffer_info;
         framebuffer_info.supports_readback = true;
         return std::make_unique<SurfaceFrame>(
-            /*surface=*/nullptr, framebuffer_info,
+            /*surface=*/
+            nullptr, framebuffer_info,
             /*submit_callback=*/
             [](const SurfaceFrame& frame, DlCanvas*) { return true; },
             /*frame_size=*/SkISize::Make(800, 600));
