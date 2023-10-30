@@ -136,7 +136,6 @@ void EmbedderExternalViewEmbedder::SubmitFrame(
     const std::shared_ptr<impeller::AiksContext>& aiks_context,
     int64_t native_view_id,
     std::unique_ptr<SurfaceFrame> frame) {
-  int64_t native_view_id = kFlutterImplicitViewId;
   auto [matched_render_targets, pending_keys] =
       render_target_cache_.GetExistingTargetsInCache(pending_views_);
 
@@ -187,7 +186,6 @@ void EmbedderExternalViewEmbedder::SubmitFrame(
                                                         backing_store_config);
 
     if (!render_target) {
-      FML_LOG(ERROR) << "Embedder did not return a valid render target.";
       return;
     }
     matched_render_targets[pending_key] = std::move(render_target);
