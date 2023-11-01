@@ -36,6 +36,7 @@
     _surfaceManager = [[FlutterSurfaceManager alloc] initWithDevice:device
                                                        commandQueue:commandQueue
                                                               layer:self.layer
+                                                               view:self
                                                            delegate:self];
   }
   return self;
@@ -66,7 +67,8 @@
 
 - (void)setFrameSize:(NSSize)newSize {
   [super setFrameSize:newSize];
-  [self reshaped];
+  // TODO(goderbauer): Allow resizing without getting blocked by ThreadSynchronizer when triggered
+  // from "Render" (we know the frame is gonna fit). [self reshaped];
 }
 
 /**

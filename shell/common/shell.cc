@@ -1601,10 +1601,12 @@ fml::TimePoint Shell::GetLatestFrameTargetTime() const {
 // |Rasterizer::Delegate|
 bool Shell::ShouldDiscardLayerTree(int64_t view_id,
                                    const flutter::LayerTree& tree) {
-  std::scoped_lock<std::mutex> lock(resize_mutex_);
-  auto expected_frame_size = ExpectedFrameSize(view_id);
-  return !expected_frame_size.isEmpty() &&
-         tree.frame_size() != expected_frame_size;
+  return false;
+  // TODO(goderbauer): Discard layer tree only if size is outside of
+  // constraints? std::scoped_lock<std::mutex> lock(resize_mutex_); auto
+  // expected_frame_size = ExpectedFrameSize(view_id); return
+  // !expected_frame_size.isEmpty() &&
+  //        tree.frame_size() != expected_frame_size;
 }
 
 // |ServiceProtocol::Handler|

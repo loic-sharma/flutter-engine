@@ -18,6 +18,7 @@
   id<MTLDevice> _device;
   id<MTLCommandQueue> _commandQueue;
   CALayer* _containingLayer;
+  NSView* _view;
   __weak id<FlutterSurfaceManagerDelegate> _delegate;
 
   // Available (cached) back buffer surfaces. These will be cleared during
@@ -102,11 +103,13 @@ static void UpdateContentSubLayers(CALayer* layer,
 - (instancetype)initWithDevice:(id<MTLDevice>)device
                   commandQueue:(id<MTLCommandQueue>)commandQueue
                          layer:(CALayer*)containingLayer
+                          view:(NSView*)view
                       delegate:(__weak id<FlutterSurfaceManagerDelegate>)delegate {
   if (self = [super init]) {
     _device = device;
     _commandQueue = commandQueue;
     _containingLayer = containingLayer;
+    _view = view;
     _delegate = delegate;
 
     _backBufferCache = [[FlutterBackBufferCache alloc] init];
@@ -178,6 +181,10 @@ static void UpdateContentSubLayers(CALayer* layer,
     CALayer* layer = _layers[i];
     CGFloat scale = _containingLayer.contentsScale;
     if (i == 0) {
+      // TODO(goderbauer): Reaching out to the view/window from here directly seem questionable.
+      // Needs better abstraction.
+      [[_view window] setContentSize:NSMakeSize(info.surface.size.width / scale,
+                                                info.surface.size.height / scale)];
       layer.frame = CGRectMake(info.offset.x / scale, info.offset.y / scale,
                                info.surface.size.width / scale, info.surface.size.height / scale);
       layer.contents = (__bridge id)info.surface.ioSurface;

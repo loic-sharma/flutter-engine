@@ -47,6 +47,7 @@
 - (nullable instancetype)initWithDevice:(nonnull id<MTLDevice>)device
                            commandQueue:(nonnull id<MTLCommandQueue>)commandQueue
                                   layer:(nonnull CALayer*)containingLayer
+                                   view:(nonnull NSView*)view
                                delegate:(nonnull id<FlutterSurfaceManagerDelegate>)delegate;
 
 /**
