@@ -46,18 +46,6 @@ std::vector<std::unique_ptr<LayerTreeTask>> SingleLayerTreeList(
   return tasks;
 }
 
-inline constexpr auto kSingleViewDimension =
-    [](int view_id, SkISize frame_size, double device_pixel_ratio) -> auto {
-  return AllOf(
-      Property("size", &std::vector<ViewDimension>::size, 1),
-      Property(
-          "first element", &std::vector<ViewDimension>::front,
-          AllOf(Field("view ID", &ViewDimension::view_id, view_id),
-                Field("frame size", &ViewDimension::frame_size, frame_size),
-                Field("device pixel ratio", &ViewDimension::device_pixel_ratio,
-                      device_pixel_ratio))));
-};
-
 class MockDelegate : public Rasterizer::Delegate {
  public:
   MOCK_METHOD(void,
@@ -106,8 +94,13 @@ class MockExternalViewEmbedder : public ExternalViewEmbedder {
   MOCK_METHOD(void,
               BeginFrame,
               (GrDirectContext * context,
-               const std::vector<ViewDimension>& view_dimensions,
                fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger),
+              (override));
+  MOCK_METHOD(void,
+              PrepareView,
+              (int64_t native_view_id,
+               SkISize frame_size,
+               double device_pixel_ratio),
               (override));
   MOCK_METHOD(void,
               PrerollCompositeEmbeddedView,
@@ -119,10 +112,9 @@ class MockExternalViewEmbedder : public ExternalViewEmbedder {
               (override));
   MOCK_METHOD(DlCanvas*, CompositeEmbeddedView, (int64_t view_id), (override));
   MOCK_METHOD(void,
-              SubmitFrame,
+              SubmitView,
               (GrDirectContext * context,
                const std::shared_ptr<impeller::AiksContext>& aiks_context,
-               int64_t native_view_id,
                std::unique_ptr<SurfaceFrame> frame),
               (override));
   MOCK_METHOD(void,
@@ -225,14 +217,14 @@ TEST(RasterizerTest,
 
   EXPECT_CALL(*external_view_embedder,
               BeginFrame(/*context=*/nullptr,
-                         kSingleViewDimension(kImplicitViewId,
-                                              /*frame_size=*/SkISize(),
-                                              /*device_pixel_ratio=*/2.0),
-
                          /*raster_thread_merger=*/
                          fml::RefPtr<fml::RasterThreadMerger>(nullptr)))
       .Times(1);
-  EXPECT_CALL(*external_view_embedder, SubmitFrame).Times(1);
+  EXPECT_CALL(*external_view_embedder,
+              PrepareView(/*view_id=*/kImplicitViewId, /*frame_size=*/SkISize(),
+                          /*device_pixel_ratio=*/2.0))
+      .Times(1);
+  EXPECT_CALL(*external_view_embedder, SubmitView).Times(1);
   EXPECT_CALL(
       *external_view_embedder,
       EndFrame(/*should_resubmit_frame=*/false,
@@ -299,14 +291,14 @@ TEST(
   EXPECT_CALL(*surface, MakeRenderContextCurrent())
       .WillOnce(Return(ByMove(std::make_unique<GLContextDefaultResult>(true))));
 
-  EXPECT_CALL(*external_view_embedder,
-              BeginFrame(/*context=*/nullptr,
-                         kSingleViewDimension(kImplicitViewId,
-                                              /*frame_size=*/SkISize(),
-                                              /*device_pixel_ratio=*/2.0),
-                         /*raster_thread_merger=*/_))
+  EXPECT_CALL(*external_view_embedder, BeginFrame(/*context=*/nullptr,
+                                                  /*raster_thread_merger=*/_))
       .Times(1);
-  EXPECT_CALL(*external_view_embedder, SubmitFrame).Times(0);
+  EXPECT_CALL(*external_view_embedder,
+              PrepareView(/*view_id=*/kImplicitViewId, /*frame_size=*/SkISize(),
+                          /*device_pixel_ratio=*/2.0))
+      .Times(1);
+  EXPECT_CALL(*external_view_embedder, SubmitView).Times(0);
   EXPECT_CALL(*external_view_embedder, EndFrame(/*should_resubmit_frame=*/false,
                                                 /*raster_thread_merger=*/_))
       .Times(1);
@@ -376,14 +368,14 @@ TEST(
   EXPECT_CALL(*external_view_embedder, SupportsDynamicThreadMerging)
       .WillRepeatedly(Return(true));
 
-  EXPECT_CALL(*external_view_embedder,
-              BeginFrame(/*context=*/nullptr,
-                         kSingleViewDimension(kImplicitViewId,
-                                              /*frame_size=*/SkISize(),
-                                              /*device_pixel_ratio=*/2.0),
-                         /*raster_thread_merger=*/_))
+  EXPECT_CALL(*external_view_embedder, BeginFrame(/*context=*/nullptr,
+                                                  /*raster_thread_merger=*/_))
       .Times(1);
-  EXPECT_CALL(*external_view_embedder, SubmitFrame).Times(1);
+  EXPECT_CALL(*external_view_embedder,
+              PrepareView(/*view_id=*/kImplicitViewId, /*frame_size=*/SkISize(),
+                          /*device_pixel_ratio=*/2.0))
+      .Times(1);
+  EXPECT_CALL(*external_view_embedder, SubmitView).Times(1);
   EXPECT_CALL(*external_view_embedder, EndFrame(/*should_resubmit_frame=*/false,
                                                 /*raster_thread_merger=*/_))
       .Times(1);
@@ -456,14 +448,14 @@ TEST(RasterizerTest,
   EXPECT_CALL(*external_view_embedder, SupportsDynamicThreadMerging)
       .WillRepeatedly(Return(true));
 
-  EXPECT_CALL(*external_view_embedder,
-              BeginFrame(/*context=*/nullptr,
-                         kSingleViewDimension(kImplicitViewId,
-                                              /*frame_size=*/SkISize(),
-                                              /*device_pixel_ratio=*/2.0),
-                         /*raster_thread_merger=*/_))
+  EXPECT_CALL(*external_view_embedder, BeginFrame(/*context=*/nullptr,
+                                                  /*raster_thread_merger=*/_))
       .Times(2);
-  EXPECT_CALL(*external_view_embedder, SubmitFrame).Times(2);
+  EXPECT_CALL(*external_view_embedder,
+              PrepareView(/*view_id=*/kImplicitViewId, /*frame_size=*/SkISize(),
+                          /*device_pixel_ratio=*/2.0))
+      .Times(2);
+  EXPECT_CALL(*external_view_embedder, SubmitView).Times(2);
   EXPECT_CALL(*external_view_embedder, EndFrame(/*should_resubmit_frame=*/false,
                                                 /*raster_thread_merger=*/_))
       .Times(2);
@@ -481,12 +473,12 @@ TEST(RasterizerTest,
       pipeline->Produce().Complete(std::move(layer_tree_item));
   EXPECT_TRUE(result.success);
 
-  // The Draw() will respectively call BeginFrame(), SubmitFrame() and
+  // The Draw() will respectively call BeginFrame(), SubmitView() and
   // EndFrame() one time.
   ON_CALL(delegate, ShouldDiscardLayerTree).WillByDefault(Return(false));
   rasterizer->Draw(pipeline);
 
-  // The DrawLastLayerTrees() will respectively call BeginFrame(), SubmitFrame()
+  // The DrawLastLayerTrees() will respectively call BeginFrame(), SubmitView()
   // and EndFrame() one more time, totally 2 times.
   rasterizer->DrawLastLayerTrees(CreateFinishedBuildRecorder());
 }
@@ -568,12 +560,12 @@ TEST(RasterizerTest, externalViewEmbedderDoesntEndFrameWhenNotUsedThisFrame) {
   rasterizer->SetExternalViewEmbedder(external_view_embedder);
   rasterizer->Setup(std::move(surface));
 
+  EXPECT_CALL(*external_view_embedder, BeginFrame(/*context=*/nullptr,
+                                                  /*raster_thread_merger=*/_))
+      .Times(0);
   EXPECT_CALL(*external_view_embedder,
-              BeginFrame(/*context=*/nullptr,
-                         kSingleViewDimension(kImplicitViewId,
-                                              /*frame_size=*/SkISize(),
-                                              /*device_pixel_ratio=*/2.0),
-                         /*raster_thread_merger=*/_))
+              PrepareView(/*view_id=*/kImplicitViewId, /*frame_size=*/SkISize(),
+                          /*device_pixel_ratio=*/2.0))
       .Times(0);
   EXPECT_CALL(
       *external_view_embedder,

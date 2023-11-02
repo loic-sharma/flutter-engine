@@ -385,7 +385,7 @@ class ExternalViewEmbedder {
   // from the on-screen render target.
   virtual DlCanvas* GetRootCanvas() = 0;
 
-  // Call this in-lieu of |SubmitFrame| to clear pre-roll state and
+  // Call this in-lieu of |SubmitView| to clear pre-roll state and
   // sets the stage for the next pre-roll.
   virtual void CancelFrame() = 0;
 
@@ -395,7 +395,6 @@ class ExternalViewEmbedder {
   // returns false.
   virtual void BeginFrame(
       GrDirectContext* context,
-      const std::vector<ViewDimension>& frame_info,
       fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) = 0;
 
   virtual void PrerollCompositeEmbeddedView(
@@ -414,15 +413,18 @@ class ExternalViewEmbedder {
   // Must be called on the UI thread.
   virtual DlCanvas* CompositeEmbeddedView(int64_t view_id) = 0;
 
+  virtual void PrepareView(int64_t native_view_id,
+                           SkISize frame_size,
+                           double device_pixel_ratio) = 0;
+
   // Implementers must submit the frame by calling frame.Submit().
   //
   // This method can mutate the root Skia canvas before submitting the frame.
   //
   // It can also allocate frames for overlay surfaces to compose hybrid views.
-  virtual void SubmitFrame(
+  virtual void SubmitView(
       GrDirectContext* context,
       const std::shared_ptr<impeller::AiksContext>& aiks_context,
-      int64_t native_view_id,
       std::unique_ptr<SurfaceFrame> frame);
 
   // This method provides the embedder a way to do additional tasks after

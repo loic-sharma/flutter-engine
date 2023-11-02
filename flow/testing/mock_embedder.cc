@@ -26,8 +26,12 @@ void MockViewEmbedder::CancelFrame() {}
 // |ExternalViewEmbedder|
 void MockViewEmbedder::BeginFrame(
     GrDirectContext* context,
-    const std::vector<ViewDimension>& view_dimensions,
     fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {}
+
+// |ExternalViewEmbedder|
+void MockViewEmbedder::PrepareView(int64_t native_view_id,
+                                   SkISize frame_size,
+                                   double device_pixel_ratio) {}
 
 // |ExternalViewEmbedder|
 void MockViewEmbedder::PrerollCompositeEmbeddedView(

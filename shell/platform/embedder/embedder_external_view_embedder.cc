@@ -53,18 +53,19 @@ void EmbedderExternalViewEmbedder::CancelFrame() {
 // |ExternalViewEmbedder|
 void EmbedderExternalViewEmbedder::BeginFrame(
     GrDirectContext* context,
-    const std::vector<ViewDimension>& view_dimensions,
-    fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {
+    fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) {}
+
+// |ExternalViewEmbedder|
+void EmbedderExternalViewEmbedder::PrepareView(int64_t native_view_id,
+                                               SkISize frame_size,
+                                               double device_pixel_ratio) {
+  // TODO(dkwingsmt): This class only supports rendering into the implicit view.
+  // Properly support multi-view in the future.
+  FML_DCHECK(native_view_id == kFlutterImplicitViewId);
   Reset();
 
-  // TODO(dkwingsmt): This class only supports rendering a single view
-  // and that view must be the implicit view. Properly support multi-view
-  // in the future.
-  FML_CHECK(view_dimensions.size() == 1u);
-  FML_DCHECK(view_dimensions.front().view_id == kFlutterImplicitViewId);
-
-  pending_frame_size_ = view_dimensions.front().frame_size;
-  pending_device_pixel_ratio_ = view_dimensions.front().device_pixel_ratio;
+  pending_frame_size_ = frame_size;
+  pending_device_pixel_ratio_ = device_pixel_ratio;
   pending_surface_transformation_ = GetSurfaceTransformation();
 
   static const auto kRootViewIdentifier =
@@ -131,10 +132,9 @@ static FlutterBackingStoreConfig MakeBackingStoreConfig(
 }
 
 // |ExternalViewEmbedder|
-void EmbedderExternalViewEmbedder::SubmitFrame(
+void EmbedderExternalViewEmbedder::SubmitView(
     GrDirectContext* context,
     const std::shared_ptr<impeller::AiksContext>& aiks_context,
-    int64_t native_view_id,
     std::unique_ptr<SurfaceFrame> frame) {
   auto [matched_render_targets, pending_keys] =
       render_target_cache_.GetExistingTargetsInCache(pending_views_);
