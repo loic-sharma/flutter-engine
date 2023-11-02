@@ -112,6 +112,7 @@ class EmbedderExternalViewEmbedder final : public ExternalViewEmbedder {
   const CreateRenderTargetCallback create_render_target_callback_;
   const PresentCallback present_callback_;
   SurfaceTransformationCallback surface_transformation_callback_;
+  int64_t pending_native_view_id_;
   SkISize pending_frame_size_ = SkISize::Make(0, 0);
   double pending_device_pixel_ratio_ = 1.0;
   SkMatrix pending_surface_transformation_;

@@ -64,6 +64,7 @@ void EmbedderExternalViewEmbedder::PrepareView(int64_t native_view_id,
   FML_DCHECK(native_view_id == kFlutterImplicitViewId);
   Reset();
 
+  pending_native_view_id_ = native_view_id;
   pending_frame_size_ = frame_size;
   pending_device_pixel_ratio_ = device_pixel_ratio;
   pending_surface_transformation_ = GetSurfaceTransformation();
@@ -174,7 +175,7 @@ void EmbedderExternalViewEmbedder::SubmitView(
     const auto render_surface_size = external_view->GetRenderSurfaceSize();
 
     const auto backing_store_config =
-        MakeBackingStoreConfig(native_view_id, render_surface_size);
+        MakeBackingStoreConfig(pending_native_view_id_, render_surface_size);
 
     // This is where the embedder will create render targets for us. Control
     // flow to the embedder makes the engine susceptible to having the embedder
@@ -265,7 +266,8 @@ void EmbedderExternalViewEmbedder::SubmitView(
     // @warning: Embedder may trample on our OpenGL context here.
     presented_layers.InvokePresentCallback(
         [&present_callback = present_callback_,
-         native_view_id](const std::vector<const FlutterLayer*>& layers) {
+         native_view_id = pending_native_view_id_](
+            const std::vector<const FlutterLayer*>& layers) {
           return present_callback(layers, native_view_id);
         });
   }
