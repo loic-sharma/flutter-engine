@@ -59,9 +59,6 @@ void EmbedderExternalViewEmbedder::BeginFrame(
 void EmbedderExternalViewEmbedder::PrepareView(int64_t native_view_id,
                                                SkISize frame_size,
                                                double device_pixel_ratio) {
-  // TODO(dkwingsmt): This class only supports rendering into the implicit view.
-  // Properly support multi-view in the future.
-  FML_DCHECK(native_view_id == kFlutterImplicitViewId);
   Reset();
 
   pending_native_view_id_ = native_view_id;
