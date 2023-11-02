@@ -27,8 +27,12 @@ class MockViewEmbedder : public ExternalViewEmbedder {
   // |ExternalViewEmbedder|
   void BeginFrame(
       GrDirectContext* context,
-      const std::vector<ViewDimension>& view_dimensions,
       fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) override;
+
+  // |ExternalViewEmbedder|
+  void PrepareView(int64_t native_view_id,
+                   SkISize frame_size,
+                   double device_pixel_ratio) override;
 
   // |ExternalViewEmbedder|
   void PrerollCompositeEmbeddedView(

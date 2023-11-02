@@ -43,10 +43,9 @@ class AndroidExternalViewEmbedder final : public ExternalViewEmbedder {
   DlCanvas* CompositeEmbeddedView(int64_t view_id) override;
 
   // |ExternalViewEmbedder|
-  void SubmitFrame(GrDirectContext* context,
-                   const std::shared_ptr<impeller::AiksContext>& aiks_context,
-                   int64_t native_view_id,
-                   std::unique_ptr<SurfaceFrame> frame) override;
+  void SubmitView(GrDirectContext* context,
+                  const std::shared_ptr<impeller::AiksContext>& aiks_context,
+                  std::unique_ptr<SurfaceFrame> frame) override;
 
   // |ExternalViewEmbedder|
   PostPrerollResult PostPrerollAction(
@@ -58,8 +57,12 @@ class AndroidExternalViewEmbedder final : public ExternalViewEmbedder {
   // |ExternalViewEmbedder|
   void BeginFrame(
       GrDirectContext* context,
-      const std::vector<ViewDimension>& view_dimensions,
       fml::RefPtr<fml::RasterThreadMerger> raster_thread_merger) override;
+
+  // |ExternalViewEmbedder|
+  void PrepareView(int64_t native_view_id,
+                   SkISize frame_size,
+                   double device_pixel_ratio) override;
 
   // |ExternalViewEmbedder|
   void CancelFrame() override;
