@@ -191,6 +191,7 @@ void ExpectWinEventFromAXEvent(int32_t node_id,
       std::make_unique<::testing::NiceMock<MockWindowBindingHandler>>();
   FlutterWindowsViewSpy view(std::move(window_binding_handler));
   view.SetEngine(engine.get());
+  engine->AddView(&view);
   view.OnUpdateSemanticsEnabled(true);
 
   auto bridge = GetAccessibilityBridgeSpy(view);
@@ -212,6 +213,7 @@ void ExpectWinEventFromAXEventOnFocusNode(int32_t node_id,
       std::make_unique<::testing::NiceMock<MockWindowBindingHandler>>();
   FlutterWindowsViewSpy view(std::move(window_binding_handler));
   view.SetEngine(engine.get());
+  engine->AddView(&view);
   view.OnUpdateSemanticsEnabled(true);
 
   auto bridge = GetAccessibilityBridgeSpy(view);
@@ -238,6 +240,7 @@ TEST(AccessibilityBridgeWindows, GetParent) {
       std::make_unique<::testing::NiceMock<MockWindowBindingHandler>>();
   FlutterWindowsViewSpy view(std::move(window_binding_handler));
   view.SetEngine(engine.get());
+  engine->AddView(&view);
   view.OnUpdateSemanticsEnabled(true);
 
   auto bridge = view.accessibility_bridge().lock();
@@ -255,6 +258,7 @@ TEST(AccessibilityBridgeWindows, GetParentOnRootRetunsNullptr) {
       std::make_unique<::testing::NiceMock<MockWindowBindingHandler>>();
   FlutterWindowsViewSpy view(std::move(window_binding_handler));
   view.SetEngine(engine.get());
+  engine->AddView(&view);
   view.OnUpdateSemanticsEnabled(true);
 
   auto bridge = view.accessibility_bridge().lock();
@@ -270,6 +274,7 @@ TEST(AccessibilityBridgeWindows, DispatchAccessibilityAction) {
       std::make_unique<::testing::NiceMock<MockWindowBindingHandler>>();
   FlutterWindowsViewSpy view(std::move(window_binding_handler));
   view.SetEngine(engine.get());
+  engine->AddView(&view);
   view.OnUpdateSemanticsEnabled(true);
 
   auto bridge = view.accessibility_bridge().lock();
@@ -307,6 +312,7 @@ TEST(AccessibilityBridgeWindows, OnAccessibilityEventFocusChanged) {
       std::make_unique<::testing::NiceMock<MockWindowBindingHandler>>();
   FlutterWindowsViewSpy view(std::move(window_binding_handler));
   view.SetEngine(engine.get());
+  engine->AddView(&view);
   view.OnUpdateSemanticsEnabled(true);
 
   auto bridge = GetAccessibilityBridgeSpy(view);

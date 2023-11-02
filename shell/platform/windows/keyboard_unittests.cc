@@ -375,11 +375,13 @@ class KeyboardTester {
         // The WindowBindingHandler is used for window size and such, and
         // doesn't affect keyboard.
         std::make_unique<::testing::NiceMock<MockWindowBindingHandler>>());
-    view_->SetEngine(engine_.get());
     window_ = std::make_unique<MockKeyboardManagerDelegate>(
         view_.get(), [this](UINT virtual_key) -> SHORT {
           return map_virtual_key_layout_(virtual_key, MAPVK_VK_TO_CHAR);
         });
+
+    view_->SetEngine(engine_.get());
+    engine_->AddView(view_.get());
   }
 
   TestFlutterWindowsView& GetView() { return *view_; }

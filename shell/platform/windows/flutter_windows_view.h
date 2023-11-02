@@ -48,6 +48,8 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
   // engine.
   void SetEngine(FlutterWindowsEngine* engine);
 
+  int64_t view_id() { return view_id_; }
+
   // Creates rendering surface for Flutter engine to draw into.
   // Should be called before calling FlutterEngineRun using this view.
   void CreateRenderSurface();
@@ -355,6 +357,8 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
   void SendPointerEventWithData(const FlutterPointerEvent& event_data,
                                 PointerState* state);
 
+  int64_t view_id_;
+
   // Currently configured WindowsRenderTarget for this view used by
   // surface_manager for creation of render surfaces and bound to the physical
   // os window.
@@ -368,6 +372,9 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate,
 
   // Currently configured WindowBindingHandler for view.
   std::unique_ptr<WindowBindingHandler> binding_handler_;
+
+  // TODO(loicsharma): Remove this.
+  bool has_surface_ = false;
 
   // Resize events are synchronized using this mutex and the corresponding
   // condition variable.
