@@ -4,6 +4,7 @@
 
 #include "flutter/shell/platform/windows/flutter_windows_view.h"
 
+#include <dwmapi.h>
 #include <chrono>
 
 #include "flutter/fml/platform/win/wstring_conversion.h"
@@ -73,22 +74,71 @@ void FlutterWindowsView::SetEngine(FlutterWindowsEngine* engine) {
 }
 
 uint32_t FlutterWindowsView::GetFrameBufferId(size_t width, size_t height) {
-  // Called on an engine-controlled (non-platform) thread.
-  std::unique_lock<std::mutex> lock(resize_mutex_);
+  // HACK: Resize the window to match the engine's expected size.
+  EGLint surface_width, surface_height;
+  engine_->surface_manager()->GetSurfaceDimensions(&surface_width,
+                                                   &surface_height);
 
-  if (resize_status_ != ResizeState::kResizeStarted) {
-    return kWindowFrameBufferID;
-  }
+  bool surface_will_update =
+      SurfaceWillUpdate(surface_width, surface_height, width, height);
 
-  if (resize_target_width_ == width && resize_target_height_ == height) {
-    // Platform thread is blocked for the entire duration until the
-    // resize_status_ is set to kDone.
+  if (surface_will_update) {
+    HWND view_hwnd = std::get<HWND>(*render_target_);
+    HWND window_hwnd = ::GetParent(view_hwnd);
+
+    // TODO: Part of the window is consumed by the window's drop shadow.
+    // As a result, the window size needs to be bigger than the surface's.
+    // The math below to calculate the desired window size including the drop
+    // shadow is wrong. There's dead code as I left my experiments.
+    RECT with_shadow;
+    RECT without_shadow;
+    RECT client;
+    ::GetClientRect(window_hwnd, &client);
+    ::GetWindowRect(window_hwnd, &with_shadow);
+    ::DwmGetWindowAttribute(window_hwnd, DWMWA_EXTENDED_FRAME_BOUNDS,
+                            &without_shadow, sizeof(RECT));
+
+    float dpi = binding_handler_->GetDpiScale();
+
+    RECT shadow = {
+        .left = with_shadow.left - without_shadow.left,
+        .top = with_shadow.top - without_shadow.top,
+        .right = with_shadow.right - without_shadow.right,
+        .bottom = with_shadow.bottom - without_shadow.bottom,
+    };
+
+    long shadow_width = shadow.right - shadow.left;
+    long shadow_height = shadow.bottom - shadow.top;
+
+    ::MoveWindow(window_hwnd, with_shadow.left, with_shadow.top,
+                 width + shadow_width, height + shadow_height,
+                 /*bRepaint=*/FALSE);
+
+    std::unique_lock<std::mutex> lock(resize_mutex_);
+
     engine_->surface_manager()->ResizeSurface(GetRenderTarget(), width, height,
                                               binding_handler_->NeedsVSync());
     resize_status_ = ResizeState::kFrameGenerated;
-  }
 
-  return kWindowFrameBufferID;
+    return kWindowFrameBufferID;
+  } else {
+    // Called on an engine-controlled (non-platform) thread.
+    std::unique_lock<std::mutex> lock(resize_mutex_);
+
+    if (resize_status_ != ResizeState::kResizeStarted) {
+      return kWindowFrameBufferID;
+    }
+
+    if (resize_target_width_ == width && resize_target_height_ == height) {
+      //  Platform thread is blocked for the entire duration until the
+      //  resize_status_ is set to kDone.
+      engine_->surface_manager()->ResizeSurface(
+          GetRenderTarget(), width, height, binding_handler_->NeedsVSync());
+      resize_status_ = ResizeState::kFrameGenerated;
+    }
+
+    return kWindowFrameBufferID;
+  }
 }
 
 void FlutterWindowsView::UpdateFlutterCursor(const std::string& cursor_name) {
