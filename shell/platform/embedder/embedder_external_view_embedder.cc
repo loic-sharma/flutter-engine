@@ -62,12 +62,9 @@ void EmbedderExternalViewEmbedder::PrepareFlutterView(
     int64_t flutter_view_id,
     SkISize frame_size,
     double device_pixel_ratio) {
-  // TODO(dkwingsmt): This class only supports rendering into the implicit
-  // view. Properly support multi-view in the future.
-  // https://github.com/flutter/flutter/issues/135530 item 4
-  FML_DCHECK(flutter_view_id == kFlutterImplicitViewId);
   Reset();
 
+  pending_flutter_view_id_ = flutter_view_id;
   pending_frame_size_ = frame_size;
   pending_device_pixel_ratio_ = device_pixel_ratio;
   pending_surface_transformation_ = GetSurfaceTransformation();
@@ -424,12 +421,11 @@ void EmbedderExternalViewEmbedder::SubmitFlutterView(
     GrDirectContext* context,
     const std::shared_ptr<impeller::AiksContext>& aiks_context,
     std::unique_ptr<SurfaceFrame> frame) {
-  int64_t flutter_view_id = kFlutterImplicitViewId;
   SkRect _rect = SkRect::MakeIWH(pending_frame_size_.width(),
                                  pending_frame_size_.height());
   pending_surface_transformation_.mapRect(&_rect);
 
-  LayerBuilder builder(flutter_view_id,
+  LayerBuilder builder(pending_flutter_view_id_,
                        SkISize::Make(_rect.width(), _rect.height()));
 
   for (auto view_id : composition_order_) {
@@ -496,7 +492,8 @@ void EmbedderExternalViewEmbedder::SubmitFlutterView(
 
     presented_layers.InvokePresentCallback(
         [&present_callback = present_callback_,
-         flutter_view_id](const std::vector<const FlutterLayer*>& layers) {
+         flutter_view_id = pending_flutter_view_id_](
+            const std::vector<const FlutterLayer*>& layers) {
           return present_callback(layers, flutter_view_id);
         });
   }

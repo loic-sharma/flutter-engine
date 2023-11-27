@@ -72,25 +72,36 @@ static FlutterDesktopTextureRegistrarRef HandleForTextureRegistrar(
   return reinterpret_cast<FlutterDesktopTextureRegistrarRef>(registrar);
 }
 
-FlutterDesktopViewControllerRef FlutterDesktopViewControllerCreate(
+static FlutterDesktopViewControllerRef CreateViewController(
+    FlutterDesktopEngineRef engine_ref,
     int width,
     int height,
-    FlutterDesktopEngineRef engine_ref) {
+    bool owns_engine) {
   flutter::FlutterWindowsEngine* engine_ptr = EngineFromHandle(engine_ref);
   std::unique_ptr<flutter::WindowBindingHandler> window_wrapper =
       std::make_unique<flutter::FlutterWindow>(
           width, height, engine_ptr->windows_proc_table());
 
-  auto engine = std::unique_ptr<flutter::FlutterWindowsEngine>(engine_ptr);
   auto view =
       std::make_unique<flutter::FlutterWindowsView>(std::move(window_wrapper));
-  auto controller = std::make_unique<flutter::FlutterWindowsViewController>(
-      std::move(engine), std::move(view));
 
-  controller->view()->SetEngine(controller->engine());
+  // Create a view controller that owns the engine if necessary.
+  std::unique_ptr<flutter::FlutterWindowsViewController> controller;
+  if (owns_engine) {
+    auto engine = std::unique_ptr<flutter::FlutterWindowsEngine>(engine_ptr);
+    controller = std::make_unique<flutter::FlutterWindowsViewController>(
+        std::move(engine), std::move(view));
+  } else {
+    controller = std::make_unique<flutter::FlutterWindowsViewController>(
+        std::move(view));
+  }
+
+  controller->view()->SetEngine(engine_ptr);
   controller->view()->CreateRenderSurface();
-  if (!controller->engine()->running()) {
-    if (!controller->engine()->Run()) {
+  engine_ptr->AddView(controller->view());
+
+  if (!engine_ptr->running()) {
+    if (!engine_ptr->Run()) {
       return nullptr;
     }
   }
@@ -101,13 +112,37 @@ FlutterDesktopViewControllerRef FlutterDesktopViewControllerCreate(
   // The Windows embedder listens to accessibility updates using the
   // view's HWND. The embedder's accessibility features may be stale if
   // the app was in headless mode.
-  controller->engine()->UpdateAccessibilityFeatures();
+  engine_ptr->UpdateAccessibilityFeatures();
 
   return HandleForViewController(controller.release());
 }
 
+FlutterDesktopViewControllerRef FlutterDesktopViewControllerCreate(
+    int width,
+    int height,
+    FlutterDesktopEngineRef engine) {
+  return CreateViewController(engine, width, height, /*owns_engine=*/true);
+}
+
+FlutterDesktopViewControllerRef FlutterDesktopEngineCreateViewController(
+    FlutterDesktopEngineRef engine,
+    const FlutterDesktopViewControllerProperties* properties) {
+  return CreateViewController(engine, properties->width, properties->height,
+                              /*owns_engine=*/false);
+}
+
 void FlutterDesktopViewControllerDestroy(FlutterDesktopViewControllerRef ref) {
   auto controller = ViewControllerFromHandle(ref);
+  auto engine = controller->view()->GetEngine();
+  if (engine) {
+    auto view_id = controller->view()->view_id();
+
+    // The implicit view is special: it must continue to exist
+    // as long as the engine is running.
+    if (view_id != flutter::kImplicitViewId) {
+      engine->DestroyView(view_id);
+    }
+  }
   delete controller;
 }
 
@@ -248,7 +283,8 @@ bool FlutterDesktopEngineProcessExternalWindowMessage(
 
 FlutterDesktopViewRef FlutterDesktopPluginRegistrarGetView(
     FlutterDesktopPluginRegistrarRef registrar) {
-  return HandleForView(registrar->engine->view());
+  // TODO(loicsharma): Remove single view assumption.
+  return HandleForView(registrar->engine->view(flutter::kImplicitViewId));
 }
 
 void FlutterDesktopPluginRegistrarRegisterTopLevelWindowProcDelegate(

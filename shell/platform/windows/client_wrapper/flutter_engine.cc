@@ -113,8 +113,7 @@ std::optional<LRESULT> FlutterEngine::ProcessExternalWindowMessage(
   return std::nullopt;
 }
 
-FlutterDesktopEngineRef FlutterEngine::RelinquishEngine() {
-  owns_engine_ = false;
+FlutterDesktopEngineRef FlutterEngine::engine() {
   return engine_;
 }
 
