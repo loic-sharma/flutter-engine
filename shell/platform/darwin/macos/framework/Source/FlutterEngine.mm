@@ -106,7 +106,7 @@ constexpr char kTextPlainFormat[] = "text/plain";
 - (nullable FlutterViewController*)viewControllerForId:(FlutterViewId)viewId;
 
 /**
- * An internal method that adds the view controller with the given ID.
+ * Stores the view controller in this class.
  *
  * This method assigns the controller with the ID, puts the controller into the
  * map, and does assertions related to the implicit view ID.
@@ -114,13 +114,33 @@ constexpr char kTextPlainFormat[] = "text/plain";
 - (void)registerViewController:(FlutterViewController*)controller forId:(FlutterViewId)viewId;
 
 /**
- * An internal method that removes the view controller with the given ID.
+ * Removes the view controller from this class.
  *
  * This method clears the ID of the controller, removes the controller from the
  * map. This is an no-op if the view ID is not associated with any view
  * controllers.
  */
 - (void)deregisterViewControllerForId:(FlutterViewId)viewId;
+
+/**
+ * Notifies the Engine of the addition of the specified view.
+ *
+ * This method calls the embedder API, which allocates GPU resources and sends
+ * the message to the framework.
+ *
+ * This method might be called in addViewController or when the engine is
+ * launched, whichever comes the last.
+ *
+ * This method returns true if the operation is successful.
+ */
+- (BOOL)addViewToEmbedderEngine:(FlutterViewId)viewId;
+
+/**
+ * Notifies the Engine of the removal of the specified view.
+ *
+ * This method returns true if the operation is successful.
+ */
+- (BOOL)removeViewFromEmbedderEngine:(FlutterViewId)viewId;
 
 /**
  * Shuts down the engine if view requirement is not met, and headless execution
@@ -172,6 +192,13 @@ constexpr char kTextPlainFormat[] = "text/plain";
  * Handles messages received from the Flutter engine on the _*Channel channels.
  */
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result;
+
+/**
+ * Generate a new unique view ID.
+ *
+ * IDs start from kFlutterDefaultViewId.
+ */
+- (FlutterViewId)generateViewId;
 
 @end
 
@@ -449,7 +476,7 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
   FlutterThreadSynchronizer* _threadSynchronizer;
 
   // The next available view ID.
-  int _nextViewId;
+  FlutterViewId _nextViewId;
 
   // Whether the application is currently the active application.
   BOOL _active;
@@ -500,6 +527,8 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
                            object:nil];
 
   _platformViewController = [[FlutterPlatformViewController alloc] init];
+  _macOSCompositor = std::make_unique<flutter::FlutterCompositor>(
+      [[FlutterViewEngineProvider alloc] initWithEngine:self], _platformViewController);
   _threadSynchronizer = [[FlutterThreadSynchronizer alloc] init];
   [self setUpPlatformViewChannel];
   [self setUpAccessibilityChannel];
@@ -659,6 +688,13 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
   NSEnumerator* viewControllerEnumerator = [_viewControllers objectEnumerator];
   FlutterViewController* nextViewController;
   while ((nextViewController = [viewControllerEnumerator nextObject])) {
+    FlutterViewId viewId = nextViewController.viewId;
+    // The implicit view should never be added.
+    if (viewId == kFlutterImplicitViewId) {
+      continue;
+    }
+    bool successful = [self addViewToEmbedderEngine:viewId];
+    NSAssert(successful, @"Failed to add view %lld.", viewId);
     [self updateWindowMetricsForViewController:nextViewController];
   }
 
@@ -703,14 +739,32 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
   [controller setUpWithEngine:self viewId:viewId threadSynchronizer:_threadSynchronizer];
   NSAssert(controller.viewId == viewId, @"Failed to assign view ID.");
   [_viewControllers setObject:controller forKey:@(viewId)];
+  _macOSCompositor->AddView(viewId);
 }
 
 - (void)deregisterViewControllerForId:(FlutterViewId)viewId {
+  _macOSCompositor->RemoveView(viewId);
   FlutterViewController* oldController = [self viewControllerForId:viewId];
   if (oldController != nil) {
     [oldController detachFromEngine];
     [_viewControllers removeObjectForKey:@(viewId)];
   }
+}
+
+- (BOOL)addViewToEmbedderEngine:(FlutterViewId)viewId {
+  FlutterAddViewInfo info{
+      .view_id = viewId,
+  };
+  FlutterEngineResult result = _embedderAPI.AddView(_engine, &info);
+  return result == kSuccess;
+}
+
+- (BOOL)removeViewFromEmbedderEngine:(FlutterViewId)viewId {
+  FlutterRemoveViewInfo info{
+      .view_id = viewId,
+  };
+  FlutterEngineResult result = _embedderAPI.RemoveView(_engine, &info);
+  return result == kSuccess;
 }
 
 - (void)shutDownIfNeeded {
@@ -764,9 +818,6 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 }
 
 - (FlutterCompositor*)createFlutterCompositor {
-  _macOSCompositor = std::make_unique<flutter::FlutterCompositor>(
-      [[FlutterViewEngineProvider alloc] initWithEngine:self], _platformViewController);
-
   _compositor = {};
   _compositor.struct_size = sizeof(FlutterCompositor);
   _compositor.user_data = _macOSCompositor.get();
@@ -783,15 +834,9 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
                                                   void* user_data                            //
                                                ) { return true; };
 
-  _compositor.present_layers_callback = [](const FlutterLayer** layers,  //
-                                           size_t layers_count,          //
-                                           void* user_data               //
-                                        ) {
-    // TODO(dkwingsmt): This callback only supports single-view, therefore it
-    // only operates on the implicit view. To support multi-view, we need a new
-    // callback that also receives a view ID.
-    return reinterpret_cast<flutter::FlutterCompositor*>(user_data)->Present(kFlutterImplicitViewId,
-                                                                             layers, layers_count);
+  _compositor.present_view_callback = [](FlutterPresentViewInfo* info) {
+    return reinterpret_cast<flutter::FlutterCompositor*>(info->user_data)
+        ->Present(info->view_id, info->layers, info->layers_count);
   };
 
   _compositor.avoid_backing_store_cache = true;
@@ -805,15 +850,36 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 
 #pragma mark - Framework-internal methods
 
-- (void)addViewController:(FlutterViewController*)controller {
-  [self registerViewController:controller forId:kFlutterImplicitViewId];
+- (bool)addViewController:(FlutterViewController*)controller {
+  // Adding a view controller when there is no implicit view should always
+  // assign it to the implicit view controller. This might seem confusing at a
+  // glace, but it's the best we can do to ensure backward compatibility.
+  if ([self viewControllerForId:kFlutterImplicitViewId] == nil) {
+    self.viewController = controller;
+    return true;
+  }
+  FlutterViewId viewId = [self generateViewId];
+  [self registerViewController:controller forId:viewId];
+  if (_engine != nullptr) {
+    return [self addViewToEmbedderEngine:viewId];
+  } else {
+    // The engine will be notified of the new view when it's launched.
+    return true;
+  }
 }
 
-- (void)removeViewController:(nonnull FlutterViewController*)viewController {
+- (bool)removeViewController:(nonnull FlutterViewController*)viewController {
   NSAssert([viewController attached] && viewController.engine == self,
            @"The given view controller is not associated with this engine.");
+  bool embedderEngineResult;
+  if (_engine != nullptr) {
+    embedderEngineResult = [self removeViewFromEmbedderEngine:viewController.viewId];
+  } else {
+    embedderEngineResult = true;
+  }
   [self deregisterViewControllerForId:viewController.viewId];
   [self shutDownIfNeeded];
+  return embedderEngineResult;
 }
 
 - (BOOL)running {
@@ -953,6 +1019,12 @@ static void OnPlatformMessage(const FlutterPlatformMessage* message, FlutterEngi
 }
 
 #pragma mark - Private methods
+
+- (FlutterViewId)generateViewId {
+  FlutterViewId result = _nextViewId;
+  _nextViewId += 1;
+  return result;
+}
 
 - (void)sendUserLocales {
   if (!self.running) {
