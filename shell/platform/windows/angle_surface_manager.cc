@@ -196,87 +196,6 @@ bool AngleSurfaceManager::Initialize(bool enable_impeller) {
     return false;
   }
 
-  if (!MakeRenderContextCurrent()) {
-    LogEglError("Failed to make EGL context current");
-    return false;
-  }
-
-  if (!InitializeGlVersion()) {
-    LogEglError("Failed to determine OpenGL version");
-    return false;
-  }
-
-  if (!InitializeGlExtensions()) {
-    LogEglError("Failed to determine OpenGL extensions");
-    return false;
-  }
-
-  if (!ClearCurrent()) {
-    LogEglError("Unable to release the EGL context");
-    return false;
-  }
-
-  return true;
-}
-
-bool AngleSurfaceManager::InitializeGlVersion() {
-  glGetStringProc gl_get_string =
-      reinterpret_cast<glGetStringProc>(eglGetProcAddress("glGetString"));
-
-  if (!gl_get_string) {
-    return false;
-  }
-
-  int major, minor;
-  auto version = reinterpret_cast<const char*>(gl_get_string(GL_VERSION));
-  int parts = sscanf(version, "OpenGL ES %d.%d", &major, &minor);
-  if (parts != 2) {
-    return false;
-  }
-
-  gl_version_major_ = major;
-  gl_version_minor_ = minor;
-  return true;
-}
-
-bool AngleSurfaceManager::InitializeGlExtensions() {
-  glGetIntegervProc gl_get_integerv =
-      reinterpret_cast<glGetIntegervProc>(eglGetProcAddress("glGetIntegerv"));
-  glGetStringProc gl_get_string =
-      reinterpret_cast<glGetStringProc>(eglGetProcAddress("glGetString"));
-  glGetStringiProc gl_get_stringi =
-      reinterpret_cast<glGetStringiProc>(eglGetProcAddress("glGetStringi"));
-
-  // glGetStringi isn't required and is only available on OpenGL 3.0 or greater.
-  if (!gl_get_integerv || !gl_get_string) {
-    return false;
-  }
-
-  std::istringstream istream;
-  std::string extension;
-
-  if (gl_version_major_ >= 3 && gl_get_stringi) {
-    int extensions_count;
-    gl_get_integerv(GL_NUM_EXTENSIONS, &extensions_count);
-
-    for (int i = 0; i < extensions_count; i++) {
-      auto extension =
-          reinterpret_cast<const char*>(gl_get_stringi(GL_EXTENSIONS, i));
-
-      gl_extensions_.insert(std::string(extension));
-    }
-  } else {
-    istream.str(reinterpret_cast<const char*>(gl_get_string(GL_EXTENSIONS)));
-    while (std::getline(istream, extension, ' ')) {
-      gl_extensions_.insert(extension);
-    }
-  }
-
-  istream.str(::eglQueryString(egl_display_, EGL_EXTENSIONS));
-  while (std::getline(istream, extension, ' ')) {
-    gl_extensions_.insert(extension);
-  }
-
   return true;
 }
 
@@ -315,23 +234,10 @@ void AngleSurfaceManager::CleanUp() {
   }
 }
 
-bool AngleSurfaceManager::GlVersion(int major, int minor) {
-  if (gl_version_major_ > major) {
-    return true;
-  }
-
-  return gl_version_major_ == major && gl_version_minor_ >= minor;
-}
-
-bool AngleSurfaceManager::HasExtension(std::string extension) {
-  return gl_extensions_.find(extension) != gl_extensions_.end();
-}
-
 bool AngleSurfaceManager::CreateSurface(int64_t surface_id,
                                         WindowsRenderTarget* render_target,
                                         EGLint width,
-                                        EGLint height,
-                                        bool vsync_enabled) {
+                                        EGLint height) {
   FML_DCHECK(!RenderSurfaceExists(surface_id));
 
   if (!render_target || !initialize_succeeded_) {
@@ -356,20 +262,13 @@ bool AngleSurfaceManager::CreateSurface(int64_t surface_id,
   render_surfaces_.emplace(
       surface_id, std::make_unique<AngleSurface>(surface, width, height));
 
-  if (!MakeSurfaceCurrent(surface_id)) {
-    LogEglError("Unable to make surface current to update the swap interval");
-    return false;
-  }
-
-  SetVSyncEnabled(vsync_enabled);
   return true;
 }
 
 void AngleSurfaceManager::ResizeSurface(int64_t surface_id,
                                         WindowsRenderTarget* render_target,
                                         EGLint width,
-                                        EGLint height,
-                                        bool vsync_enabled) {
+                                        EGLint height) {
   FML_DCHECK(RenderSurfaceExists(surface_id));
 
   EGLint existing_width, existing_height;
@@ -377,8 +276,7 @@ void AngleSurfaceManager::ResizeSurface(int64_t surface_id,
   if (width != existing_width || height != existing_height) {
     ClearContext();
     DestroySurface(surface_id);
-    if (!CreateSurface(surface_id, render_target, width, height,
-                       vsync_enabled)) {
+    if (!CreateSurface(surface_id, render_target, width, height)) {
       FML_LOG(ERROR)
           << "AngleSurfaceManager::ResizeSurface failed to create surface";
     }
@@ -462,6 +360,11 @@ bool AngleSurfaceManager::RenderSurfaceExists(int64_t surface_id) {
 }
 
 void AngleSurfaceManager::SetVSyncEnabled(bool enabled) {
+  if (!MakeRenderContextCurrent()) {
+    LogEglError("Unable to make surface current to update the swap interval");
+    return;
+  }
+
   // OpenGL swap intervals can be used to prevent screen tearing.
   // If enabled, the raster thread blocks until the v-blank.
   // This is unnecessary if DWM composition is enabled.

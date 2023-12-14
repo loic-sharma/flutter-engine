@@ -20,12 +20,12 @@ namespace flutter {
 
 FlutterWindowsTextureRegistrar::FlutterWindowsTextureRegistrar(
     FlutterWindowsEngine* engine,
-    const GlProcs& gl_procs)
-    : engine_(engine), gl_procs_(gl_procs) {}
+    std::shared_ptr<GlProcTable> gl)
+    : engine_(engine), gl_(std::move(gl)) {}
 
 int64_t FlutterWindowsTextureRegistrar::RegisterTexture(
     const FlutterDesktopTextureInfo* texture_info) {
-  if (!gl_procs_.valid) {
+  if (!gl_) {
     return kInvalidTexture;
   }
 
@@ -37,7 +37,7 @@ int64_t FlutterWindowsTextureRegistrar::RegisterTexture(
 
     return EmplaceTexture(std::make_unique<flutter::ExternalTexturePixelBuffer>(
         texture_info->pixel_buffer_config.callback,
-        texture_info->pixel_buffer_config.user_data, gl_procs_));
+        texture_info->pixel_buffer_config.user_data, gl_));
   } else if (texture_info->type == kFlutterDesktopGpuSurfaceTexture) {
     const FlutterDesktopGpuSurfaceTextureConfig* gpu_surface_config =
         &texture_info->gpu_surface_config;
@@ -53,8 +53,7 @@ int64_t FlutterWindowsTextureRegistrar::RegisterTexture(
 
       auto user_data = SAFE_ACCESS(gpu_surface_config, user_data, nullptr);
       return EmplaceTexture(std::make_unique<flutter::ExternalTextureD3d>(
-          surface_type, callback, user_data, engine_->surface_manager(),
-          gl_procs_));
+          surface_type, callback, user_data, engine_->surface_manager(), gl_));
     }
   }
 
@@ -124,39 +123,6 @@ bool FlutterWindowsTextureRegistrar::PopulateTexture(
     texture = it->second.get();
   }
   return texture->PopulateTexture(width, height, opengl_texture);
-}
-
-void FlutterWindowsTextureRegistrar::ResolveGlFunctions(GlProcs& procs) {
-  procs.glGenFramebuffers = reinterpret_cast<glGenFramebuffersProc>(
-      eglGetProcAddress("glGenFramebuffers"));
-  procs.glDeleteFramebuffers = reinterpret_cast<glDeleteFramebuffersProc>(
-      eglGetProcAddress("glDeleteFramebuffers"));
-  procs.glBindFramebuffer = reinterpret_cast<glBindFramebufferProc>(
-      eglGetProcAddress("glBindFramebuffer"));
-  procs.glFramebufferTexture2D = reinterpret_cast<glFramebufferTexture2DProc>(
-      eglGetProcAddress("glFramebufferTexture2D"));
-  procs.glBlitFramebufferANGLE = reinterpret_cast<glBlitFramebufferANGLEProc>(
-      eglGetProcAddress("glBlitFramebufferANGLE"));
-
-  procs.glGenTextures =
-      reinterpret_cast<glGenTexturesProc>(eglGetProcAddress("glGenTextures"));
-  procs.glDeleteTextures = reinterpret_cast<glDeleteTexturesProc>(
-      eglGetProcAddress("glDeleteTextures"));
-  procs.glBindTexture =
-      reinterpret_cast<glBindTextureProc>(eglGetProcAddress("glBindTexture"));
-  procs.glTexParameterf = reinterpret_cast<glTexParameterfProc>(
-      eglGetProcAddress("glTexParameterf"));
-  procs.glTexParameteri = reinterpret_cast<glTexParameteriProc>(
-      eglGetProcAddress("glTexParameteri"));
-  procs.glTexImage2D =
-      reinterpret_cast<glTexImage2DProc>(eglGetProcAddress("glTexImage2D"));
-
-  procs.valid = procs.glGenFramebuffers && procs.glDeleteFramebuffers &&
-                procs.glBindFramebuffer && procs.glFramebufferTexture2D &&
-                procs.glBlitFramebufferANGLE && procs.glGenTextures &&
-                procs.glDeleteTextures && procs.glBindTexture &&
-                procs.glTexParameterf && procs.glTexParameteri &&
-                procs.glTexImage2D;
 }
 
 };  // namespace flutter

@@ -47,8 +47,6 @@ static constexpr int64_t kImplicitViewId = 0ll;
 
 using EmbedderTest = testing::EmbedderTest;
 
-static constexpr int64_t kImplicitViewId = 0;
-
 TEST_F(EmbedderTest, CanGetVulkanEmbedderContext) {
   auto& context = GetEmbedderContext(EmbedderTestContextType::kVulkanContext);
   EmbedderConfigBuilder builder(context);

@@ -32,23 +32,17 @@ class AngleSurfaceManager {
 
   virtual ~AngleSurfaceManager();
 
-  // Returns true if the OpenGL version is greater than or equal to the input.
-  bool GlVersion(int major, int minor);
-
-  // Returns true if the OpenGL extension is available.
-  bool HasExtension(std::string extension);
-
   // Creates an EGLSurface wrapper and backing DirectX 11 SwapChain
   // associated with window, in the appropriate format for display.
   // Target represents the visual entity to bind to. Width and
   // height represent dimensions surface is created at.
   //
-  // This binds |egl_context_| to the current thread.
+  // After the surface is created, |SetVSyncEnabled| should be called on a
+  // thread that can bind the |egl_context_|.
   virtual bool CreateSurface(int64_t surface_id,
                              WindowsRenderTarget* render_target,
                              EGLint width,
-                             EGLint height,
-                             bool enable_vsync);
+                             EGLint height);
 
   // Resizes backing surface from current size to newly requested size
   // based on width and height for the specific case when width and height do
@@ -59,8 +53,7 @@ class AngleSurfaceManager {
   virtual void ResizeSurface(int64_t surface_id,
                              WindowsRenderTarget* render_target,
                              EGLint width,
-                             EGLint height,
-                             bool enable_vsync);
+                             EGLint height);
 
   // queries EGL for the dimensions of surface in physical
   // pixels returning width and height as out params.
@@ -76,14 +69,14 @@ class AngleSurfaceManager {
 
   // Binds egl_context_ to the current rendering thread. Returns true on
   // success.
-  bool MakeRenderContextCurrent();
+  virtual bool MakeRenderContextCurrent();
 
   // Binds |egl_context_| to the current rendering thread and to the draw and
   // read surfaces returning a boolean result reflecting success.
-  virtual bool MakeCurrent(int64_t surface_id);
+  virtual bool MakeSurfaceCurrent(int64_t surface_id);
 
   // Unbinds the current EGL context from the current thread.
-  bool ClearCurrent();
+  virtual bool ClearCurrent();
 
   // Clears the |egl_context_| draw and read surfaces.
   bool ClearContext();
@@ -106,6 +99,12 @@ class AngleSurfaceManager {
 
   // If enabled, makes the current surface's buffer swaps block until the
   // v-blank.
+  //
+  // If disabled, allows one thread to swap multiple buffers per v-blank
+  // but can result in screen tearing if the system compositor is disabled.
+  //
+  // This binds |egl_context_| to the current thread and makes the render
+  // surface current.
   virtual void SetVSyncEnabled(bool enabled);
 
   // Gets the |ID3D11Device| chosen by ANGLE.
@@ -118,8 +117,6 @@ class AngleSurfaceManager {
 
  private:
   bool Initialize(bool enable_impeller);
-  bool InitializeGlVersion();
-  bool InitializeGlExtensions();
   void CleanUp();
 
   // Attempts to initialize EGL using ANGLE.
@@ -143,15 +140,6 @@ class AngleSurfaceManager {
 
   // current frame buffer configuration.
   EGLConfig egl_config_;
-
-  // The OpenGL major version number.
-  int gl_version_major_ = 0;
-
-  // The OpenGL minor version number.
-  int gl_version_minor_ = 0;
-
-  // The available OpenGL extensions.
-  std::unordered_set<std::string> gl_extensions_;
 
   // State representing success or failure of display initialization used when
   // creating surfaces.

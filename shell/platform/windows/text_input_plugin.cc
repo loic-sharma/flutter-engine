@@ -218,7 +218,8 @@ void TextInputPlugin::HandleMethodCall(
   if (method.compare(kShowMethod) == 0 || method.compare(kHideMethod) == 0) {
     // These methods are no-ops.
   } else if (method.compare(kClearClientMethod) == 0) {
-    FlutterWindowsView* view = engine_->view();
+    // TODO(loicsharma): Remove implicit view assumption.
+    FlutterWindowsView* view = engine_->view(kImplicitViewId);
     if (view == nullptr) {
       result->Error(kInternalConsistencyError,
                     "Text input is not available in Windows headless mode");
@@ -328,7 +329,8 @@ void TextInputPlugin::HandleMethodCall(
           TextRange(composing_base, composing_extent), cursor_offset);
     }
   } else if (method.compare(kSetMarkedTextRect) == 0) {
-    FlutterWindowsView* view = engine_->view();
+    // TODO(loicsharma): Remove implicit view assumption.
+    FlutterWindowsView* view = engine_->view(kImplicitViewId);
     if (view == nullptr) {
       result->Error(kInternalConsistencyError,
                     "Text input is not available in Windows headless mode");
@@ -357,7 +359,8 @@ void TextInputPlugin::HandleMethodCall(
     Rect transformed_rect = GetCursorRect();
     view->OnCursorRectUpdated(transformed_rect);
   } else if (method.compare(kSetEditableSizeAndTransform) == 0) {
-    FlutterWindowsView* view = engine_->view();
+    // TODO(loicsharma): Remove implicit view ID assumption.
+    FlutterWindowsView* view = engine_->view(kImplicitViewId);
     if (view == nullptr) {
       result->Error(kInternalConsistencyError,
                     "Text input is not available in Windows headless mode");
