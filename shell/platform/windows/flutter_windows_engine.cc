@@ -4,8 +4,6 @@
 
 #include "flutter/shell/platform/windows/flutter_windows_engine.h"
 
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
 #include <dwmapi.h>
 
 #include <filesystem>
