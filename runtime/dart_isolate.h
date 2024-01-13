@@ -20,7 +20,7 @@
 #include "flutter/lib/ui/ui_dart_state.h"
 #include "flutter/lib/ui/window/platform_configuration.h"
 #include "flutter/runtime/dart_snapshot.h"
-#include "runtime/isolate_configuration.h"
+#include "flutter/runtime/isolate_configuration.h"
 #include "third_party/dart/runtime/include/dart_api.h"
 #include "third_party/tonic/dart_state.h"
 
@@ -392,6 +392,11 @@ class DartIsolate : public UIDartState {
 
   const DartIsolateGroupData& GetIsolateGroupData() const;
 
+  /// Returns the "main" entrypoint of the library contained in the kernel
+  /// data in `mapping`.
+  static Dart_Handle LoadLibraryFromKernel(
+      const std::shared_ptr<const fml::Mapping>& mapping);
+
  private:
   friend class IsolateConfiguration;
   class AutoFireClosure {
@@ -407,7 +412,6 @@ class DartIsolate : public UIDartState {
   friend class DartVM;
 
   Phase phase_ = Phase::Unknown;
-  std::vector<std::shared_ptr<const fml::Mapping>> kernel_buffers_;
   std::vector<std::unique_ptr<AutoFireClosure>> shutdown_callbacks_;
   std::unordered_set<fml::RefPtr<DartSnapshot>> loading_unit_snapshots_;
   fml::RefPtr<fml::TaskRunner> message_handling_task_runner_;

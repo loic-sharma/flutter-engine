@@ -23,6 +23,7 @@
 #include "flutter/shell/platform/windows/window_binding_handler.h"
 #include "flutter/shell/platform/windows/window_binding_handler_delegate.h"
 #include "flutter/shell/platform/windows/window_state.h"
+#include "flutter/shell/platform/windows/windows_proc_table.h"
 
 namespace flutter {
 
@@ -38,7 +39,9 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate {
   //
   // In order for object to render Flutter content the SetEngine method must be
   // called with a valid FlutterWindowsEngine instance.
-  FlutterWindowsView(std::unique_ptr<WindowBindingHandler> window_binding);
+  FlutterWindowsView(
+      std::unique_ptr<WindowBindingHandler> window_binding,
+      std::shared_ptr<WindowsProcTable> windows_proc_table = nullptr);
 
   virtual ~FlutterWindowsView();
 
@@ -55,11 +58,8 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate {
   // Destroys current rendering surface if one has been allocated.
   void DestroyRenderSurface();
 
-  // Return the currently configured WindowsRenderTarget.
-  WindowsRenderTarget* GetRenderTarget() const;
-
-  // Return the currently configured PlatformWindow.
-  virtual PlatformWindow GetPlatformWindow() const;
+  // Return the currently configured HWND.
+  virtual HWND GetWindowHandle() const;
 
   // Returns the engine backing this view.
   FlutterWindowsEngine* GetEngine();
@@ -67,11 +67,12 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate {
   // Tells the engine to generate a new frame
   void ForceRedraw();
 
-  // Callbacks for clearing context, settings context and swapping buffers,
-  // these are typically called on an engine-controlled (non-platform) thread.
-  bool ClearContext();
-  bool MakeCurrent();
-  bool MakeResourceCurrent();
+  // Swap the view's surface buffers. Must be called on the engine's raster
+  // thread. Returns true if the buffers were swapped.
+  //
+  // If the view is resizing, this returns false if the frame is not the target
+  // size. Otherwise, it unblocks the platform thread and blocks the raster
+  // thread until the v-blank.
   bool SwapBuffers();
 
   // Callback for presenting a software bitmap.
@@ -356,15 +357,15 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate {
   void SendPointerEventWithData(const FlutterPointerEvent& event_data,
                                 PointerState* state);
 
-  int64_t view_id_;
-
-  // Currently configured WindowsRenderTarget for this view used by
-  // surface_manager for creation of render surfaces and bound to the physical
-  // os window.
-  std::unique_ptr<WindowsRenderTarget> render_target_;
+  // If true, rendering to the window should synchronize with the vsync
+  // to prevent screen tearing.
+  bool NeedsVsync() const;
 
   // The engine associated with this view.
   FlutterWindowsEngine* engine_ = nullptr;
+
+  // Mocks win32 APIs.
+  std::shared_ptr<WindowsProcTable> windows_proc_table_;
 
   // Keeps track of pointer states in relation to the window.
   std::unordered_map<int32_t, std::unique_ptr<PointerState>> pointer_states_;

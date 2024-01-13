@@ -19,7 +19,7 @@ import java.util.Map;
 
 /** Sends touch information from Android to Flutter in a format that Flutter understands. */
 public class AndroidTouchProcessor {
-
+  private static final String TAG = "AndroidTouchProcessor";
   // Must match the PointerChange enum in pointer.dart.
   @IntDef({
     PointerChange.CANCEL,
@@ -80,7 +80,8 @@ public class AndroidTouchProcessor {
     int UNKNOWN = 4;
   }
 
-  // This value must match kPointerDataFieldCount in pointer_data.cc.
+  // This value must match kPointerDataFieldCount in pointer_data.cc. (The
+  // pointer_data.cc also lists other locations that must be kept consistent.)
   private static final int POINTER_DATA_FIELD_COUNT = 36;
   @VisibleForTesting static final int BYTES_PER_FIELD = 8;
 
@@ -260,7 +261,7 @@ public class AndroidTouchProcessor {
     }
     // TODO(dkwingsmt): Use the correct source view ID once Android supports
     // multiple views.
-    // https://github.com/flutter/flutter/issues/138167
+    // https://github.com/flutter/flutter/issues/134405
     final int viewId = IMPLICIT_VIEW_ID;
     final int pointerId = event.getPointerId(pointerIndex);
 

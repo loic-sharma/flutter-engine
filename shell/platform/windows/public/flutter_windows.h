@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef FLUTTER_SHELL_PLATFORM_WINDOWS_PUBLIC_FLUTTER_H_
-#define FLUTTER_SHELL_PLATFORM_WINDOWS_PUBLIC_FLUTTER_H_
+#ifndef FLUTTER_SHELL_PLATFORM_WINDOWS_PUBLIC_FLUTTER_WINDOWS_H_
+#define FLUTTER_SHELL_PLATFORM_WINDOWS_PUBLIC_FLUTTER_WINDOWS_H_
 
 #include <dxgi.h>
 #include <stddef.h>
@@ -115,8 +115,8 @@ FLUTTER_EXPORT FlutterDesktopEngineRef FlutterDesktopViewControllerGetEngine(
     FlutterDesktopViewControllerRef controller);
 // Returns the view managed by the given controller.
 
-FLUTTER_EXPORT FlutterDesktopViewRef
-FlutterDesktopViewControllerGetView(FlutterDesktopViewControllerRef controller);
+FLUTTER_EXPORT FlutterDesktopViewRef FlutterDesktopViewControllerGetView(
+    FlutterDesktopViewControllerRef controller);
 
 // Requests new frame from the engine and repaints the view.
 FLUTTER_EXPORT void FlutterDesktopViewControllerForceRedraw(
@@ -194,8 +194,8 @@ FlutterDesktopEngineCreateViewController(
 // This should be called on every run of the application-level runloop, and
 // a wait for native events in the runloop should never be longer than the
 // last return value from this function.
-FLUTTER_EXPORT uint64_t
-FlutterDesktopEngineProcessMessages(FlutterDesktopEngineRef engine);
+FLUTTER_EXPORT uint64_t FlutterDesktopEngineProcessMessages(
+    FlutterDesktopEngineRef engine);
 
 FLUTTER_EXPORT void FlutterDesktopEngineReloadSystemFonts(
     FlutterDesktopEngineRef engine);
@@ -214,8 +214,8 @@ FlutterDesktopEngineGetPluginRegistrar(FlutterDesktopEngineRef engine,
 //
 // Callers should use |FlutterDesktopMessengerAddRef| if the returned pointer
 // will potentially outlive 'engine', such as when passing it to another thread.
-FLUTTER_EXPORT FlutterDesktopMessengerRef
-FlutterDesktopEngineGetMessenger(FlutterDesktopEngineRef engine);
+FLUTTER_EXPORT FlutterDesktopMessengerRef FlutterDesktopEngineGetMessenger(
+    FlutterDesktopEngineRef engine);
 
 // Returns the texture registrar associated with the engine.
 FLUTTER_EXPORT FlutterDesktopTextureRegistrarRef

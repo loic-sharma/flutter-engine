@@ -61,11 +61,24 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
   config.open_gl.struct_size = sizeof(config.open_gl);
   config.open_gl.make_current = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
-    return host->surface_manager()->MakeRenderContextCurrent();
+    if (!host->surface_manager()) {
+      return false;
+    }
+    return host->surface_manager()->MakeCurrent();
   };
   config.open_gl.clear_current = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
+    if (!host->surface_manager()) {
+      return false;
+    }
     return host->surface_manager()->ClearContext();
+  };
+  config.open_gl.present = [](void* user_data) -> bool {
+    auto host = static_cast<FlutterWindowsEngine*>(user_data);
+    if (!host->view()) {
+      return false;
+    }
+    return host->view()->SwapBuffers();
   };
   config.open_gl.present = [](void* user_data) -> bool { FML_UNREACHABLE(); };
   config.open_gl.fbo_reset_after_present = true;
@@ -79,6 +92,9 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
   };
   config.open_gl.make_resource_current = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
+    if (!host->surface_manager()) {
+      return false;
+    }
     return host->surface_manager()->MakeResourceCurrent();
   };
   config.open_gl.gl_external_texture_frame_callback =
@@ -151,6 +167,8 @@ FlutterWindowsEngine::FlutterWindowsEngine(
     windows_proc_table_ = std::make_shared<WindowsProcTable>();
   }
 
+  gl_ = GlProcTable::Create();
+
   embedder_api_.struct_size = sizeof(FlutterEngineProcTable);
   FlutterEngineGetProcAddresses(&embedder_api_);
 
@@ -187,9 +205,8 @@ FlutterWindowsEngine::FlutterWindowsEngine(
       },
       static_cast<void*>(this));
 
-  FlutterWindowsTextureRegistrar::ResolveGlFunctions(gl_procs_);
   texture_registrar_ =
-      std::make_unique<FlutterWindowsTextureRegistrar>(this, gl_procs_);
+      std::make_unique<FlutterWindowsTextureRegistrar>(this, gl_);
 
   // Check for impeller support.
   auto& switches = project_->GetSwitches();
@@ -864,7 +881,7 @@ bool FlutterWindowsEngine::MarkExternalTextureFrameAvailable(
               engine_, texture_id) == kSuccess);
 }
 
-bool FlutterWindowsEngine::PostRasterThreadTask(fml::closure callback) {
+bool FlutterWindowsEngine::PostRasterThreadTask(fml::closure callback) const {
   struct Captures {
     fml::closure callback;
   };

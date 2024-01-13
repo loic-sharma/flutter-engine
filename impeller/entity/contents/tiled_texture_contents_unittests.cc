@@ -15,7 +15,6 @@ namespace impeller {
 namespace testing {
 
 using EntityTest = EntityPlayground;
-INSTANTIATE_PLAYGROUND_SUITE(EntityTest);
 
 TEST_P(EntityTest, TiledTextureContentsRendersWithCorrectPipeline) {
   TextureDescriptor texture_desc;
@@ -34,7 +33,8 @@ TEST_P(EntityTest, TiledTextureContentsRendersWithCorrectPipeline) {
   auto buffer = content_context->GetContext()->CreateCommandBuffer();
   auto render_target = RenderTarget::CreateOffscreenMSAA(
       *content_context->GetContext(),
-      *GetContentContext()->GetRenderTargetCache(), {100, 100});
+      *GetContentContext()->GetRenderTargetCache(), {100, 100},
+      /*mip_count=*/1);
   auto render_pass = buffer->CreateRenderPass(render_target);
 
   ASSERT_TRUE(contents.Render(*GetContentContext(), {}, *render_pass));
@@ -69,7 +69,8 @@ TEST_P(EntityTest, TiledTextureContentsRendersWithCorrectPipelineExternalOES) {
   auto buffer = content_context->GetContext()->CreateCommandBuffer();
   auto render_target = RenderTarget::CreateOffscreenMSAA(
       *content_context->GetContext(),
-      *GetContentContext()->GetRenderTargetCache(), {100, 100});
+      *GetContentContext()->GetRenderTargetCache(), {100, 100},
+      /*mip_count=*/1);
   auto render_pass = buffer->CreateRenderPass(render_target);
 
   ASSERT_TRUE(contents.Render(*GetContentContext(), {}, *render_pass));
@@ -77,7 +78,7 @@ TEST_P(EntityTest, TiledTextureContentsRendersWithCorrectPipelineExternalOES) {
 
   ASSERT_EQ(commands.size(), 1u);
   ASSERT_STREQ(commands[0].pipeline->GetDescriptor().GetLabel().c_str(),
-               "TextureFill Pipeline V#1");
+               "TiledTextureFillExternal Pipeline V#1");
 }
 #endif
 

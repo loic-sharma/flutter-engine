@@ -40,15 +40,12 @@ class AngleSurfaceManager {
 
   // Creates an EGLSurface wrapper and backing DirectX 11 SwapChain
   // associated with window, in the appropriate format for display.
-  // Target represents the visual entity to bind to. Width and
-  // height represent dimensions surface is created at.
+  // HWND is the window backing the surface. Width and height represent
+  // dimensions surface is created at.
   //
-  // This binds |egl_context_| to the current thread.
-  virtual bool CreateSurface(int64_t surface_id,
-                             WindowsRenderTarget* render_target,
-                             EGLint width,
-                             EGLint height,
-                             bool enable_vsync);
+  // After the surface is created, |SetVSyncEnabled| should be called on a
+  // thread that can bind the |egl_context_|.
+  virtual bool CreateSurface(HWND hwnd, EGLint width, EGLint height);
 
   // Resizes backing surface from current size to newly requested size
   // based on width and height for the specific case when width and height do
@@ -56,8 +53,7 @@ class AngleSurfaceManager {
   // to bind to.
   //
   // This binds |egl_context_| to the current thread.
-  virtual void ResizeSurface(int64_t surface_id,
-                             WindowsRenderTarget* render_target,
+  virtual void ResizeSurface(HWND hwnd,
                              EGLint width,
                              EGLint height,
                              bool enable_vsync);
@@ -83,7 +79,7 @@ class AngleSurfaceManager {
   virtual bool MakeCurrent(int64_t surface_id);
 
   // Unbinds the current EGL context from the current thread.
-  bool ClearCurrent();
+  virtual bool ClearCurrent();
 
   // Clears the |egl_context_| draw and read surfaces.
   bool ClearContext();
@@ -106,6 +102,12 @@ class AngleSurfaceManager {
 
   // If enabled, makes the current surface's buffer swaps block until the
   // v-blank.
+  //
+  // If disabled, allows one thread to swap multiple buffers per v-blank
+  // but can result in screen tearing if the system compositor is disabled.
+  //
+  // This binds |egl_context_| to the current thread and makes the render
+  // surface current.
   virtual void SetVSyncEnabled(bool enabled);
 
   // Gets the |ID3D11Device| chosen by ANGLE.

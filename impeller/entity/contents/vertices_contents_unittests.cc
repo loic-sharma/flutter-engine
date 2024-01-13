@@ -21,7 +21,6 @@ namespace impeller {
 namespace testing {
 
 using EntityTest = EntityPlayground;
-INSTANTIATE_PLAYGROUND_SUITE(EntityTest);
 
 std::shared_ptr<VerticesGeometry> CreateColorVertices(
     const std::vector<Point>& vertices,
@@ -62,7 +61,8 @@ TEST_P(EntityTest, RendersDstPerColorWithAlpha) {
   auto buffer = content_context->GetContext()->CreateCommandBuffer();
   auto render_target = RenderTarget::CreateOffscreenMSAA(
       *content_context->GetContext(),
-      *GetContentContext()->GetRenderTargetCache(), {100, 100});
+      *GetContentContext()->GetRenderTargetCache(), {100, 100},
+      /*mip_count=*/1);
   auto render_pass = buffer->CreateRenderPass(render_target);
   Entity entity;
 
@@ -72,6 +72,7 @@ TEST_P(EntityTest, RendersDstPerColorWithAlpha) {
   const auto& cmd = render_pass->GetCommands()[0];
   auto* frag_uniforms = GetFragInfo<FS>(cmd);
 
+  ASSERT_TRUE(frag_uniforms);
   ASSERT_EQ(frag_uniforms->alpha, 0.5);
 }
 

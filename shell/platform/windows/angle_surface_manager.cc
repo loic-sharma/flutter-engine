@@ -315,74 +315,54 @@ void AngleSurfaceManager::CleanUp() {
   }
 }
 
-bool AngleSurfaceManager::GlVersion(int major, int minor) {
-  if (gl_version_major_ > major) {
-    return true;
-  }
-
-  return gl_version_major_ == major && gl_version_minor_ >= minor;
-}
-
-bool AngleSurfaceManager::HasExtension(std::string extension) {
-  return gl_extensions_.find(extension) != gl_extensions_.end();
-}
-
-bool AngleSurfaceManager::CreateSurface(int64_t surface_id,
-                                        WindowsRenderTarget* render_target,
+bool AngleSurfaceManager::CreateSurface(HWND hwnd,
                                         EGLint width,
-                                        EGLint height,
-                                        bool vsync_enabled) {
-  FML_DCHECK(!RenderSurfaceExists(surface_id));
-
-  if (!render_target || !initialize_succeeded_) {
+                                        EGLint height) {
+  if (!hwnd || !initialize_succeeded_) {
     return false;
   }
 
   EGLSurface surface = EGL_NO_SURFACE;
 
+  // Disable ANGLE's automatic surface resizing and provide an explicit size.
+  // The surface will need to be destroyed and re-created if the HWND is
+  // resized.
   const EGLint surfaceAttributes[] = {
       EGL_FIXED_SIZE_ANGLE, EGL_TRUE, EGL_WIDTH, width,
       EGL_HEIGHT,           height,   EGL_NONE};
 
-  surface = eglCreateWindowSurface(
-      egl_display_, egl_config_,
-      static_cast<EGLNativeWindowType>(std::get<HWND>(*render_target)),
-      surfaceAttributes);
+  surface = eglCreateWindowSurface(egl_display_, egl_config_,
+                                   static_cast<EGLNativeWindowType>(hwnd),
+                                   surfaceAttributes);
   if (surface == EGL_NO_SURFACE) {
     LogEglError("Surface creation failed.");
     return false;
   }
 
-  render_surfaces_.emplace(
-      surface_id, std::make_unique<AngleSurface>(surface, width, height));
-
-  if (!MakeSurfaceCurrent(surface_id)) {
-    LogEglError("Unable to make surface current to update the swap interval");
-    return false;
-  }
-
-  SetVSyncEnabled(vsync_enabled);
+  surface_width_ = width;
+  surface_height_ = height;
+  render_surface_ = surface;
   return true;
 }
 
-void AngleSurfaceManager::ResizeSurface(int64_t surface_id,
-                                        WindowsRenderTarget* render_target,
+void AngleSurfaceManager::ResizeSurface(HWND hwnd,
                                         EGLint width,
                                         EGLint height,
                                         bool vsync_enabled) {
   FML_DCHECK(RenderSurfaceExists(surface_id));
 
-  EGLint existing_width, existing_height;
-  GetSurfaceDimensions(surface_id, &existing_width, &existing_height);
-  if (width != existing_width || height != existing_height) {
-    ClearContext();
-    DestroySurface(surface_id);
-    if (!CreateSurface(surface_id, render_target, width, height,
-                       vsync_enabled)) {
-      FML_LOG(ERROR)
-          << "AngleSurfaceManager::ResizeSurface failed to create surface";
-    }
+  // TODO: Destroying the surface and re-creating it is expensive.
+  // Ideally this would use ANGLE's automatic surface sizing instead.
+  // See: https://github.com/flutter/flutter/issues/79427
+  ClearContext();
+  DestroySurface();
+  if (!CreateSurface(hwnd, width, height)) {
+    FML_LOG(ERROR)
+        << "AngleSurfaceManager::ResizeSurface failed to create surface";
   }
+}
+
+SetVSyncEnabled(vsync_enabled);
 }
 
 void AngleSurfaceManager::GetSurfaceDimensions(int64_t surface_id,
@@ -394,11 +374,12 @@ void AngleSurfaceManager::GetSurfaceDimensions(int64_t surface_id,
     return;
   }
 
-  // Can't use eglQuerySurface here; Because we're not using
-  // EGL_FIXED_SIZE_ANGLE flag anymore, Angle may resize the surface before
-  // Flutter asks it to, which breaks resize redraw synchronization
-  *width = render_surfaces_[surface_id]->width;
-  *height = render_surfaces_[surface_id]->height;
+  // This avoids eglQuerySurface as ideally surfaces would be automatically
+  // sized by ANGLE to avoid expensive surface destroy & re-create. With
+  // automatic sizing, ANGLE could resize the surface before Flutter asks it to,
+  // which would break resize redraw synchronization.
+  *width = surface_width_;
+  *height = surface_height_;
 }
 
 void AngleSurfaceManager::DestroySurface(int64_t surface_id) {
@@ -462,6 +443,11 @@ bool AngleSurfaceManager::RenderSurfaceExists(int64_t surface_id) {
 }
 
 void AngleSurfaceManager::SetVSyncEnabled(bool enabled) {
+  if (!MakeCurrent()) {
+    LogEglError("Unable to make surface current to update the swap interval");
+    return;
+  }
+
   // OpenGL swap intervals can be used to prevent screen tearing.
   // If enabled, the raster thread blocks until the v-blank.
   // This is unnecessary if DWM composition is enabled.
