@@ -142,7 +142,6 @@ FlutterWindow::FlutterWindow(
   if (text_input_manager_ == nullptr) {
     text_input_manager_ = std::make_unique<TextInputManager>();
   }
-  keyboard_manager_ = std::make_unique<KeyboardManager>(this);
 
   InitializeChild("FLUTTERVIEW", width, height);
   current_cursor_ = ::LoadCursor(nullptr, IDC_ARROW);
@@ -185,7 +184,7 @@ void FlutterWindow::SetFlutterCursor(HCURSOR cursor) {
   ::SetCursor(current_cursor_);
 }
 
-void FlutterWindow::OnDpiScale(unsigned int dpi) {};
+void FlutterWindow::OnDpiScale(unsigned int dpi){};
 
 // When DesktopWindow notifies that a WM_Size message has come in
 // lets FlutterEngine know about the new size.
@@ -464,24 +463,6 @@ HWND FlutterWindow::GetWindowHandle() {
   return window_handle_;
 }
 
-BOOL FlutterWindow::Win32PeekMessage(LPMSG lpMsg,
-                                     UINT wMsgFilterMin,
-                                     UINT wMsgFilterMax,
-                                     UINT wRemoveMsg) {
-  return ::PeekMessage(lpMsg, window_handle_, wMsgFilterMin, wMsgFilterMax,
-                       wRemoveMsg);
-}
-
-uint32_t FlutterWindow::Win32MapVkToChar(uint32_t virtual_key) {
-  return ::MapVirtualKey(virtual_key, MAPVK_VK_TO_CHAR);
-}
-
-UINT FlutterWindow::Win32DispatchMessage(UINT Msg,
-                                         WPARAM wParam,
-                                         LPARAM lParam) {
-  return ::SendMessage(window_handle_, Msg, wParam, lParam);
-}
-
 std::wstring FlutterWindow::NarrowToWide(const char* source) {
   size_t length = strlen(source);
   size_t outlen = 0;
@@ -519,6 +500,8 @@ LRESULT CALLBACK FlutterWindow::WndProc(HWND const window,
 
     auto that = static_cast<FlutterWindow*>(cs->lpCreateParams);
     that->window_handle_ = window;
+    that->keyboard_manager_ = std::make_unique<KeyboardManager>(
+        window, that, that->windows_proc_table_);
     that->text_input_manager_->SetWindowHandle(window);
     RegisterTouchWindow(window, 0);
   } else if (FlutterWindow* that = GetThisFromHandle(window)) {
@@ -772,8 +755,10 @@ FlutterWindow::HandleMessage(UINT const message,
     case WM_SYSKEYDOWN:
     case WM_KEYUP:
     case WM_SYSKEYUP:
-      if (keyboard_manager_->HandleMessage(message, wparam, lparam)) {
-        return 0;
+      if (keyboard_manager_) {
+        if (keyboard_manager_->HandleMessage(message, wparam, lparam)) {
+          return 0;
+        }
       }
       break;
   }

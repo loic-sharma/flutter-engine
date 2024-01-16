@@ -19,6 +19,42 @@ class WindowsProcTable {
   WindowsProcTable();
   virtual ~WindowsProcTable();
 
+  // Dispatches incoming nonqueued messages, checks the thread message queue for
+  // a posted message, and retrieves the message (if any exist).
+  //
+  // The "Win32" prefix avoids win32's "PeekMessage" preprocessor definition.
+  //
+  // See:
+  // https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-peekmessagew
+  virtual BOOL Win32PeekMessage(LPMSG lpMsg,
+                                HWND hWnd,
+                                UINT wMsgFilterMin,
+                                UINT wMsgFilterMax,
+                                UINT wRemoveMsg);
+
+  // Sends the specified message to a window or windows. The SendMessage
+  // function calls the window procedure for the specified window and does not
+  // return until the window procedure has processed the message.
+  //
+  // The "Win32" prefix avoids win32's "SendMessage" preprocessor definition.
+  //
+  // See:
+  // https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-sendmessagew
+  virtual LRESULT Win32SendMessage(HWND hWnd,
+                                   UINT Msg,
+                                   WPARAM wParam,
+                                   LPARAM lParam);
+
+  // Translates a virtual-key code into a scan code or character value,
+  // or translates a scan code into a virtual-key code.
+  //
+  // The "Win32" prefix circumvents win32's "MapVirtualKey" preprocessor
+  // definition.
+  //
+  // See:
+  // https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-mapvirtualkeyw
+  virtual UINT Win32MapVirtualKey(UINT uCode, UINT uMapType);
+
   // Retrieves the pointer type for a specified pointer.
   //
   // Used to react differently to touch or pen inputs. Returns false on failure.

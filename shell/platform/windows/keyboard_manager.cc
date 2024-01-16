@@ -15,7 +15,7 @@ namespace {
 
 // The maximum number of pending events to keep before
 // emitting a warning on the console about unhandled events.
-static constexpr int kMaxPendingEvents = 1000;
+constexpr int kMaxPendingEvents = 1000;
 
 // Returns true if this key is an AltRight key down event.
 //
@@ -40,7 +40,7 @@ static constexpr int kMaxPendingEvents = 1000;
 // would be rare, and a misrecognition would only cause a minor consequence
 // where the CtrlLeft is released early; the later, real, CtrlLeft up event will
 // be ignored.
-static bool IsKeyDownAltRight(int action, int virtual_key, bool extended) {
+bool IsKeyDownAltRight(int action, int virtual_key, bool extended) {
   return virtual_key == VK_RMENU && extended &&
          (action == WM_KEYDOWN || action == WM_SYSKEYDOWN);
 }
@@ -48,7 +48,7 @@ static bool IsKeyDownAltRight(int action, int virtual_key, bool extended) {
 // Returns true if this key is a key up event of AltRight.
 //
 // This is used to assist a corner case described in |IsKeyDownAltRight|.
-static bool IsKeyUpAltRight(int action, int virtual_key, bool extended) {
+bool IsKeyUpAltRight(int action, int virtual_key, bool extended) {
   return virtual_key == VK_RMENU && extended &&
          (action == WM_KEYUP || action == WM_SYSKEYUP);
 }
@@ -56,24 +56,22 @@ static bool IsKeyUpAltRight(int action, int virtual_key, bool extended) {
 // Returns true if this key is a key down event of CtrlLeft.
 //
 // This is used to assist a corner case described in |IsKeyDownAltRight|.
-static bool IsKeyDownCtrlLeft(int action, int virtual_key) {
+bool IsKeyDownCtrlLeft(int action, int virtual_key) {
   return virtual_key == VK_LCONTROL &&
          (action == WM_KEYDOWN || action == WM_SYSKEYDOWN);
 }
 
 // Returns if a character sent by Win32 is a dead key.
-static bool IsDeadKey(uint32_t ch) {
+bool IsDeadKey(uint32_t ch) {
   return (ch & kDeadKeyCharMask) != 0;
 }
 
-static char32_t CodePointFromSurrogatePair(wchar_t high, wchar_t low) {
+char32_t CodePointFromSurrogatePair(wchar_t high, wchar_t low) {
   return 0x10000 + ((static_cast<char32_t>(high) & 0x000003FF) << 10) +
          (low & 0x3FF);
 }
 
-static uint16_t ResolveKeyCode(uint16_t original,
-                               bool extended,
-                               uint8_t scancode) {
+uint16_t ResolveKeyCode(uint16_t original, bool extended, uint8_t scancode) {
   switch (original) {
     case VK_SHIFT:
     case VK_LSHIFT:
@@ -89,21 +87,26 @@ static uint16_t ResolveKeyCode(uint16_t original,
   }
 }
 
-static bool IsPrintable(uint32_t c) {
+bool IsPrintable(uint32_t c) {
   constexpr char32_t kMinPrintable = ' ';
   constexpr char32_t kDelete = 0x7F;
   return c >= kMinPrintable && c != kDelete;
 }
 
-static bool IsSysAction(UINT action) {
+bool IsSysAction(UINT action) {
   return action == WM_SYSKEYDOWN || action == WM_SYSKEYUP ||
          action == WM_SYSCHAR || action == WM_SYSDEADCHAR;
 }
 
 }  // namespace
 
-KeyboardManager::KeyboardManager(WindowDelegate* delegate)
-    : window_delegate_(delegate),
+KeyboardManager::KeyboardManager(
+    HWND hwnd,
+    WindowDelegate* delegate,
+    std::shared_ptr<WindowsProcTable> windows_proc_table)
+    : hwnd_(hwnd),
+      window_delegate_(delegate),
+      windows_proc_table_(std::move(windows_proc_table)),
       last_key_is_ctrl_left_down(false),
       should_synthesize_ctrl_left_up(false),
       processing_event_(false) {}
@@ -116,8 +119,8 @@ void KeyboardManager::RedispatchEvent(std::unique_ptr<PendingEvent> event) {
       continue;
     }
     pending_redispatches_.push_back(message);
-    UINT result = window_delegate_->Win32DispatchMessage(
-        message.action, message.wparam, message.lparam);
+    UINT result = windows_proc_table_->Win32SendMessage(
+        hwnd_, message.action, message.wparam, message.lparam);
     if (result != 0) {
       FML_LOG(ERROR) << "Unable to synthesize event for keyboard event.";
     }
@@ -198,8 +201,9 @@ bool KeyboardManager::HandleMessage(UINT const action,
           // Mask the resulting char with kDeadKeyCharMask anyway, because in
           // rare cases the bit is *not* set (US INTL Shift-6 circumflex, see
           // https://github.com/flutter/flutter/issues/92654 .)
-          character =
-              window_delegate_->Win32MapVkToChar(key_code) | kDeadKeyCharMask;
+          character = windows_proc_table_->Win32MapVirtualKey(
+                          key_code, MAPVK_VK_TO_CHAR) |
+                      kDeadKeyCharMask;
         } else {
           character = IsPrintable(code_point) ? code_point : 0;
         }
@@ -276,7 +280,8 @@ bool KeyboardManager::HandleMessage(UINT const action,
               (1 /* repeat_count */ << 0) | (ctrl_left_scancode << 16) |
               (0 /* extended */ << 24) | (1 /* prev_state */ << 30) |
               (1 /* transition */ << 31);
-          window_delegate_->Win32DispatchMessage(WM_KEYUP, VK_CONTROL, lParam);
+          windows_proc_table_->Win32SendMessage(hwnd_, WM_KEYUP, VK_CONTROL,
+                                                lParam);
         }
       }
 
@@ -290,7 +295,8 @@ bool KeyboardManager::HandleMessage(UINT const action,
       // followed by char messages even though `MapVirtualKey` returns a valid
       // character (such as Ctrl + Digit, see
       // https://github.com/flutter/flutter/issues/85587 ).
-      unsigned int character = window_delegate_->Win32MapVkToChar(wparam);
+      unsigned int character =
+          windows_proc_table_->Win32MapVirtualKey(wparam, MAPVK_VK_TO_CHAR);
       UINT next_key_action = PeekNextMessageType(WM_KEYFIRST, WM_KEYLAST);
       bool has_char_action =
           (next_key_action == WM_DEADCHAR ||
@@ -404,8 +410,8 @@ void KeyboardManager::DispatchText(const PendingEvent& event) {
 UINT KeyboardManager::PeekNextMessageType(UINT wMsgFilterMin,
                                           UINT wMsgFilterMax) {
   MSG next_message;
-  BOOL has_msg = window_delegate_->Win32PeekMessage(
-      &next_message, wMsgFilterMin, wMsgFilterMax, PM_NOREMOVE);
+  BOOL has_msg = windows_proc_table_->Win32PeekMessage(
+      &next_message, hwnd_, wMsgFilterMin, wMsgFilterMax, PM_NOREMOVE);
   if (!has_msg) {
     return 0;
   }

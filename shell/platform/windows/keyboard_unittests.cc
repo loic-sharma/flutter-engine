@@ -99,8 +99,10 @@ UINT LayoutFrench(UINT uCode, UINT uMapType) {
 
 class TestKeyboardManager : public KeyboardManager {
  public:
-  explicit TestKeyboardManager(WindowDelegate* delegate)
-      : KeyboardManager(delegate) {}
+  TestKeyboardManager(HWND hwnd,
+                      WindowDelegate* delegate,
+                      std::shared_ptr<WindowsProcTable> windows_proc_table)
+      : KeyboardManager(hwnd, delegate, std::move(windows_proc_table)) {}
 
   bool DuringRedispatch() { return during_redispatch_; }
 
@@ -570,8 +572,9 @@ TEST_F(KeyboardTest, LowerCaseAHandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
 
@@ -581,8 +584,9 @@ TEST_F(KeyboardTest, LowerCaseAHandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
 }
@@ -601,8 +605,9 @@ TEST_F(KeyboardTest, LowerCaseAUnhandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
   EXPECT_CALL_IS_TEXT(tester.key_calls[1], u"a");
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
@@ -613,8 +618,9 @@ TEST_F(KeyboardTest, LowerCaseAUnhandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -631,9 +637,10 @@ TEST_F(KeyboardTest, ArrowLeftHandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalArrowLeft, kLogicalArrowLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalArrowLeft, kLogicalArrowLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
 
@@ -643,9 +650,10 @@ TEST_F(KeyboardTest, ArrowLeftHandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalArrowLeft, kLogicalArrowLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalArrowLeft, kLogicalArrowLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
 }
@@ -662,9 +670,10 @@ TEST_F(KeyboardTest, ArrowLeftUnhandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalArrowLeft, kLogicalArrowLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalArrowLeft, kLogicalArrowLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -674,9 +683,10 @@ TEST_F(KeyboardTest, ArrowLeftUnhandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalArrowLeft, kLogicalArrowLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalArrowLeft, kLogicalArrowLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -694,9 +704,10 @@ TEST_F(KeyboardTest, ShiftLeftUnhandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalShiftLeft, kLogicalShiftLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalShiftLeft, kLogicalShiftLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -706,9 +717,10 @@ TEST_F(KeyboardTest, ShiftLeftUnhandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeRepeat,
-                       kPhysicalShiftLeft, kLogicalShiftLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeRepeat,
+                      kPhysicalShiftLeft, kLogicalShiftLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -719,9 +731,10 @@ TEST_F(KeyboardTest, ShiftLeftUnhandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalShiftLeft, kLogicalShiftLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalShiftLeft, kLogicalShiftLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -739,9 +752,10 @@ TEST_F(KeyboardTest, ShiftRightUnhandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalShiftRight, kLogicalShiftRight, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalShiftRight, kLogicalShiftRight, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -752,9 +766,10 @@ TEST_F(KeyboardTest, ShiftRightUnhandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalShiftRight, kLogicalShiftRight, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalShiftRight, kLogicalShiftRight, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -772,9 +787,10 @@ TEST_F(KeyboardTest, CtrlLeftUnhandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalControlLeft, kLogicalControlLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalControlLeft, kLogicalControlLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -785,9 +801,10 @@ TEST_F(KeyboardTest, CtrlLeftUnhandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalControlLeft, kLogicalControlLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalControlLeft, kLogicalControlLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -805,9 +822,10 @@ TEST_F(KeyboardTest, CtrlRightUnhandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalControlRight, kLogicalControlRight, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalControlRight, kLogicalControlRight, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -818,9 +836,10 @@ TEST_F(KeyboardTest, CtrlRightUnhandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalControlRight, kLogicalControlRight, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalControlRight, kLogicalControlRight, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -838,8 +857,9 @@ TEST_F(KeyboardTest, AltLeftUnhandled) {
           kWmResultDefault)});  // Always pass to the default WndProc.
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalAltLeft, kLogicalAltLeft, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalAltLeft, kLogicalAltLeft, "", kNotSynthesized);
   tester.clear_key_calls();
   // Don't redispatch sys messages.
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
@@ -851,8 +871,9 @@ TEST_F(KeyboardTest, AltLeftUnhandled) {
           kWmResultDefault)});  // Always pass to the default WndProc.
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalAltLeft, kLogicalAltLeft, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalAltLeft, kLogicalAltLeft, "", kNotSynthesized);
   tester.clear_key_calls();
   // Don't redispatch sys messages.
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
@@ -871,9 +892,9 @@ TEST_F(KeyboardTest, AltRightUnhandled) {
           kWmResultDefault)});  // Always pass to the default WndProc.
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalAltRight, kLogicalAltRight, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalAltRight, kLogicalAltRight, "", kNotSynthesized);
   tester.clear_key_calls();
   // Don't redispatch sys messages.
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
@@ -885,9 +906,9 @@ TEST_F(KeyboardTest, AltRightUnhandled) {
           kWmResultDefault)});  // Always pass to the default WndProc.
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalAltRight, kLogicalAltRight, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalAltRight, kLogicalAltRight, "", kNotSynthesized);
   tester.clear_key_calls();
   // Don't redispatch sys messages.
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
@@ -906,9 +927,9 @@ TEST_F(KeyboardTest, MetaLeftUnhandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalMetaLeft, kLogicalMetaLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalMetaLeft, kLogicalMetaLeft, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -918,9 +939,9 @@ TEST_F(KeyboardTest, MetaLeftUnhandled) {
       WmKeyUpInfo{VK_LWIN, kScanCodeMetaLeft, kExtended}.Build(kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalMetaLeft, kLogicalMetaLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalMetaLeft, kLogicalMetaLeft, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -938,9 +959,10 @@ TEST_F(KeyboardTest, MetaRightUnhandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalMetaRight, kLogicalMetaRight, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalMetaRight, kLogicalMetaRight, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -951,9 +973,10 @@ TEST_F(KeyboardTest, MetaRightUnhandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalMetaRight, kLogicalMetaRight, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalMetaRight, kLogicalMetaRight, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -978,10 +1001,12 @@ TEST_F(KeyboardTest, RepeatA) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[1], kFlutterKeyEventTypeRepeat,
-                       kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[1].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[1].key_event, kFlutterKeyEventTypeRepeat,
+                      kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
 }
 
@@ -1011,10 +1036,12 @@ TEST_F(KeyboardTest, RestartClearsKeyboardState) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[1], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[1].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[1].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
 }
 
@@ -1033,9 +1060,10 @@ TEST_F(KeyboardTest, ShiftLeftKeyA) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalShiftLeft, kLogicalShiftLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalShiftLeft, kLogicalShiftLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1047,8 +1075,9 @@ TEST_F(KeyboardTest, ShiftLeftKeyA) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyA, kLogicalKeyA, "A", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyA, kLogicalKeyA, "A", kNotSynthesized);
   EXPECT_CALL_IS_TEXT(tester.key_calls[1], u"A");
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
@@ -1060,9 +1089,10 @@ TEST_F(KeyboardTest, ShiftLeftKeyA) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalShiftLeft, kLogicalShiftLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalShiftLeft, kLogicalShiftLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1072,8 +1102,9 @@ TEST_F(KeyboardTest, ShiftLeftKeyA) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -1093,9 +1124,10 @@ TEST_F(KeyboardTest, CtrlLeftKeyA) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalControlLeft, kLogicalControlLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalControlLeft, kLogicalControlLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1107,8 +1139,9 @@ TEST_F(KeyboardTest, CtrlLeftKeyA) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
 
@@ -1118,8 +1151,9 @@ TEST_F(KeyboardTest, CtrlLeftKeyA) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1130,9 +1164,10 @@ TEST_F(KeyboardTest, CtrlLeftKeyA) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalControlLeft, kLogicalControlLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalControlLeft, kLogicalControlLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -1151,9 +1186,10 @@ TEST_F(KeyboardTest, CtrlLeftDigit1) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalControlLeft, kLogicalControlLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalControlLeft, kLogicalControlLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1163,8 +1199,9 @@ TEST_F(KeyboardTest, CtrlLeftDigit1) {
           .Build(kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalDigit1, kLogicalDigit1, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalDigit1, kLogicalDigit1, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1174,8 +1211,9 @@ TEST_F(KeyboardTest, CtrlLeftDigit1) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalDigit1, kLogicalDigit1, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalDigit1, kLogicalDigit1, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1186,9 +1224,10 @@ TEST_F(KeyboardTest, CtrlLeftDigit1) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalControlLeft, kLogicalControlLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalControlLeft, kLogicalControlLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -1209,8 +1248,9 @@ TEST_F(KeyboardTest, Digit1OnFrenchLayout) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalDigit1, kLogicalDigit1, "&", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalDigit1, kLogicalDigit1, "&", kNotSynthesized);
   EXPECT_CALL_IS_TEXT(tester.key_calls[1], u"&");
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
@@ -1221,8 +1261,9 @@ TEST_F(KeyboardTest, Digit1OnFrenchLayout) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalDigit1, kLogicalDigit1, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalDigit1, kLogicalDigit1, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -1244,12 +1285,13 @@ TEST_F(KeyboardTest, AltGrModifiedKey) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalControlLeft, kLogicalControlLeft, "",
-                       kNotSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[1], kFlutterKeyEventTypeDown,
-                       kPhysicalAltRight, kLogicalAltRight, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalControlLeft, kLogicalControlLeft, "",
+                      kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[1].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[1].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalAltRight, kLogicalAltRight, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
 
@@ -1261,8 +1303,9 @@ TEST_F(KeyboardTest, AltGrModifiedKey) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyQ, kLogicalKeyQ, "@", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyQ, kLogicalKeyQ, "@", kNotSynthesized);
   EXPECT_CALL_IS_TEXT(tester.key_calls[1], u"@");
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
@@ -1273,8 +1316,9 @@ TEST_F(KeyboardTest, AltGrModifiedKey) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalKeyQ, kLogicalKeyQ, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalKeyQ, kLogicalKeyQ, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1291,12 +1335,13 @@ TEST_F(KeyboardTest, AltGrModifiedKey) {
           kWmResultDefault)});
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalControlLeft, kLogicalControlLeft, "",
-                       kNotSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[1], kFlutterKeyEventTypeUp,
-                       kPhysicalAltRight, kLogicalAltRight, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalControlLeft, kLogicalControlLeft, "",
+                      kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[1].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[1].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalAltRight, kLogicalAltRight, "", kNotSynthesized);
   tester.clear_key_calls();
   // The sys key up must not be redispatched. The forged ControlLeft up will.
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
@@ -1332,12 +1377,13 @@ TEST_F(KeyboardTest, AltGrTwice) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalControlLeft, kLogicalControlLeft, "",
-                       kNotSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[1], kFlutterKeyEventTypeDown,
-                       kPhysicalAltRight, kLogicalAltRight, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalControlLeft, kLogicalControlLeft, "",
+                      kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[1].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[1].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalAltRight, kLogicalAltRight, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
 
@@ -1353,12 +1399,13 @@ TEST_F(KeyboardTest, AltGrTwice) {
       WmSysKeyUpInfo{VK_MENU, kScanCodeAlt, kExtended}.Build(
           kWmResultDefault)});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalControlLeft, kLogicalControlLeft, "",
-                       kNotSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[1], kFlutterKeyEventTypeUp,
-                       kPhysicalAltRight, kLogicalAltRight, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalControlLeft, kLogicalControlLeft, "",
+                      kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[1].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[1].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalAltRight, kLogicalAltRight, "", kNotSynthesized);
   tester.clear_key_calls();
   // The sys key up must not be redispatched. The forged ControlLeft up will.
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
@@ -1374,12 +1421,13 @@ TEST_F(KeyboardTest, AltGrTwice) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalControlLeft, kLogicalControlLeft, "",
-                       kNotSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[1], kFlutterKeyEventTypeDown,
-                       kPhysicalAltRight, kLogicalAltRight, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalControlLeft, kLogicalControlLeft, "",
+                      kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[1].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[1].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalAltRight, kLogicalAltRight, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
 
@@ -1395,12 +1443,13 @@ TEST_F(KeyboardTest, AltGrTwice) {
       WmSysKeyUpInfo{VK_MENU, kScanCodeAlt, kExtended}.Build(
           kWmResultDefault)});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalControlLeft, kLogicalControlLeft, "",
-                       kNotSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[1], kFlutterKeyEventTypeUp,
-                       kPhysicalAltRight, kLogicalAltRight, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalControlLeft, kLogicalControlLeft, "",
+                      kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[1].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[1].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalAltRight, kLogicalAltRight, "", kNotSynthesized);
   tester.clear_key_calls();
   // The sys key up must not be redispatched. The forged ControlLeft up will.
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
@@ -1410,8 +1459,9 @@ TEST_F(KeyboardTest, AltGrTwice) {
       WmKeyUpInfo{VK_CONTROL, kScanCodeControl, kNotExtended}.Build(
           kWmResultZero)});
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown, 0, 0, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      0, 0, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
 }
@@ -1432,9 +1482,10 @@ TEST_F(KeyboardTest, DeadKeyThatCombines) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalBracketLeft, kLogicalBracketRight, "^",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalBracketLeft, kLogicalBracketRight, "^",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
 
@@ -1444,9 +1495,10 @@ TEST_F(KeyboardTest, DeadKeyThatCombines) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalBracketLeft, kLogicalBracketRight, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalBracketLeft, kLogicalBracketRight, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1458,8 +1510,9 @@ TEST_F(KeyboardTest, DeadKeyThatCombines) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyE, kLogicalKeyE, "ê", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyE, kLogicalKeyE, "ê", kNotSynthesized);
   EXPECT_CALL_IS_TEXT(tester.key_calls[1], u"ê");
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
@@ -1470,8 +1523,9 @@ TEST_F(KeyboardTest, DeadKeyThatCombines) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalKeyE, kLogicalKeyE, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalKeyE, kLogicalKeyE, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -1492,9 +1546,10 @@ TEST_F(KeyboardTest, DeadKeyWithoutDeadMaskThatCombines) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalShiftLeft, kLogicalShiftLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalShiftLeft, kLogicalShiftLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1506,8 +1561,9 @@ TEST_F(KeyboardTest, DeadKeyWithoutDeadMaskThatCombines) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalDigit6, kLogicalDigit6, "6", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalDigit6, kLogicalDigit6, "6", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
 
@@ -1516,8 +1572,9 @@ TEST_F(KeyboardTest, DeadKeyWithoutDeadMaskThatCombines) {
       WmKeyUpInfo{'6', kScanCodeDigit6, kNotExtended}.Build(kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalDigit6, kLogicalDigit6, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalDigit6, kLogicalDigit6, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1528,9 +1585,10 @@ TEST_F(KeyboardTest, DeadKeyWithoutDeadMaskThatCombines) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalShiftLeft, kLogicalShiftLeft, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalShiftLeft, kLogicalShiftLeft, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1542,8 +1600,9 @@ TEST_F(KeyboardTest, DeadKeyWithoutDeadMaskThatCombines) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyE, kLogicalKeyE, "ê", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyE, kLogicalKeyE, "ê", kNotSynthesized);
   EXPECT_CALL_IS_TEXT(tester.key_calls[1], u"ê");
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
@@ -1554,8 +1613,9 @@ TEST_F(KeyboardTest, DeadKeyWithoutDeadMaskThatCombines) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalKeyE, kLogicalKeyE, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalKeyE, kLogicalKeyE, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -1576,9 +1636,10 @@ TEST_F(KeyboardTest, DeadKeyThatDoesNotCombine) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalBracketLeft, kLogicalBracketRight, "^",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalBracketLeft, kLogicalBracketRight, "^",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
 
@@ -1588,9 +1649,10 @@ TEST_F(KeyboardTest, DeadKeyThatDoesNotCombine) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalBracketLeft, kLogicalBracketRight, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalBracketLeft, kLogicalBracketRight, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1604,8 +1666,9 @@ TEST_F(KeyboardTest, DeadKeyThatDoesNotCombine) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 3);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalDigit1, kLogicalDigit1, "^", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalDigit1, kLogicalDigit1, "^", kNotSynthesized);
   EXPECT_CALL_IS_TEXT(tester.key_calls[1], u"^");
   EXPECT_CALL_IS_TEXT(tester.key_calls[2], u"&");
   tester.clear_key_calls();
@@ -1622,8 +1685,9 @@ TEST_F(KeyboardTest, DeadKeyThatDoesNotCombine) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalDigit1, kLogicalDigit1, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalDigit1, kLogicalDigit1, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -1645,9 +1709,10 @@ TEST_F(KeyboardTest, DeadKeyTwiceThenLetter) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalBackquote, kLogicalBackquote, "`",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalBackquote, kLogicalBackquote, "`",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
 
@@ -1657,9 +1722,10 @@ TEST_F(KeyboardTest, DeadKeyTwiceThenLetter) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalBackquote, kLogicalBackquote, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalBackquote, kLogicalBackquote, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1684,9 +1750,10 @@ TEST_F(KeyboardTest, DeadKeyTwiceThenLetter) {
 
   EXPECT_EQ(recorded_callbacks.size(), 1);
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalBackquote, kLogicalBackquote, "`",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalBackquote, kLogicalBackquote, "`",
+                      kNotSynthesized);
   tester.clear_key_calls();
   // Key down event responded with false.
   recorded_callbacks.front()(false);
@@ -1707,9 +1774,10 @@ TEST_F(KeyboardTest, DeadKeyTwiceThenLetter) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalBackquote, kLogicalBackquote, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalBackquote, kLogicalBackquote, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -1734,8 +1802,9 @@ TEST_F(KeyboardTest, MultibyteCharacter) {
   const char* st = tester.key_calls[0].key_event.character;
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyW, kLogicalKeyW, "𐍅", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyW, kLogicalKeyW, "𐍅", kNotSynthesized);
   EXPECT_CALL_IS_TEXT(tester.key_calls[1], u"𐍅");
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 3);
@@ -1746,8 +1815,9 @@ TEST_F(KeyboardTest, MultibyteCharacter) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalKeyW, kLogicalKeyW, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalKeyW, kLogicalKeyW, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -1768,16 +1838,18 @@ TEST_F(KeyboardTest, SynthesizeModifiers) {
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_LSHIFT, true, true}, event1});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalShiftLeft, kLogicalShiftLeft, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalShiftLeft, kLogicalShiftLeft, "", kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_LSHIFT, false, true}, event2});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalShiftLeft, kLogicalShiftLeft, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalShiftLeft, kLogicalShiftLeft, "", kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1785,18 +1857,20 @@ TEST_F(KeyboardTest, SynthesizeModifiers) {
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_RSHIFT, true, true}, event1});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalShiftRight, kLogicalShiftRight, "",
-                       kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalShiftRight, kLogicalShiftRight, "",
+                      kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_RSHIFT, false, true}, event2});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalShiftRight, kLogicalShiftRight, "",
-                       kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalShiftRight, kLogicalShiftRight, "",
+                      kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1804,18 +1878,20 @@ TEST_F(KeyboardTest, SynthesizeModifiers) {
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_LCONTROL, true, true}, event1});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalControlLeft, kLogicalControlLeft, "",
-                       kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalControlLeft, kLogicalControlLeft, "",
+                      kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_LCONTROL, false, true}, event2});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalControlLeft, kLogicalControlLeft, "",
-                       kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalControlLeft, kLogicalControlLeft, "",
+                      kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1823,18 +1899,20 @@ TEST_F(KeyboardTest, SynthesizeModifiers) {
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_RCONTROL, true, true}, event1});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalControlRight, kLogicalControlRight, "",
-                       kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalControlRight, kLogicalControlRight, "",
+                      kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_RCONTROL, false, true}, event2});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalControlRight, kLogicalControlRight, "",
-                       kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalControlRight, kLogicalControlRight, "",
+                      kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1842,16 +1920,18 @@ TEST_F(KeyboardTest, SynthesizeModifiers) {
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_LMENU, true, true}, event1});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalAltLeft, kLogicalAltLeft, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalAltLeft, kLogicalAltLeft, "", kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_LMENU, false, true}, event2});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalAltLeft, kLogicalAltLeft, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalAltLeft, kLogicalAltLeft, "", kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1859,16 +1939,18 @@ TEST_F(KeyboardTest, SynthesizeModifiers) {
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_RMENU, true, true}, event1});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalAltRight, kLogicalAltRight, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalAltRight, kLogicalAltRight, "", kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_RMENU, false, true}, event2});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalAltRight, kLogicalAltRight, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalAltRight, kLogicalAltRight, "", kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1876,16 +1958,18 @@ TEST_F(KeyboardTest, SynthesizeModifiers) {
   tester.InjectKeyboardChanges(
       std::vector<KeyboardChange>{KeyStateChange{VK_LWIN, true, true}, event1});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalMetaLeft, kLogicalMetaLeft, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalMetaLeft, kLogicalMetaLeft, "", kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_LWIN, false, true}, event2});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalMetaLeft, kLogicalMetaLeft, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalMetaLeft, kLogicalMetaLeft, "", kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1893,16 +1977,18 @@ TEST_F(KeyboardTest, SynthesizeModifiers) {
   tester.InjectKeyboardChanges(
       std::vector<KeyboardChange>{KeyStateChange{VK_RWIN, true, true}, event1});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalMetaRight, kLogicalMetaRight, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalMetaRight, kLogicalMetaRight, "", kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_RWIN, false, true}, event2});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalMetaRight, kLogicalMetaRight, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalMetaRight, kLogicalMetaRight, "", kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1911,20 +1997,24 @@ TEST_F(KeyboardTest, SynthesizeModifiers) {
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_CAPITAL, false, true}, event1});
   EXPECT_EQ(tester.key_calls.size(), 3);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalCapsLock, kLogicalCapsLock, "", kSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[1], kFlutterKeyEventTypeUp,
-                       kPhysicalCapsLock, kLogicalCapsLock, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalCapsLock, kLogicalCapsLock, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[1].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[1].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalCapsLock, kLogicalCapsLock, "", kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_CAPITAL, false, false}, event2});
   EXPECT_EQ(tester.key_calls.size(), 3);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalCapsLock, kLogicalCapsLock, "", kSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[1], kFlutterKeyEventTypeUp,
-                       kPhysicalCapsLock, kLogicalCapsLock, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalCapsLock, kLogicalCapsLock, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[1].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[1].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalCapsLock, kLogicalCapsLock, "", kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1932,21 +2022,24 @@ TEST_F(KeyboardTest, SynthesizeModifiers) {
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_SCROLL, true, true}, event1});
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalScrollLock, kLogicalScrollLock, "",
-                       kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalScrollLock, kLogicalScrollLock, "",
+                      kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_SCROLL, true, false}, event2});
   EXPECT_EQ(tester.key_calls.size(), 3);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalScrollLock, kLogicalScrollLock, "",
-                       kSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[1], kFlutterKeyEventTypeDown,
-                       kPhysicalScrollLock, kLogicalScrollLock, "",
-                       kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalScrollLock, kLogicalScrollLock, "",
+                      kSynthesized);
+  EXPECT_EQ(tester.key_calls[1].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[1].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalScrollLock, kLogicalScrollLock, "",
+                      kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -1958,20 +2051,24 @@ TEST_F(KeyboardTest, SynthesizeModifiers) {
   // 4 keycalls with an extra pair of key down and up.
   // https://github.com/flutter/flutter/issues/98533
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalNumLock, kLogicalNumLock, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalNumLock, kLogicalNumLock, "", kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
   tester.InjectKeyboardChanges(std::vector<KeyboardChange>{
       KeyStateChange{VK_NUMLOCK, false, true}, event2});
   EXPECT_EQ(tester.key_calls.size(), 4);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalNumLock, kLogicalNumLock, "", kSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[1], kFlutterKeyEventTypeDown,
-                       kPhysicalNumLock, kLogicalNumLock, "", kSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[2], kFlutterKeyEventTypeUp,
-                       kPhysicalNumLock, kLogicalNumLock, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalNumLock, kLogicalNumLock, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[1].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[1].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalNumLock, kLogicalNumLock, "", kSynthesized);
+  EXPECT_EQ(tester.key_calls[2].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[2].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalNumLock, kLogicalNumLock, "", kSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 }
@@ -1996,8 +2093,9 @@ TEST_F(KeyboardTest, ImeExtendedEventsAreIgnored) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown, 0, 0, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      0, 0, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
 }
@@ -2028,16 +2126,20 @@ TEST_F(KeyboardTest, UpOnlyImeEventsAreCorrectlyHandled) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 4);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalShiftLeft, kLogicalShiftLeft, "",
-                       kNotSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[1], kFlutterKeyEventTypeDown, 0, 0, "",
-                       kNotSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[2], kFlutterKeyEventTypeUp,
-                       kPhysicalShiftLeft, kLogicalShiftLeft, "",
-                       kNotSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[3], kFlutterKeyEventTypeDown, 0, 0, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalShiftLeft, kLogicalShiftLeft, "",
+                      kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[1].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[1].key_event, kFlutterKeyEventTypeDown,
+                      0, 0, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[2].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[2].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalShiftLeft, kLogicalShiftLeft, "",
+                      kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[3].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[3].key_event, kFlutterKeyEventTypeDown,
+                      0, 0, "", kNotSynthesized);
   tester.clear_key_calls();
 }
 
@@ -2075,8 +2177,9 @@ TEST_F(KeyboardTest, SlowFrameworkResponse) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
   EXPECT_EQ(recorded_callbacks.size(), 1);
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
 
@@ -2086,8 +2189,9 @@ TEST_F(KeyboardTest, SlowFrameworkResponse) {
   EXPECT_EQ(tester.key_calls.size(), 3);
   EXPECT_EQ(recorded_callbacks.size(), 2);
   EXPECT_CALL_IS_TEXT(tester.key_calls[1], u"a");
-  EXPECT_CALL_IS_EVENT(tester.key_calls[2], kFlutterKeyEventTypeRepeat,
-                       kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[2].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[2].key_event, kFlutterKeyEventTypeRepeat,
+                      kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
 
   // The second response.
@@ -2130,8 +2234,9 @@ TEST_F(KeyboardTest, SlowFrameworkResponseForIdenticalEvents) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
 
@@ -2149,8 +2254,9 @@ TEST_F(KeyboardTest, SlowFrameworkResponseForIdenticalEvents) {
 
   EXPECT_EQ(tester.key_calls.size(), 2);
   EXPECT_CALL_IS_TEXT(tester.key_calls[0], u"a");
-  EXPECT_CALL_IS_EVENT(tester.key_calls[1], kFlutterKeyEventTypeUp,
-                       kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[1].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[1].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
 
@@ -2171,8 +2277,9 @@ TEST_F(KeyboardTest, SlowFrameworkResponseForIdenticalEvents) {
   // the down event to be dispatched.
   recorded_callbacks.back()(false);
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(recorded_callbacks.size(), 3);
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
@@ -2204,8 +2311,9 @@ TEST_F(KeyboardTest, TextInputSubmit) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalEnter, kLogicalEnter, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalEnter, kLogicalEnter, "", kNotSynthesized);
   EXPECT_CALL_IS_TEXT_METHOD_CALL(
       tester.key_calls[1],
       "{"
@@ -2221,8 +2329,9 @@ TEST_F(KeyboardTest, TextInputSubmit) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalEnter, kLogicalEnter, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalEnter, kLogicalEnter, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -2238,8 +2347,9 @@ TEST_F(KeyboardTest, TextInputSubmit) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
   EXPECT_CALL_IS_TEXT(tester.key_calls[1], u"a");
   tester.clear_key_calls();
 
@@ -2249,8 +2359,9 @@ TEST_F(KeyboardTest, TextInputSubmit) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
   tester.clear_key_calls();
 }
 
@@ -2277,8 +2388,9 @@ TEST_F(KeyboardTest, VietnameseTelexAddDiacriticWithFastResponse) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
   EXPECT_CALL_IS_TEXT(tester.key_calls[1], u"a");
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
@@ -2289,8 +2401,9 @@ TEST_F(KeyboardTest, VietnameseTelexAddDiacriticWithFastResponse) {
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -2309,12 +2422,14 @@ TEST_F(KeyboardTest, VietnameseTelexAddDiacriticWithFastResponse) {
       WmKeyUpInfo{VK_PACKET, 0, kNotExtended}.Build(kWmResultDefault)});
 
   EXPECT_EQ(tester.key_calls.size(), 3);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalBackspace, kLogicalBackspace, "",
-                       kNotSynthesized);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[1], kFlutterKeyEventTypeUp,
-                       kPhysicalBackspace, kLogicalBackspace, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalBackspace, kLogicalBackspace, "",
+                      kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[1].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[1].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalBackspace, kLogicalBackspace, "",
+                      kNotSynthesized);
   EXPECT_CALL_IS_TEXT(tester.key_calls[2], u"à");
   tester.clear_key_calls();
   // TODO(dkwingsmt): This count should probably be 4. Currently the CHAR 0x8
@@ -2331,8 +2446,9 @@ TEST_F(KeyboardTest, VietnameseTelexAddDiacriticWithFastResponse) {
           .Build(kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown, 0, 0, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      0, 0, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
 }
@@ -2361,8 +2477,9 @@ void VietnameseTelexAddDiacriticWithSlowResponse(WindowsTestContext& context,
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 2);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalKeyA, kLogicalKeyA, "a", kNotSynthesized);
   EXPECT_CALL_IS_TEXT(tester.key_calls[1], u"a");
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 2);
@@ -2373,8 +2490,9 @@ void VietnameseTelexAddDiacriticWithSlowResponse(WindowsTestContext& context,
           kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalKeyA, kLogicalKeyA, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 1);
 
@@ -2406,9 +2524,10 @@ void VietnameseTelexAddDiacriticWithSlowResponse(WindowsTestContext& context,
   // the last character deleted  (denoted by `string1`). Processing the char
   // message before then will cause the final text to set to `string1`.
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown,
-                       kPhysicalBackspace, kLogicalBackspace, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      kPhysicalBackspace, kLogicalBackspace, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
 
@@ -2416,9 +2535,10 @@ void VietnameseTelexAddDiacriticWithSlowResponse(WindowsTestContext& context,
   recorded_callbacks[0](backspace_response);
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeUp,
-                       kPhysicalBackspace, kLogicalBackspace, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeUp,
+                      kPhysicalBackspace, kLogicalBackspace, "",
+                      kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(),
             backspace_response ? 0 : 2);
@@ -2438,8 +2558,9 @@ void VietnameseTelexAddDiacriticWithSlowResponse(WindowsTestContext& context,
           .Build(kWmResultZero)});
 
   EXPECT_EQ(tester.key_calls.size(), 1);
-  EXPECT_CALL_IS_EVENT(tester.key_calls[0], kFlutterKeyEventTypeDown, 0, 0, "",
-                       kNotSynthesized);
+  EXPECT_EQ(tester.key_calls[0].type, KeyCall::kKeyCallOnKey);
+  EXPECT_EVENT_EQUALS(tester.key_calls[0].key_event, kFlutterKeyEventTypeDown,
+                      0, 0, "", kNotSynthesized);
   tester.clear_key_calls();
   EXPECT_EQ(tester.RedispatchedMessageCountAndClear(), 0);
 }

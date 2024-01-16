@@ -13,6 +13,7 @@
 #include <map>
 
 #include "flutter/fml/macros.h"
+#include "flutter/shell/platform/windows/windows_proc_table.h"
 
 namespace flutter {
 
@@ -22,13 +23,12 @@ namespace flutter {
 // converts them to key calls (|WindowDelegate::OnKey|) and possibly text calls
 // (|WindowDelegate::OnText|).
 //
-// |KeyboardManager| requires a |WindowDelegate| to define how to access Win32
-// system calls (to allow mocking) and where to send the results of key calls
-// and text calls to.
+// |KeyboardManager| requires a |WindowDelegate| to send the results of key
+// calls and text calls to.
 //
-// Typically, |KeyboardManager| is owned by a |Window|, which also implements
-// the window delegate. The key calls and text calls are forwarded to those of
-// |Window|'s, and consequently, those of |FlutterWindowsView|'s.
+// Typically, |KeyboardManager| is owned by a |FlutterWindow|, which also
+// implements the window delegate. The key calls and text calls are forwarded to
+// |FlutterWindow|, and consequently, to |FlutterWindowsView|.
 //
 // ## Terminology
 //
@@ -45,10 +45,9 @@ namespace flutter {
 //    which contains semi-processed messages.
 class KeyboardManager {
  public:
-  // Define how the keyboard manager accesses Win32 system calls (to allow
-  // mocking) and sends key calls and text calls.
+  // Used to notify the window of key calls and text calls.
   //
-  // Typically implemented by |Window|.
+  // Typically implemented by |FlutterWindow|.
   class WindowDelegate {
    public:
     using KeyEventCallback = std::function<void(bool)>;
@@ -68,31 +67,13 @@ class KeyboardManager {
                        bool extended,
                        bool was_down,
                        KeyEventCallback callback) = 0;
-
-    // Win32's PeekMessage.
-    //
-    // Used to process key messages.
-    virtual BOOL Win32PeekMessage(LPMSG lpMsg,
-                                  UINT wMsgFilterMin,
-                                  UINT wMsgFilterMax,
-                                  UINT wRemoveMsg) = 0;
-
-    // Win32's MapVirtualKey(*, MAPVK_VK_TO_CHAR).
-    //
-    // Used to process key messages.
-    virtual uint32_t Win32MapVkToChar(uint32_t virtual_key) = 0;
-
-    // Win32's |SendMessage|.
-    //
-    // Used to synthesize key messages.
-    virtual UINT Win32DispatchMessage(UINT Msg,
-                                      WPARAM wParam,
-                                      LPARAM lParam) = 0;
   };
 
   using KeyEventCallback = WindowDelegate::KeyEventCallback;
 
-  explicit KeyboardManager(WindowDelegate* delegate);
+  KeyboardManager(HWND hwnd,
+                  WindowDelegate* delegate,
+                  std::shared_ptr<WindowsProcTable> windows_proc_table);
 
   // Processes Win32 messages related to keyboard and text.
   //
@@ -193,7 +174,14 @@ class KeyboardManager {
   // redispatch list, and returns true. Otherwise, returns false;
   bool RemoveRedispatchedMessage(UINT action, WPARAM wparam, LPARAM lparam);
 
+  // The handle to the window receiving keyboard messages.
+  HWND hwnd_;
+
+  // The window that receives semi-processed key calls and text calls.
   WindowDelegate* window_delegate_;
+
+  // Abstracts Windows APIs to enable mocking.
+  std::shared_ptr<WindowsProcTable> windows_proc_table_;
 
   // Keeps track of all messages during the current session.
   //

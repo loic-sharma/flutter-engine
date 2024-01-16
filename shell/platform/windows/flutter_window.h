@@ -50,20 +50,6 @@ class FlutterWindow : public KeyboardManager::WindowDelegate,
                        unsigned int width,
                        unsigned int height);
 
-  // |KeyboardManager::WindowDelegate|
-  virtual BOOL Win32PeekMessage(LPMSG lpMsg,
-                                UINT wMsgFilterMin,
-                                UINT wMsgFilterMax,
-                                UINT wRemoveMsg) override;
-
-  // |KeyboardManager::WindowDelegate|
-  virtual uint32_t Win32MapVkToChar(uint32_t virtual_key) override;
-
-  // |KeyboardManager::WindowDelegate|
-  virtual UINT Win32DispatchMessage(UINT Msg,
-                                    WPARAM wParam,
-                                    LPARAM lParam) override;
-
   // Called when the DPI changes either when a
   // user drags the window between monitors of differing DPI or when the user
   // manually changes the scale factor.

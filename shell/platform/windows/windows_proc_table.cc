@@ -19,6 +19,25 @@ WindowsProcTable::~WindowsProcTable() {
   user32_ = nullptr;
 }
 
+BOOL WindowsProcTable::Win32PeekMessage(LPMSG lpMsg,
+                                        HWND hWnd,
+                                        UINT wMsgFilterMin,
+                                        UINT wMsgFilterMax,
+                                        UINT wRemoveMsg) {
+  return ::PeekMessage(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg);
+}
+
+LRESULT WindowsProcTable::Win32SendMessage(HWND hWnd,
+                                           UINT Msg,
+                                           WPARAM wParam,
+                                           LPARAM lParam) {
+  return ::SendMessage(hWnd, Msg, wParam, lParam);
+}
+
+UINT WindowsProcTable::Win32MapVirtualKey(UINT uCode, UINT uMapType) {
+  return ::MapVirtualKey(uCode, uMapType);
+}
+
 BOOL WindowsProcTable::GetPointerType(UINT32 pointer_id,
                                       POINTER_INPUT_TYPE* pointer_type) const {
   if (!get_pointer_type_.has_value()) {
