@@ -316,7 +316,6 @@ void FlutterWindowsView::SendWindowMetrics(size_t width,
                                            size_t height,
                                            double dpiScale) const {
   FlutterWindowMetricsEvent event = {};
-  memset(&event, 0, sizeof(FlutterWindowMetricsEvent));
   event.struct_size = sizeof(event);
   event.width = width;
   event.height = height;
@@ -375,7 +374,6 @@ void FlutterWindowsView::SendPointerMove(double x,
   FlutterPointerEvent event = {};
   event.x = x;
   event.y = y;
-  event.view_id = view_id_;
 
   SetEventPhaseFromCursorButtonState(&event, state);
   SendPointerEventWithData(event, state);
@@ -387,7 +385,6 @@ void FlutterWindowsView::SendPointerDown(double x,
   FlutterPointerEvent event = {};
   event.x = x;
   event.y = y;
-  event.view_id = view_id_;
 
   SetEventPhaseFromCursorButtonState(&event, state);
   SendPointerEventWithData(event, state);
@@ -401,7 +398,6 @@ void FlutterWindowsView::SendPointerUp(double x,
   FlutterPointerEvent event = {};
   event.x = x;
   event.y = y;
-  event.view_id = view_id_;
 
   SetEventPhaseFromCursorButtonState(&event, state);
   SendPointerEventWithData(event, state);
@@ -417,7 +413,6 @@ void FlutterWindowsView::SendPointerLeave(double x,
   event.x = x;
   event.y = y;
   event.phase = FlutterPointerPhase::kRemove;
-  event.view_id = view_id_;
   SendPointerEventWithData(event, state);
 }
 
@@ -432,7 +427,6 @@ void FlutterWindowsView::SendPointerPanZoomStart(int32_t device_id,
   event.x = x;
   event.y = y;
   event.phase = FlutterPointerPhase::kPanZoomStart;
-  event.view_id = view_id_;
   SendPointerEventWithData(event, state);
 }
 
@@ -451,7 +445,6 @@ void FlutterWindowsView::SendPointerPanZoomUpdate(int32_t device_id,
   event.scale = scale;
   event.rotation = rotation;
   event.phase = FlutterPointerPhase::kPanZoomUpdate;
-  event.view_id = view_id_;
   SendPointerEventWithData(event, state);
 }
 
@@ -462,7 +455,6 @@ void FlutterWindowsView::SendPointerPanZoomEnd(int32_t device_id) {
   event.x = state->pan_zoom_start_x;
   event.y = state->pan_zoom_start_y;
   event.phase = FlutterPointerPhase::kPanZoomEnd;
-  event.view_id = view_id_;
   SendPointerEventWithData(event, state);
 }
 
@@ -520,7 +512,6 @@ void FlutterWindowsView::SendScroll(double x,
   event.signal_kind = FlutterPointerSignalKind::kFlutterPointerSignalKindScroll;
   event.scroll_delta_x = delta_x * scroll_offset_multiplier;
   event.scroll_delta_y = delta_y * scroll_offset_multiplier;
-  event.view_id = view_id_;
   SetEventPhaseFromCursorButtonState(&event, state);
   SendPointerEventWithData(event, state);
 }
@@ -536,7 +527,6 @@ void FlutterWindowsView::SendScrollInertiaCancel(int32_t device_id,
   event.y = y;
   event.signal_kind =
       FlutterPointerSignalKind::kFlutterPointerSignalKindScrollInertiaCancel;
-  event.view_id = view_id_;
   SetEventPhaseFromCursorButtonState(&event, state);
   SendPointerEventWithData(event, state);
 }
@@ -568,10 +558,7 @@ void FlutterWindowsView::SendPointerEventWithData(
   event.device_kind = state->device_kind;
   event.device = state->pointer_id;
   event.buttons = state->buttons;
-  // TODO(dkwingsmt): Use the correct view ID for pointer events once the
-  // Windows embedder supports multiple views.
-  // https://github.com/flutter/flutter/issues/138179
-  event.view_id = flutter::kFlutterImplicitViewId;
+  event.view_id = view_id_;
 
   // Set metadata that's always the same regardless of the event.
   event.struct_size = sizeof(event);

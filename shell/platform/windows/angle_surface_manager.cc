@@ -4,7 +4,6 @@
 
 #include "flutter/shell/platform/windows/angle_surface_manager.h"
 
-#include <GLES3/gl3.h>
 #include <vector>
 
 #include "flutter/fml/logging.h"
@@ -18,10 +17,6 @@ static void LogEglError(std::string message) {
 }
 
 namespace flutter {
-
-typedef void (*glGetIntegervProc)(GLenum pname, GLint* params);
-typedef GLubyte* (*glGetStringProc)(GLenum name);
-typedef GLubyte* (*glGetStringiProc)(GLenum name, GLuint index);
 
 int AngleSurfaceManager::instance_count_ = 0;
 
