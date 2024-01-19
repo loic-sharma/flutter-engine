@@ -12,6 +12,16 @@ namespace flutter {
 
 namespace {
 
+using GetPlatformDisplayEXT = EGLDisplay(_stdcall*)(EGLenum platform,
+                                                    void* native_display,
+                                                    const EGLint* attrib_list);
+using QueryDisplayAttribEXT = EGLBoolean(_stdcall*)(EGLDisplay display,
+                                                    EGLint attribute,
+                                                    EGLAttrib* value);
+using QueryDeviceAttribEXT = EGLBoolean(__stdcall*)(EGLDeviceEXT device,
+                                                    EGLint attribute,
+                                                    EGLAttrib* value);
+
 const char* EGLErrorToString(EGLint error) {
   switch (error) {
     case EGL_SUCCESS:
@@ -61,16 +71,6 @@ void LogEGLError(const char* file, int line) {
 }
 
 #define WINDOWS_LOG_EGL_ERROR LogEGLError(__FILE__, __LINE__);
-
-using GetPlatformDisplayEXT = EGLDisplay(_stdcall*)(EGLenum platform,
-                                                    void* native_display,
-                                                    const EGLint* attrib_list);
-using QueryDisplayAttribEXT = EGLBoolean(_stdcall*)(EGLDisplay display,
-                                                    EGLint attribute,
-                                                    EGLAttrib* value);
-using QueryDeviceAttribEXT = EGLBoolean(__stdcall*)(EGLDeviceEXT device,
-                                                    EGLint attribute,
-                                                    EGLAttrib* value);
 
 }  // namespace
 
