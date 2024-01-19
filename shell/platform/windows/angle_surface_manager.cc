@@ -732,7 +732,7 @@ WindowsEGLContext::~WindowsEGLContext() {
     return;
   }
 
-  if ((::eglDestroyContext(display_, context_)) != EGL_TRUE) {
+  if (::eglDestroyContext(display_, context_) != EGL_TRUE) {
     WINDOWS_LOG_EGL_ERROR;
   }
 }
@@ -746,8 +746,9 @@ bool WindowsEGLContext::IsCurrent() const {
 }
 
 bool WindowsEGLContext::MakeCurrent() const {
-  if (::eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, context_) !=
-      EGL_TRUE) {
+  const auto result =
+      ::eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, context_);
+  if (result != EGL_TRUE) {
     WINDOWS_LOG_EGL_ERROR;
     return false;
   }
@@ -833,8 +834,10 @@ bool WindowsEGLSurface::SwapBuffers() const {
 }
 
 bool WindowsEGLSurface::SetVsyncEnabled(bool enabled) {
-  // TODO: Current code makes surface current here.
-  // What does chrome do?
+  if (!MakeCurrent()) {
+    return false;
+  }
+
   if (::eglSwapInterval(display_, enabled ? 1 : 0) != EGL_TRUE) {
     WINDOWS_LOG_EGL_ERROR;
     return false;
