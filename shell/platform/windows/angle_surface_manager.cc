@@ -816,7 +816,6 @@ bool WindowsEGLSurface::Destroy() {
 
 bool WindowsEGLSurface::MakeCurrent() const {
   if (::eglMakeCurrent(display_, surface_, surface_, context_) != EGL_TRUE) {
-    // TODO: If context lost, is_valid_ = false;
     WINDOWS_LOG_EGL_ERROR;
     return false;
   }
