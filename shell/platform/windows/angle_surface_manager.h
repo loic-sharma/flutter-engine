@@ -53,6 +53,7 @@ class WindowsEGLManager {
   bool InitializeDisplay();
   bool InitializeConfig(bool enable_impeller);
   bool InitializeContexts();
+  bool InitializeDevice();
 
   bool is_valid_ = false;
 
@@ -64,21 +65,6 @@ class WindowsEGLManager {
   std::unique_ptr<WindowsEGLSurface> surface_;
 
   Microsoft::WRL::ComPtr<ID3D11Device> resolved_device_ = nullptr;
-
-  using GetPlatformDisplayEXT =
-      EGLDisplay(_stdcall*)(EGLenum platform,
-                            void* native_display,
-                            const EGLint* attrib_list);
-  using QueryDisplayAttribEXT = EGLBoolean(_stdcall*)(EGLDisplay display,
-                                                      EGLint attribute,
-                                                      EGLAttrib* value);
-  using QueryDeviceAttribEXT = EGLBoolean(__stdcall*)(EGLDeviceEXT device,
-                                                      EGLint attribute,
-                                                      EGLAttrib* value);
-
-  GetPlatformDisplayEXT get_platform_display_EXT_ = nullptr;
-  QueryDisplayAttribEXT query_display_attrib_EXT_ = nullptr;
-  QueryDeviceAttribEXT query_device_attrib_EXT_ = nullptr;
 
   FML_DISALLOW_COPY_AND_ASSIGN(WindowsEGLManager);
 };

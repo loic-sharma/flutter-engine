@@ -62,6 +62,16 @@ void LogEGLError(const char* file, int line) {
 
 #define WINDOWS_LOG_EGL_ERROR LogEGLError(__FILE__, __LINE__);
 
+using GetPlatformDisplayEXT = EGLDisplay(_stdcall*)(EGLenum platform,
+                                                    void* native_display,
+                                                    const EGLint* attrib_list);
+using QueryDisplayAttribEXT = EGLBoolean(_stdcall*)(EGLDisplay display,
+                                                    EGLint attribute,
+                                                    EGLAttrib* value);
+using QueryDeviceAttribEXT = EGLBoolean(__stdcall*)(EGLDeviceEXT device,
+                                                    EGLint attribute,
+                                                    EGLAttrib* value);
+
 }  // namespace
 
 int AngleSurfaceManager::instance_count_ = 0;
@@ -444,18 +454,6 @@ std::unique_ptr<WindowsEGLManager> WindowsEGLManager::Create(
 }
 
 WindowsEGLManager::WindowsEGLManager(bool enable_impeller) {
-  get_platform_display_EXT_ = reinterpret_cast<GetPlatformDisplayEXT>(
-      ::eglGetProcAddress("eglGetPlatformDisplayEXT"));
-  if (!get_platform_display_EXT_) {
-    WINDOWS_LOG_EGL_ERROR;
-    return;
-  }
-
-  query_display_attrib_EXT_ = reinterpret_cast<QueryDisplayAttribEXT>(
-      ::eglGetProcAddress("eglQueryDisplayAttribEXT"));
-  query_device_attrib_EXT_ = reinterpret_cast<QueryDeviceAttribEXT>(
-      ::eglGetProcAddress("eglQueryDeviceAttribEXT"));
-
   if (!InitializeDisplay()) {
     return;
   }
@@ -523,13 +521,20 @@ bool WindowsEGLManager::InitializeDisplay() {
       d3d11_warp_display_attributes,
   };
 
+  const auto get_platform_display_EXT = reinterpret_cast<GetPlatformDisplayEXT>(
+      ::eglGetProcAddress("eglGetPlatformDisplayEXT"));
+  if (!get_platform_display_EXT) {
+    WINDOWS_LOG_EGL_ERROR;
+    return;
+  }
+
   // Attempt to initialize ANGLE's renderer in order of: D3D11, D3D11 Feature
   // Level 9_3 and finally D3D11 WARP.
   for (auto config : display_attributes_configs) {
     bool is_last = config == display_attributes_configs.back();
 
-    display_ = get_platform_display_EXT_(EGL_PLATFORM_ANGLE_ANGLE,
-                                         EGL_DEFAULT_DISPLAY, config);
+    display_ = get_platform_display_EXT(EGL_PLATFORM_ANGLE_ANGLE,
+                                        EGL_DEFAULT_DISPLAY, config);
 
     if (display_ == EGL_NO_DISPLAY) {
       if (is_last) {
@@ -623,6 +628,35 @@ bool WindowsEGLManager::InitializeContexts() {
   return true;
 }
 
+bool WindowsEGLManager::InitializeDevice() {
+  const auto query_display_attrib_EXT = reinterpret_cast<QueryDisplayAttribEXT>(
+      ::eglGetProcAddress("eglQueryDisplayAttribEXT"));
+  const auto query_device_attrib_EXT = reinterpret_cast<QueryDeviceAttribEXT>(
+      ::eglGetProcAddress("eglQueryDeviceAttribEXT"));
+
+  if (query_display_attrib_EXT == nullptr ||
+      query_device_attrib_EXT == nullptr) {
+    return false;
+  }
+
+  EGLBoolean result;
+  EGLAttrib egl_device = 0;
+  EGLAttrib angle_device = 0;
+
+  auto result = query_display_attrib_EXT(display_, EGL_DEVICE_EXT, &egl_device);
+  if (result != EGL_TRUE) {
+    return false;
+  }
+
+  result = query_device_attrib_EXT(reinterpret_cast<EGLDeviceEXT>(egl_device),
+                                   EGL_D3D11_DEVICE_ANGLE, &angle_device);
+  if (result != EGL_TRUE) {
+    return false;
+  }
+
+  resolved_device_ = reinterpret_cast<ID3D11Device*>(angle_device);
+}
+
 bool WindowsEGLManager::IsValid() const {
   return is_valid_;
 }
@@ -665,25 +699,13 @@ bool WindowsEGLManager::ClearCurrent() {
 
 bool WindowsEGLManager::GetDevice(ID3D11Device** device) {
   if (!resolved_device_) {
-    if (query_display_attrib_EXT_ == nullptr ||
-        query_display_attrib_EXT_ == nullptr) {
+    if (!InitializeDevice()) {
       return false;
-    }
-
-    EGLAttrib egl_device = 0;
-    EGLAttrib angle_device = 0;
-    if (query_display_attrib_EXT_(display_, EGL_DEVICE_EXT, &egl_device) ==
-        EGL_TRUE) {
-      if (query_device_attrib_EXT_(reinterpret_cast<EGLDeviceEXT>(egl_device),
-                                   EGL_D3D11_DEVICE_ANGLE,
-                                   &angle_device) == EGL_TRUE) {
-        resolved_device_ = reinterpret_cast<ID3D11Device*>(angle_device);
-      }
     }
   }
 
   resolved_device_.CopyTo(device);
-  return (resolved_device_ != nullptr);
+  return resolved_device_ != nullptr;
 }
 
 const EGLDisplay& WindowsEGLManager::display() const {
