@@ -765,7 +765,7 @@ WindowsEGLSurface::WindowsEGLSurface(EGLConfig config,
                                      EGLContext context)
     : config_(config), display_(display), context_(context) {}
 
-WindowsEGLSurface ::~WindowsEGLSurface() {
+WindowsEGLSurface::~WindowsEGLSurface() {
   Destroy();
 }
 
