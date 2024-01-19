@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "flutter/fml/macros.h"
+#include "flutter/shell/platform/common/public/flutter_texture_registrar.h"
 #include "flutter/shell/platform/windows/angle_surface_manager.h"
 #include "flutter/shell/platform/windows/external_texture.h"
 #include "flutter/shell/platform/windows/gl_proc_table.h"

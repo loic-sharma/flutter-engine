@@ -19,9 +19,127 @@
 #include <memory>
 
 #include "flutter/fml/macros.h"
-#include "flutter/shell/platform/windows/window_binding_handler.h"
 
 namespace flutter {
+
+class WindowsEGLSurface;
+class WindowsEGLContext;
+
+class WindowsEGLManager {
+ public:
+  static std::unique_ptr<WindowsEGLManager> Create(bool enable_impeller);
+
+  bool IsValid() const;
+
+  bool CreateSurface(HWND hwnd, size_t width, size_t height);
+
+  EGLSurface CreateSurfaceFromHandle(EGLenum handle_type,
+                                     EGLClientBuffer handle,
+                                     const EGLint* attributes) const;
+
+  bool ClearCurrent();
+
+  bool GetDevice(ID3D11Device** device);
+
+  const EGLDisplay& display() const;
+  WindowsEGLContext* render_context() const;
+  WindowsEGLContext* resource_context() const;
+  WindowsEGLSurface* surface() const;
+
+ protected:
+  WindowsEGLManager(bool enable_impeller);
+
+ private:
+  bool InitializeDisplay();
+  bool InitializeConfig(bool enable_impeller);
+  bool InitializeContexts();
+
+  bool is_valid_ = false;
+
+  EGLConfig config_ = nullptr;
+  EGLDisplay display_ = EGL_NO_DISPLAY;
+
+  std::unique_ptr<WindowsEGLContext> render_context_;
+  std::unique_ptr<WindowsEGLContext> resource_context_;
+  std::unique_ptr<WindowsEGLSurface> surface_;
+
+  Microsoft::WRL::ComPtr<ID3D11Device> resolved_device_ = nullptr;
+
+  using GetPlatformDisplayEXT =
+      EGLDisplay(_stdcall*)(EGLenum platform,
+                            void* native_display,
+                            const EGLint* attrib_list);
+  using QueryDisplayAttribEXT = EGLBoolean(_stdcall*)(EGLDisplay display,
+                                                      EGLint attribute,
+                                                      EGLAttrib* value);
+  using QueryDeviceAttribEXT = EGLBoolean(__stdcall*)(EGLDeviceEXT device,
+                                                      EGLint attribute,
+                                                      EGLAttrib* value);
+
+  GetPlatformDisplayEXT get_platform_display_EXT_ = nullptr;
+  QueryDisplayAttribEXT query_display_attrib_EXT_ = nullptr;
+  QueryDeviceAttribEXT query_device_attrib_EXT_ = nullptr;
+
+  FML_DISALLOW_COPY_AND_ASSIGN(WindowsEGLManager);
+};
+
+class WindowsEGLContext {
+ public:
+  WindowsEGLContext(EGLDisplay display, EGLContext context);
+  ~WindowsEGLContext();
+
+  bool IsValid() const;
+  bool IsCurrent() const;
+  bool MakeCurrent() const;
+
+  const EGLContext& GetHandle() const;
+
+ private:
+  bool is_valid_ = false;
+
+  EGLDisplay display_ = EGL_NO_DISPLAY;
+  EGLContext context_ = EGL_NO_CONTEXT;
+
+  FML_DISALLOW_COPY_AND_ASSIGN(WindowsEGLContext);
+};
+
+// See AndroidEGLSurface
+class WindowsEGLSurface {
+ public:
+  WindowsEGLSurface(EGLConfig config, EGLDisplay display, EGLContext context);
+
+  ~WindowsEGLSurface();
+
+  bool Create(HWND hwnd, int32_t width, int32_t height);
+  bool Destroy();
+
+  bool IsValid() const;
+
+  bool MakeCurrent() const;
+  bool SwapBuffers() const;
+  bool SetVsyncEnabled(bool enabled);
+
+  bool Resize(HWND hwnd, int32_t width, int32_t height);
+
+  const EGLSurface& GetHandle() const;
+
+  int32_t width() const;
+  int32_t height() const;
+
+ private:
+  bool is_valid_ = false;
+
+  EGLConfig config_ = nullptr;
+  EGLDisplay display_ = EGL_NO_DISPLAY;
+  EGLContext context_ = EGL_NO_CONTEXT;
+  EGLSurface surface_ = EGL_NO_SURFACE;
+
+  int32_t width_;
+  int32_t height_;
+  bool vsync_enabled_ = true;
+
+  FML_DISALLOW_COPY_AND_ASSIGN(WindowsEGLSurface);
+};
 
 // A manager for initializing ANGLE correctly and using it to create and
 // destroy surfaces
