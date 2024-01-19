@@ -443,6 +443,8 @@ bool AngleSurfaceManager::GetDevice(ID3D11Device** device) {
   return (resolved_device_ != nullptr);
 }
 
+int WindowsEGLManager::instance_count_ = 0;
+
 std::unique_ptr<WindowsEGLManager> WindowsEGLManager::Create(
     bool enable_impeller) {
   std::unique_ptr<WindowsEGLManager> manager;
@@ -454,6 +456,8 @@ std::unique_ptr<WindowsEGLManager> WindowsEGLManager::Create(
 }
 
 WindowsEGLManager::WindowsEGLManager(bool enable_impeller) {
+  ++instance_count_;
+
   if (!InitializeDisplay()) {
     return;
   }
@@ -467,6 +471,22 @@ WindowsEGLManager::WindowsEGLManager(bool enable_impeller) {
   }
 
   is_valid_ = true;
+}
+
+WindowsEGLManager::~WindowsEGLManager() {
+  render_context_.reset();
+  resource_context_.reset();
+
+  if (display_ != EGL_NO_DISPLAY) {
+    // Display is reused between instances so only terminate display
+    // if destroying last instance
+    if (instance_count_ == 1) {
+      ::eglTerminate(display_);
+    }
+    display_ = EGL_NO_DISPLAY;
+  }
+
+  --instance_count_;
 }
 
 bool WindowsEGLManager::InitializeDisplay() {
@@ -525,7 +545,7 @@ bool WindowsEGLManager::InitializeDisplay() {
       ::eglGetProcAddress("eglGetPlatformDisplayEXT"));
   if (!get_platform_display_EXT) {
     WINDOWS_LOG_EGL_ERROR;
-    return;
+    return false;
   }
 
   // Attempt to initialize ANGLE's renderer in order of: D3D11, D3D11 Feature
@@ -639,7 +659,6 @@ bool WindowsEGLManager::InitializeDevice() {
     return false;
   }
 
-  EGLBoolean result;
   EGLAttrib egl_device = 0;
   EGLAttrib angle_device = 0;
 
@@ -655,6 +674,7 @@ bool WindowsEGLManager::InitializeDevice() {
   }
 
   resolved_device_ = reinterpret_cast<ID3D11Device*>(angle_device);
+  return true;
 }
 
 bool WindowsEGLManager::IsValid() const {

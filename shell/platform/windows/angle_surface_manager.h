@@ -27,6 +27,8 @@ class WindowsEGLContext;
 
 class WindowsEGLManager {
  public:
+  ~WindowsEGLManager();
+
   static std::unique_ptr<WindowsEGLManager> Create(bool enable_impeller);
 
   bool IsValid() const;
@@ -50,6 +52,9 @@ class WindowsEGLManager {
   WindowsEGLManager(bool enable_impeller);
 
  private:
+  // Number of active instances of WindowsEGLManager.
+  static int instance_count_;
+
   bool InitializeDisplay();
   bool InitializeConfig(bool enable_impeller);
   bool InitializeContexts();
