@@ -56,7 +56,9 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate {
   virtual HWND GetWindowHandle() const;
 
   // Returns the engine backing this view.
-  FlutterWindowsEngine* GetEngine();
+  FlutterWindowsEngine* GetEngine() const;
+
+  virtual egl::WindowSurface* GetSurface() const;
 
   // Tells the engine to generate a new frame
   void ForceRedraw();
@@ -79,10 +81,10 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate {
   void OnHighContrastChanged() override;
 
   // Called on the raster thread when |CompositorOpenGL| receives an empty
-  // frame.
+  // frame. Returns true if the frame can be presented.
   //
   // This resizes the surface if a resize is pending.
-  void OnEmptyFrameGenerated();
+  bool OnEmptyFrameGenerated();
 
   // Called on the raster thread when |CompositorOpenGL| receives a frame.
   // Returns true if the frame can be presented.
@@ -370,6 +372,12 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate {
 
   // Mocks win32 APIs.
   std::shared_ptr<WindowsProcTable> windows_proc_table_;
+
+  // The EGL surface backing the view.
+  //
+  // Null if using software rasterization, the surface hasn't been created yet,
+  // or if surface creation failed.
+  std::unique_ptr<egl::WindowSurface> surface_ = nullptr;
 
   // Keeps track of pointer states in relation to the window.
   std::unordered_map<int32_t, std::unique_ptr<PointerState>> pointer_states_;

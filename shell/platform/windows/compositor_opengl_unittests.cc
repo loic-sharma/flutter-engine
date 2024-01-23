@@ -71,9 +71,6 @@ class CompositorOpenGLTest : public WindowsTest {
   void UseHeadlessEngine() {
     auto egl_manager = std::make_unique<egl::MockManager>();
     egl_manager_ = egl_manager.get();
-    surface_ = std::make_unique<egl::MockWindowSurface>();
-
-    EXPECT_CALL(*egl_manager_, surface).WillRepeatedly(Return(surface_.get()));
 
     FlutterWindowsEngineBuilder builder{GetContext()};
 
