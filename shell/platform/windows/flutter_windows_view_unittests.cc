@@ -25,6 +25,7 @@
 #include "flutter/shell/platform/windows/testing/mock_window_binding_handler.h"
 #include "flutter/shell/platform/windows/testing/mock_windows_proc_table.h"
 #include "flutter/shell/platform/windows/testing/test_keyboard.h"
+#include "flutter/shell/platform/windows/testing/view_modifier.h"
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -237,18 +238,18 @@ TEST(FlutterWindowsViewTest, Shutdown) {
   auto egl_manager = std::make_unique<egl::MockManager>();
   auto surface = std::make_unique<egl::MockWindowSurface>();
 
-  EXPECT_CALL(*egl_manager.get(), surface).WillOnce(Return(surface.get()));
-
-  EngineModifier modifier(engine.get());
   FlutterWindowsView view(std::move(window_binding_handler));
+  EngineModifier engine_modifier(engine.get());
+  ViewModifier view_modifier(&view);
 
   // The engine must be stopped before the surface can be destroyed.
   InSequence s;
   EXPECT_CALL(*engine.get(), Stop).Times(1);
   EXPECT_CALL(*surface.get(), Destroy).Times(1);
 
-  modifier.SetEGLManager(std::move(egl_manager));
+  engine_modifier.SetEGLManager(std::move(egl_manager));
   view.SetEngine(engine.get());
+  view_modifier.SetSurface(std::move(surface));
 }
 
 TEST(FlutterWindowsViewTest, KeySequence) {

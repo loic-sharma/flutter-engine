@@ -7,6 +7,7 @@
 
 #include "flutter/fml/macros.h"
 #include "flutter/shell/platform/windows/egl/manager.h"
+#include "flutter/shell/platform/windows/egl/window_surface.h"
 #include "gmock/gmock.h"
 
 namespace flutter {
@@ -18,12 +19,13 @@ class MockManager : public flutter::egl::Manager {
  public:
   MockManager() : Manager(false) {}
 
-  MOCK_METHOD(bool, CreateWindowSurface, (HWND, size_t, size_t), (override));
-  MOCK_METHOD(void, ResizeWindowSurface, (HWND, size_t, size_t), (override));
+  MOCK_METHOD(std::unique_ptr<flutter::egl::WindowSurface>,
+              CreateWindowSurface,
+              (HWND, size_t, size_t),
+              (override));
 
   MOCK_METHOD(flutter::egl::Context*, render_context, (), (const, override));
   MOCK_METHOD(flutter::egl::Context*, resource_context, (), (const, override));
-  MOCK_METHOD(flutter::egl::WindowSurface*, surface, (), (const, override));
 
  private:
   FML_DISALLOW_COPY_AND_ASSIGN(MockManager);

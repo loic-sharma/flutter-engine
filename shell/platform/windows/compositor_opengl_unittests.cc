@@ -14,6 +14,7 @@
 #include "flutter/shell/platform/windows/testing/engine_modifier.h"
 #include "flutter/shell/platform/windows/testing/flutter_windows_engine_builder.h"
 #include "flutter/shell/platform/windows/testing/mock_window_binding_handler.h"
+#include "flutter/shell/platform/windows/testing/view_modifier.h"
 #include "flutter/shell/platform/windows/testing/windows_test.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -66,14 +67,11 @@ class CompositorOpenGLTest : public WindowsTest {
  protected:
   FlutterWindowsEngine* engine() { return engine_.get(); }
   egl::MockManager* egl_manager() { return egl_manager_; }
-  egl::MockWindowSurface* surface() { return surface_.get(); }
+  egl::MockWindowSurface* surface() { return surface_; }
 
   void UseHeadlessEngine() {
     auto egl_manager = std::make_unique<egl::MockManager>();
     egl_manager_ = egl_manager.get();
-    surface_ = std::make_unique<egl::MockWindowSurface>();
-
-    EXPECT_CALL(*egl_manager_, surface).WillRepeatedly(Return(surface_.get()));
 
     FlutterWindowsEngineBuilder builder{GetContext()};
 
@@ -90,15 +88,19 @@ class CompositorOpenGLTest : public WindowsTest {
     EXPECT_CALL(*window.get(), GetWindowHandle).WillRepeatedly(Return(nullptr));
 
     view_ = std::make_unique<FlutterWindowsView>(std::move(window));
-
     engine_->SetView(view_.get());
+
+    auto surface = std::make_unique<egl::MockWindowSurface>();
+    surface_ = surface.get();
+    ViewModifier modifier(view_.get());
+    modifier.SetSurface(std::move(surface));
   }
 
  private:
   std::unique_ptr<FlutterWindowsEngine> engine_;
   std::unique_ptr<FlutterWindowsView> view_;
-  std::unique_ptr<egl::MockWindowSurface> surface_;
   egl::MockManager* egl_manager_;
+  egl::MockWindowSurface* surface_;
 
   FML_DISALLOW_COPY_AND_ASSIGN(CompositorOpenGLTest);
 };
