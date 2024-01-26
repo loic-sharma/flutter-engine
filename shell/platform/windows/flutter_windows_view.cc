@@ -46,24 +46,37 @@ void UpdateVsync(const FlutterWindowsEngine& engine, bool needs_vsync) {
     return;
   }
 
+  auto update_vsync = [egl_manager, needs_vsync]() {
+    egl::WindowSurface* surface = egl_manager->surface();
+    if (!surface) {
+      return;
+    }
+
+    if (!surface->MakeCurrent()) {
+      FML_LOG(ERROR) << "Unable to make the render surface current to update "
+                        "the swap interval";
+      return;
+    }
+
+    if (!surface->SetVSyncEnabled(needs_vsync)) {
+      FML_LOG(ERROR) << "Unable to update the render surface's swap interval";
+    }
+
+    if (!egl_manager->render_context()->ClearCurrent()) {
+      FML_LOG(ERROR) << "Unable to clear current surface after updating "
+                        "the swap interval";
+    }
+  };
+
   // Updating the vsync makes the EGL context and render surface current.
   // If the engine is running, the render surface should only be made current on
   // the raster thread. If the engine is initializing, the raster thread doesn't
   // exist yet and the render surface can be made current on the platform
   // thread.
   if (engine.running()) {
-    engine.PostRasterThreadTask([egl_manager, needs_vsync]() {
-      egl_manager->surface()->SetVSyncEnabled(needs_vsync);
-    });
+    engine.PostRasterThreadTask(update_vsync);
   } else {
-    egl_manager->surface()->SetVSyncEnabled(needs_vsync);
-
-    // Release the EGL context so that the raster thread can use it.
-    if (!egl_manager->render_context()->ClearCurrent()) {
-      FML_LOG(ERROR)
-          << "Unable to clear current surface after updating the swap interval";
-      return;
-    }
+    update_vsync();
   }
 }
 
@@ -110,6 +123,9 @@ void FlutterWindowsView::OnEmptyFrameGenerated() {
   // Called on the raster thread.
   std::unique_lock<std::mutex> lock(resize_mutex_);
 
+  FML_DCHECK(engine_->egl_manager() != nullptr);
+  FML_DCHECK(engine_->egl_manager()->surface() != nullptr);
+
   if (resize_status_ != ResizeState::kResizeStarted) {
     return;
   }
@@ -124,6 +140,9 @@ void FlutterWindowsView::OnEmptyFrameGenerated() {
 bool FlutterWindowsView::OnFrameGenerated(size_t width, size_t height) {
   // Called on the raster thread.
   std::unique_lock<std::mutex> lock(resize_mutex_);
+
+  FML_DCHECK(engine_->egl_manager() != nullptr);
+  FML_DCHECK(engine_->egl_manager()->surface() != nullptr);
 
   if (resize_status_ != ResizeState::kResizeStarted) {
     return true;
@@ -160,7 +179,7 @@ bool FlutterWindowsView::OnWindowSizeChanged(size_t width, size_t height) {
   // Called on the platform thread.
   std::unique_lock<std::mutex> lock(resize_mutex_);
 
-  if (!engine_->egl_manager()) {
+  if (!engine_->egl_manager() || !engine_->egl_manager()->surface()) {
     SendWindowMetrics(width, height, binding_handler_->GetDpiScale());
     return true;
   }

@@ -10,7 +10,10 @@ namespace flutter {
 namespace egl {
 
 Surface::Surface(EGLDisplay display, EGLContext context, EGLSurface surface)
-    : display_(display), context_(context), surface_(surface) {}
+    : display_(display), context_(context), surface_(surface) {
+  is_valid_ = display != EGL_NO_DISPLAY && context != EGL_NO_CONTEXT &&
+              surface != EGL_NO_SURFACE;
+}
 
 Surface::~Surface() {
   Destroy();
@@ -38,6 +41,13 @@ bool Surface::Destroy() {
   is_valid_ = false;
   surface_ = EGL_NO_SURFACE;
   return true;
+}
+
+bool Surface::IsCurrent() const {
+  return display_ == ::eglGetCurrentDisplay() &&
+         surface_ == ::eglGetCurrentSurface(EGL_DRAW) &&
+         surface_ == ::eglGetCurrentSurface(EGL_READ) &&
+         context_ == ::eglGetCurrentContext();
 }
 
 bool Surface::MakeCurrent() const {

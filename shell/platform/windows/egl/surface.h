@@ -29,6 +29,10 @@ class Surface {
   // Check whether the EGL surface is valid.
   virtual bool IsValid() const;
 
+  // Check whether the EGL display, context, and surface are bound to the
+  // current thread.
+  virtual bool IsCurrent() const;
+
   // Bind the EGL surface's context and read and draw surfaces to the
   // current thread. Returns true on success.
   virtual bool MakeCurrent() const;
@@ -41,7 +45,7 @@ class Surface {
   virtual const EGLSurface& GetHandle() const;
 
  protected:
-  bool is_valid_ = true;
+  bool is_valid_ = false;
 
   EGLDisplay display_ = EGL_NO_DISPLAY;
   EGLContext context_ = EGL_NO_CONTEXT;
