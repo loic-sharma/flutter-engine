@@ -228,7 +228,7 @@ class FlutterWindowsView : public WindowBindingHandlerDelegate {
   CreateAccessibilityBridge();
 
  private:
-   // Allows swapping out the surface in tests.
+  // Allows swapping out the surface in tests.
   friend class ViewModifier;
 
   // Struct holding the state of an individual pointer. The engine doesn't keep
