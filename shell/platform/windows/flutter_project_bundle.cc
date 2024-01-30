@@ -49,14 +49,14 @@ FlutterProjectBundle::FlutterProjectBundle(
   }
 }
 
-bool FlutterProjectBundle::HasValidPaths() {
+bool FlutterProjectBundle::HasValidPaths() const {
   return !assets_path_.empty() && !icu_path_.empty();
 }
 
 // Attempts to load AOT data from the given path, which must be absolute and
 // non-empty. Logs and returns nullptr on failure.
 UniqueAotDataPtr FlutterProjectBundle::LoadAotData(
-    const FlutterEngineProcTable& engine_procs) {
+    const FlutterEngineProcTable& engine_procs) const {
   if (aot_library_path_.empty()) {
     FML_LOG(ERROR)
         << "Attempted to load AOT data, but no aot_library_path was provided.";
@@ -87,7 +87,7 @@ void FlutterProjectBundle::SetSwitches(
   engine_switches_ = switches;
 }
 
-const std::vector<std::string> FlutterProjectBundle::GetSwitches() {
+const std::vector<std::string> FlutterProjectBundle::GetSwitches() const {
   if (engine_switches_.size() == 0) {
     return GetSwitchesFromEnvironment();
   }

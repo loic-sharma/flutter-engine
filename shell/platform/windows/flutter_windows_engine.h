@@ -46,8 +46,6 @@ namespace flutter {
 
 class FlutterWindowsView;
 
-namespace embedder_api {
-
 // Update the thread priority for the Windows engine.
 static void WindowsPlatformThreadPrioritySetter(
     FlutterThreadPriority priority) {

@@ -30,16 +30,16 @@ class FlutterProjectBundle {
 
   // Whether or not the bundle is valid. This does not check that the paths
   // exist, or contain valid data, just that paths were able to be constructed.
-  bool HasValidPaths();
+  bool HasValidPaths() const;
 
   // Returns the path to the assets directory.
-  const std::filesystem::path& assets_path() { return assets_path_; }
+  const std::filesystem::path& assets_path() const { return assets_path_; }
 
   // Returns the path to the ICU data file.
-  const std::filesystem::path& icu_path() { return icu_path_; }
+  const std::filesystem::path& icu_path() const { return icu_path_; }
 
   // Returns any switches that should be passed to the engine.
-  const std::vector<std::string> GetSwitches();
+  const std::vector<std::string> GetSwitches() const;
 
   // Sets engine switches.
   void SetSwitches(const std::vector<std::string>& switches);
@@ -48,7 +48,7 @@ class FlutterProjectBundle {
   // retained until any engine instance it is passed to has been shut down.
   //
   // Logs and returns nullptr on failure.
-  UniqueAotDataPtr LoadAotData(const FlutterEngineProcTable& engine_procs);
+  UniqueAotDataPtr LoadAotData(const FlutterEngineProcTable& engine_procs) const;
 
   // Returns the Dart entrypoint.
   const std::string& dart_entrypoint() const { return dart_entrypoint_; }
