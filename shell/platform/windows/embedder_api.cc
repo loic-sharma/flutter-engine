@@ -493,9 +493,8 @@ void EmbedderApi::UpdateAccessibilityFeatures(
 void EmbedderApi::NotifyDisplayUpdate(
     FlutterEngineDisplaysUpdateType update_type,
     std::vector<FlutterEngineDisplay> displays) {
-  embedder_api_.NotifyDisplayUpdate(engine_,
-                                    update_type,
-                                    displays.data(), displays.size());
+  embedder_api_.NotifyDisplayUpdate(engine_, update_type, displays.data(),
+                                    displays.size());
 }
 
 }  // namespace flutter
