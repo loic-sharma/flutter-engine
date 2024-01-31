@@ -72,23 +72,21 @@ struct EmbedderApiCallbacks {
 // Mirror: embedder.h and embedder_engine.h
 class EmbedderApi {
  public:
-  EmbedderApi(FlutterEngineProcTable embedder_api,
-              UniqueAotDataPtr aot_data,
-              FLUTTER_API_SYMBOL(FlutterEngine) engine,
-              std::unique_ptr<EmbedderApiCallbacks> callbacks);
+  EmbedderApi();
 
-  static std::unique_ptr<EmbedderApi> Create(
-      const FlutterProjectBundle* project,
-      std::string executable_name,
-      std::string_view entrypoint,
-      TaskRunner* platform_task_runner,
-      ThreadPrioritySetter thread_priority_setter,
-      Compositor* compositor,
-      std::unique_ptr<EmbedderApiCallbacks> callbacks);
+  bool Run(const FlutterProjectBundle* project,
+           std::string executable_name,
+           std::string_view entrypoint,
+           TaskRunner* platform_task_runner,
+           ThreadPrioritySetter thread_priority_setter,
+           Compositor* compositor,
+           std::unique_ptr<EmbedderApiCallbacks> callbacks);
+
+  bool Running();
 
   bool Shutdown();
 
-  uint64_t GetEngineCurrentTime() const;
+  uint64_t CurrentTime() const;
 
   // Informs the engine that the window metrics have changed.
   void SendWindowMetricsEvent(const FlutterWindowMetricsEvent* event);

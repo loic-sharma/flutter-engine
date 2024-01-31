@@ -18,7 +18,7 @@
 
 namespace flutter {
 
-typedef uint64_t (*CurrentTimeProc)();
+typedef std::function<uint64_t()> CurrentTimeProc;
 
 // A custom task runner that integrates with user32 GetMessage semantics so
 // that host app can own its own message loop and flutter still gets to process

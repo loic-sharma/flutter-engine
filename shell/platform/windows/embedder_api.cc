@@ -128,32 +128,23 @@ FlutterLocale CovertToFlutterLocale(const LanguageInfo& info) {
 
 }  // namespace
 
-EmbedderApi::EmbedderApi(FlutterEngineProcTable embedder_api,
-                         UniqueAotDataPtr aot_data,
-                         FLUTTER_API_SYMBOL(FlutterEngine) engine,
-                         std::unique_ptr<EmbedderApiCallbacks> callbacks)
-    : embedder_api_(embedder_api),
-      aot_data_(std::move(aot_data)),
-      engine_(engine) {}
-
-std::unique_ptr<EmbedderApi> EmbedderApi::Create(
-    const FlutterProjectBundle* project,
-    std::string executable_name,
-    std::string_view entrypoint,
-    TaskRunner* platform_task_runner,
-    ThreadPrioritySetter thread_priority_setter,
-    Compositor* compositor,
-    std::unique_ptr<EmbedderApiCallbacks> callbacks) {
-  FlutterEngineProcTable embedder_api = {};
-  embedder_api.struct_size = sizeof(FlutterEngineProcTable);
-  if (FlutterEngineGetProcAddresses(&embedder_api) != kSuccess) {
+EmbedderApi::EmbedderApi() : aot_data_(nullptr, nullptr) {
+  embedder_api_.struct_size = sizeof(FlutterEngineProcTable);
+  if (FlutterEngineGetProcAddresses(&embedder_api_) != kSuccess) {
     FML_LOG(ERROR) << "Unable to resolve embedder API proc addresses.";
-    return nullptr;
   }
+}
 
+bool EmbedderApi::Run(const FlutterProjectBundle* project,
+                      std::string executable_name,
+                      std::string_view entrypoint,
+                      TaskRunner* platform_task_runner,
+                      ThreadPrioritySetter thread_priority_setter,
+                      Compositor* compositor,
+                      std::unique_ptr<EmbedderApiCallbacks> callbacks) {
   if (!project->HasValidPaths()) {
     FML_LOG(ERROR) << "Missing or unresolvable paths to assets.";
-    return nullptr;
+    return false;
   }
 
   std::string assets_path_string = project->assets_path().u8string();
@@ -207,18 +198,14 @@ std::unique_ptr<EmbedderApi> EmbedderApi::Create(
       entrypoint_argv.empty() ? nullptr : entrypoint_argv.data();
 
   // Configure AOT data
-  // TODO: AOT data needs to be kept in the embedder API instance!!
-  UniqueAotDataPtr aot_data{nullptr, nullptr};
-  if (embedder_api.RunsAOTCompiledDartCode()) {
-    aot_data = project->LoadAotData(embedder_api);
-    if (!aot_data) {
+  if (embedder_api_.RunsAOTCompiledDartCode()) {
+    aot_data_ = project->LoadAotData(embedder_api_);
+    if (!aot_data_) {
       FML_LOG(ERROR) << "Unable to start engine without AOT data.";
-      return nullptr;
+      return false;
     }
-  }
 
-  if (aot_data) {
-    args.aot_data = aot_data.get();
+    args.aot_data = aot_data_.get();
   }
 
   // Configure task runners.
@@ -290,23 +277,27 @@ std::unique_ptr<EmbedderApi> EmbedderApi::Create(
 
   FLUTTER_API_SYMBOL(FlutterEngine) engine;
 
-  auto result = embedder_api.Run(FLUTTER_ENGINE_VERSION, &renderer_config,
-                                 &args, callbacks.get(), &engine);
+  auto result = embedder_api_.Run(FLUTTER_ENGINE_VERSION, &renderer_config,
+                                  &args, callbacks.get(), &engine);
 
   if (result != kSuccess) {
     FML_LOG(ERROR) << "Failed to start Flutter engine: error " << result;
-    return nullptr;
+    return false;
   }
 
-  return std::make_unique<EmbedderApi>(embedder_api, std::move(aot_data),
-                                       engine, std::move(callbacks));
+  callbacks_ = std::move(callbacks);
+  return true;
+}
+
+bool EmbedderApi::Running() {
+  return engine_ != nullptr;
 }
 
 bool EmbedderApi::Shutdown() {
   return embedder_api_.Shutdown(engine_) == kSuccess;
 }
 
-uint64_t EmbedderApi::GetEngineCurrentTime() const {
+uint64_t EmbedderApi::CurrentTime() const {
   return embedder_api_.GetCurrentTime();
 }
 
