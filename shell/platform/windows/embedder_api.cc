@@ -6,36 +6,16 @@
 
 #include "flutter/fml/closure.h"
 #include "flutter/fml/macros.h"
-#include "flutter/shell/platform/common/accessibility_bridge.h"
-#include "flutter/shell/platform/common/app_lifecycle_state.h"
-#include "flutter/shell/platform/common/client_wrapper/binary_messenger_impl.h"
-#include "flutter/shell/platform/common/client_wrapper/include/flutter/basic_message_channel.h"
-#include "flutter/shell/platform/common/incoming_message_dispatcher.h"
 #include "flutter/shell/platform/embedder/embedder.h"
-#include "flutter/shell/platform/windows/accessibility_bridge_windows.h"
 #include "flutter/shell/platform/windows/compositor.h"
-#include "flutter/shell/platform/windows/cursor_handler.h"
-#include "flutter/shell/platform/windows/egl/manager.h"
-#include "flutter/shell/platform/windows/egl/proc_table.h"
-#include "flutter/shell/platform/windows/flutter_desktop_messenger.h"
 #include "flutter/shell/platform/windows/flutter_project_bundle.h"
-#include "flutter/shell/platform/windows/flutter_windows_texture_registrar.h"
-#include "flutter/shell/platform/windows/keyboard_handler_base.h"
-#include "flutter/shell/platform/windows/keyboard_key_embedder_handler.h"
-#include "flutter/shell/platform/windows/platform_handler.h"
-#include "flutter/shell/platform/windows/public/flutter_windows.h"
-#include "flutter/shell/platform/windows/settings_plugin.h"
 #include "flutter/shell/platform/windows/task_runner.h"
-#include "flutter/shell/platform/windows/text_input_plugin.h"
-#include "flutter/shell/platform/windows/window_proc_delegate_manager.h"
-#include "flutter/shell/platform/windows/window_state.h"
-#include "flutter/shell/platform/windows/windows_lifecycle_manager.h"
-#include "flutter/shell/platform/windows/windows_proc_table.h"
-#include "third_party/rapidjson/include/rapidjson/document.h"
 
 namespace flutter {
 
 namespace {
+
+#undef GetCurrentTime
 
 // Creates and returns a FlutterRendererConfig that renders to the view (if any)
 // of a FlutterWindowsEngine, using OpenGL (via ANGLE).
@@ -159,7 +139,7 @@ EmbedderApi::EmbedderApi(FlutterEngineProcTable embedder_api,
 std::unique_ptr<EmbedderApi> EmbedderApi::Create(
     const FlutterProjectBundle* project,
     std::string executable_name,
-    std::string entrypoint,
+    std::string_view entrypoint,
     TaskRunner* platform_task_runner,
     ThreadPrioritySetter thread_priority_setter,
     Compositor* compositor,
@@ -286,7 +266,7 @@ std::unique_ptr<EmbedderApi> EmbedderApi::Create(
   };
   args.on_pre_engine_restart_callback = [](void* user_data) {
     auto embedder_api = static_cast<EmbedderApi*>(user_data);
-    embedder_api->callbacks_->pre_engine_restart_callback();
+    embedder_api->callbacks_->on_pre_engine_restart_callback();
   };
   args.update_semantics_callback2 = [](const FlutterSemanticsUpdate2* update,
                                        void* user_data) {
@@ -314,15 +294,20 @@ std::unique_ptr<EmbedderApi> EmbedderApi::Create(
                                  &args, callbacks.get(), &engine);
 
   if (result != kSuccess) {
-    FML_LOG(ERROR) << "Unable to start the engine.";
+    FML_LOG(ERROR) << "Failed to start Flutter engine: error " << result;
+    return nullptr;
   }
 
   return std::make_unique<EmbedderApi>(embedder_api, std::move(aot_data),
                                        engine, std::move(callbacks));
 }
 
-void EmbedderApi::Shutdown() {
-  embedder_api_.Shutdown(engine_);
+bool EmbedderApi::Shutdown() {
+  return embedder_api_.Shutdown(engine_) == kSuccess;
+}
+
+uint64_t EmbedderApi::GetEngineCurrentTime() const {
+  return embedder_api_.GetCurrentTime();
 }
 
 void EmbedderApi::SendWindowMetricsEvent(
@@ -506,9 +491,10 @@ void EmbedderApi::UpdateAccessibilityFeatures(
 }
 
 void EmbedderApi::NotifyDisplayUpdate(
+    FlutterEngineDisplaysUpdateType update_type,
     std::vector<FlutterEngineDisplay> displays) {
   embedder_api_.NotifyDisplayUpdate(engine_,
-                                    kFlutterEngineDisplaysUpdateTypeStartup,
+                                    update_type,
                                     displays.data(), displays.size());
 }
 

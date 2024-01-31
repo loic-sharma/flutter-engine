@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef FLUTTER_SHELL_PLATFORM_WINDOWS_FLUTTER_WINDOWS_EMBEDDER_API_H_
-#define FLUTTER_SHELL_PLATFORM_WINDOWS_FLUTTER_WINDOWS_EMBEDDER_API_H_
+#ifndef FLUTTER_SHELL_PLATFORM_WINDOWS_EMBEDDER_API_H_
+#define FLUTTER_SHELL_PLATFORM_WINDOWS_EMBEDDER_API_H_
 
 #include <functional>
 #include <string_view>
@@ -61,7 +61,7 @@ struct EmbedderApiCallbacks {
   std::optional<OpenGLCallbacks> opengl;
 
   fml::closure root_isolate_create_callback;
-  fml::closure pre_engine_restart_callback;
+  fml::closure on_pre_engine_restart_callback;
 
   PlatformMessageCallback platform_message_callback;
   VSyncCallback vsync_callback;
@@ -80,13 +80,15 @@ class EmbedderApi {
   static std::unique_ptr<EmbedderApi> Create(
       const FlutterProjectBundle* project,
       std::string executable_name,
-      std::string entrypoint,
+      std::string_view entrypoint,
       TaskRunner* platform_task_runner,
       ThreadPrioritySetter thread_priority_setter,
       Compositor* compositor,
       std::unique_ptr<EmbedderApiCallbacks> callbacks);
 
-  void Shutdown();
+  bool Shutdown();
+
+  uint64_t GetEngineCurrentTime() const;
 
   // Informs the engine that the window metrics have changed.
   void SendWindowMetricsEvent(const FlutterWindowMetricsEvent* event);
@@ -134,10 +136,13 @@ class EmbedderApi {
 
   void UpdateAccessibilityFeatures(FlutterAccessibilityFeature features);
 
-  void NotifyDisplayUpdate(std::vector<FlutterEngineDisplay> displays);
+  void NotifyDisplayUpdate(FlutterEngineDisplaysUpdateType update_type,
+                           std::vector<FlutterEngineDisplay> displays);
 
  private:
   FlutterEngineProcTable embedder_api_ = {};
+
+  // AOT data, if any.
   UniqueAotDataPtr aot_data_;
 
   // The handle to the embedder.h engine instance.
@@ -150,4 +155,4 @@ class EmbedderApi {
 
 }  // namespace flutter
 
-#endif  // FLUTTER_SHELL_PLATFORM_WINDOWS_FLUTTER_WINDOWS_EMBEDDER_API_H_
+#endif  // FLUTTER_SHELL_PLATFORM_WINDOWS_EMBEDDER_API_H_

@@ -26,6 +26,7 @@
 #include "flutter/shell/platform/windows/cursor_handler.h"
 #include "flutter/shell/platform/windows/egl/manager.h"
 #include "flutter/shell/platform/windows/egl/proc_table.h"
+#include "flutter/shell/platform/windows/embedder_api.h"
 #include "flutter/shell/platform/windows/flutter_desktop_messenger.h"
 #include "flutter/shell/platform/windows/flutter_project_bundle.h"
 #include "flutter/shell/platform/windows/flutter_windows_texture_registrar.h"
@@ -104,7 +105,7 @@ class FlutterWindowsEngine {
   bool Run(std::string_view entrypoint);
 
   // Returns true if the engine is currently running.
-  virtual bool running() const { return engine_ != nullptr; }
+  virtual bool running() const { return embedder_api_ != nullptr; }
 
   // Stops the engine. This invalidates the pointer returned by engine().
   //
@@ -206,7 +207,7 @@ class FlutterWindowsEngine {
   virtual bool PostRasterThreadTask(fml::closure callback) const;
 
   // Invoke on the embedder's vsync callback to schedule a frame.
-  void OnVsync(intptr_t baton);
+  void OnVsync(OnVSyncCallback on_vsync);
 
   // Dispatches a semantics action to the specified semantics node.
   bool DispatchSemanticsAction(uint64_t id,
@@ -331,15 +332,9 @@ class FlutterWindowsEngine {
   void HandleAccessibilityMessage(FlutterDesktopMessengerRef messenger,
                                   const FlutterDesktopMessage* message);
 
-  // The handle to the embedder.h engine instance.
-  FLUTTER_API_SYMBOL(FlutterEngine) engine_ = nullptr;
-
-  FlutterEngineProcTable embedder_api_ = {};
-
   std::unique_ptr<FlutterProjectBundle> project_;
 
-  // AOT data, if any.
-  UniqueAotDataPtr aot_data_;
+  std::unique_ptr<EmbedderApi> embedder_api_;
 
   // The view displaying the content running in this engine, if any.
   FlutterWindowsView* view_ = nullptr;
