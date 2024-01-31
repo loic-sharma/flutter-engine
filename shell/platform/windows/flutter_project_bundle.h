@@ -48,7 +48,8 @@ class FlutterProjectBundle {
   // retained until any engine instance it is passed to has been shut down.
   //
   // Logs and returns nullptr on failure.
-  UniqueAotDataPtr LoadAotData(const FlutterEngineProcTable& engine_procs) const;
+  UniqueAotDataPtr LoadAotData(
+      const FlutterEngineProcTable& engine_procs) const;
 
   // Returns the Dart entrypoint.
   const std::string& dart_entrypoint() const { return dart_entrypoint_; }
