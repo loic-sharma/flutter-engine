@@ -19,7 +19,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-
 namespace flutter {
 namespace testing {
 

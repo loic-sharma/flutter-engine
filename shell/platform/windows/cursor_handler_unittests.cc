@@ -79,7 +79,8 @@ class CursorHandlerTest : public WindowsTest {
     EXPECT_CALL(*window_, SetView).Times(1);
 
     engine_ = builder.Build();
-    view_ = std::make_unique<FlutterWindowsView>(engine_.get(), std::move(window));
+    view_ =
+        std::make_unique<FlutterWindowsView>(engine_.get(), std::move(window));
 
     EngineModifier modifier{engine_.get()};
     modifier.SetView(view_.get());
