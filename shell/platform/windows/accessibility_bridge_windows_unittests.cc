@@ -88,7 +88,8 @@ class AccessibilityBridgeWindowsSpy : public AccessibilityBridgeWindows {
 // AccessibilityBridgeWindowsSpy.
 class FlutterWindowsViewSpy : public FlutterWindowsView {
  public:
-  FlutterWindowsViewSpy(FlutterWindowsEngine* engine, std::unique_ptr<WindowBindingHandler> handler)
+  FlutterWindowsViewSpy(FlutterWindowsEngine* engine,
+                        std::unique_ptr<WindowBindingHandler> handler)
       : FlutterWindowsView(engine, std::move(handler)) {}
 
  protected:
