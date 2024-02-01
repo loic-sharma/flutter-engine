@@ -337,8 +337,10 @@ typedef struct {
 class TestFlutterWindowsView : public FlutterWindowsView {
  public:
   TestFlutterWindowsView(std::function<void(KeyCall)> on_key_call,
+                         FlutterWindowsEngine* engine,
                          std::unique_ptr<WindowBindingHandler> window)
-      : on_key_call_(on_key_call), FlutterWindowsView(std::move(window)) {}
+      : on_key_call_(on_key_call),
+        FlutterWindowsView(engine, std::move(window)) {}
 
   void OnText(const std::u16string& text) override {
     on_key_call_(KeyCall{
@@ -364,10 +366,15 @@ class KeyboardTester {
     engine_ = GetTestEngine(context);
     view_ = std::make_unique<TestFlutterWindowsView>(
         [this](KeyCall key_call) { key_calls.push_back(key_call); },
+        engine_.get(),
         // The WindowBindingHandler is used for window size and such, and
         // doesn't affect keyboard.
         std::make_unique<::testing::NiceMock<MockWindowBindingHandler>>());
-    view_->SetEngine(engine_.get());
+
+    EngineModifier modifier{engine_.get()};
+    modifier.SetView(view_.get());
+    modifier.InitializeKeyboard();
+
     window_ = std::make_unique<MockKeyboardManagerDelegate>(
         view_.get(), [this](UINT virtual_key) -> SHORT {
           return map_virtual_key_layout_(virtual_key, MAPVK_VK_TO_CHAR);

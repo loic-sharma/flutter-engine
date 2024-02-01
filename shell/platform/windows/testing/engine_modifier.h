@@ -37,6 +37,8 @@ class EngineModifier {
     engine_->egl_manager_ = std::move(egl_manager);
   }
 
+  void SetView(FlutterWindowsView* view) { engine_->view_ = view; }
+
   /// Reset the start_time field that is used to align vsync events.
   void SetStartTime(uint64_t start_time_nanos) {
     engine_->start_time_ = std::chrono::nanoseconds(start_time_nanos);
@@ -63,6 +65,8 @@ class EngineModifier {
   // Run the FlutterWindowsEngine's handler that runs right before an engine
   // restart. This resets the keyboard's state if it exists.
   void Restart() { engine_->OnPreEngineRestart(); }
+
+  void InitializeKeyboard() { engine_->InitializeKeyboard(); }
 
   void SetLifecycleManager(std::unique_ptr<WindowsLifecycleManager>&& handler) {
     engine_->lifecycle_manager_ = std::move(handler);

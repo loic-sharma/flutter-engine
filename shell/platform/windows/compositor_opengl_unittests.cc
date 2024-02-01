@@ -83,27 +83,33 @@ class CompositorOpenGLTest : public WindowsTest {
     FlutterWindowsEngineBuilder builder{GetContext()};
 
     engine_ = builder.Build();
-    EngineModifier modifier(engine_.get());
+    EngineModifier modifier{engine_.get()};
     modifier.SetEGLManager(std::move(egl_manager));
   }
 
   void UseEngineWithView(bool add_surface = true) {
     UseHeadlessEngine(add_surface);
 
+    if (add_surface) {
+      EXPECT_CALL(*surface_.get(), Destroy).WillOnce(Return(true));
+    }
+
     auto window = std::make_unique<MockWindowBindingHandler>();
     EXPECT_CALL(*window.get(), SetView).Times(1);
     EXPECT_CALL(*window.get(), GetWindowHandle).WillRepeatedly(Return(nullptr));
 
-    view_ = std::make_unique<FlutterWindowsView>(std::move(window));
+    view_ =
+        std::make_unique<FlutterWindowsView>(engine_.get(), std::move(window));
 
-    engine_->SetView(view_.get());
+    EngineModifier modifier{engine_.get()};
+    modifier.SetView(view_.get());
   }
 
  private:
+  egl::MockManager* egl_manager_;
+  std::unique_ptr<egl::MockWindowSurface> surface_;
   std::unique_ptr<FlutterWindowsEngine> engine_;
   std::unique_ptr<FlutterWindowsView> view_;
-  std::unique_ptr<egl::MockWindowSurface> surface_;
-  egl::MockManager* egl_manager_;
 
   FML_DISALLOW_COPY_AND_ASSIGN(CompositorOpenGLTest);
 };

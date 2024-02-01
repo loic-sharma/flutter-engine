@@ -79,8 +79,10 @@ FlutterProjectBundle GetTestProject() {
 // Returns an engine instance configured with test project path values, and
 // overridden methods for sending platform messages, so that the engine can
 // respond as if the framework were connected.
-std::unique_ptr<FlutterWindowsEngine> GetTestEngine() {
-  auto engine = std::make_unique<FlutterWindowsEngine>(GetTestProject());
+std::unique_ptr<FlutterWindowsEngine> GetTestEngine(
+    std::shared_ptr<WindowsProcTable> windows_proc_table = nullptr) {
+  auto engine = std::make_unique<FlutterWindowsEngine>(
+      GetTestProject(), std::move(windows_proc_table));
 
   EngineModifier modifier(engine.get());
 
@@ -112,7 +114,9 @@ std::unique_ptr<FlutterWindowsEngine> GetTestEngine() {
 
 class MockFlutterWindowsEngine : public FlutterWindowsEngine {
  public:
-  MockFlutterWindowsEngine() : FlutterWindowsEngine(GetTestProject()) {}
+  MockFlutterWindowsEngine(
+      std::shared_ptr<WindowsProcTable> windows_proc_table = nullptr)
+      : FlutterWindowsEngine(GetTestProject(), std::move(windows_proc_table)) {}
 
   MOCK_METHOD(bool, running, (), (const));
   MOCK_METHOD(bool, Stop, (), ());
@@ -136,13 +140,13 @@ TEST(FlutterWindowsViewTest, SubMenuExpandedState) {
 
   auto window_binding_handler =
       std::make_unique<NiceMock<MockWindowBindingHandler>>();
-  FlutterWindowsView view(std::move(window_binding_handler));
-  view.SetEngine(engine.get());
+  std::unique_ptr<FlutterWindowsView> view =
+      engine->CreateView(std::move(window_binding_handler));
 
   // Enable semantics to instantiate accessibility bridge.
-  view.OnUpdateSemanticsEnabled(true);
+  view->OnUpdateSemanticsEnabled(true);
 
-  auto bridge = view.accessibility_bridge().lock();
+  auto bridge = view->accessibility_bridge().lock();
   ASSERT_TRUE(bridge);
 
   FlutterSemanticsNode2 root{sizeof(FlutterSemanticsNode2), 0};
@@ -240,15 +244,17 @@ TEST(FlutterWindowsViewTest, Shutdown) {
   EXPECT_CALL(*egl_manager.get(), surface).WillOnce(Return(surface.get()));
 
   EngineModifier modifier(engine.get());
-  FlutterWindowsView view(std::move(window_binding_handler));
-
-  // The engine must be stopped before the surface can be destroyed.
-  InSequence s;
-  EXPECT_CALL(*engine.get(), Stop).Times(1);
-  EXPECT_CALL(*surface.get(), Destroy).Times(1);
-
   modifier.SetEGLManager(std::move(egl_manager));
-  view.SetEngine(engine.get());
+
+  {
+    std::unique_ptr<FlutterWindowsView> view =
+        engine->CreateView(std::move(window_binding_handler));
+
+    // The engine must be stopped before the surface can be destroyed.
+    InSequence s;
+    EXPECT_CALL(*engine.get(), Stop).Times(1);
+    EXPECT_CALL(*surface.get(), Destroy).Times(1);
+  }
 }
 
 TEST(FlutterWindowsViewTest, KeySequence) {
@@ -258,11 +264,11 @@ TEST(FlutterWindowsViewTest, KeySequence) {
 
   auto window_binding_handler =
       std::make_unique<NiceMock<MockWindowBindingHandler>>();
-  FlutterWindowsView view(std::move(window_binding_handler));
-  view.SetEngine(engine.get());
+  std::unique_ptr<FlutterWindowsView> view =
+      engine->CreateView(std::move(window_binding_handler));
 
-  view.OnKey(kVirtualKeyA, kScanCodeKeyA, WM_KEYDOWN, 'a', false, false,
-             [](bool handled) {});
+  view->OnKey(kVirtualKeyA, kScanCodeKeyA, WM_KEYDOWN, 'a', false, false,
+              [](bool handled) {});
 
   EXPECT_EQ(key_event_logs.size(), 2);
   EXPECT_EQ(key_event_logs[0], kKeyEventFromEmbedder);
@@ -286,10 +292,10 @@ TEST(FlutterWindowsViewTest, EnableSemantics) {
 
   auto window_binding_handler =
       std::make_unique<NiceMock<MockWindowBindingHandler>>();
-  FlutterWindowsView view(std::move(window_binding_handler));
-  view.SetEngine(engine.get());
+  std::unique_ptr<FlutterWindowsView> view =
+      engine->CreateView(std::move(window_binding_handler));
 
-  view.OnUpdateSemanticsEnabled(true);
+  view->OnUpdateSemanticsEnabled(true);
   EXPECT_TRUE(semantics_enabled);
 }
 
@@ -303,13 +309,13 @@ TEST(FlutterWindowsViewTest, AddSemanticsNodeUpdate) {
 
   auto window_binding_handler =
       std::make_unique<NiceMock<MockWindowBindingHandler>>();
-  FlutterWindowsView view(std::move(window_binding_handler));
-  view.SetEngine(engine.get());
+  std::unique_ptr<FlutterWindowsView> view =
+      engine->CreateView(std::move(window_binding_handler));
 
   // Enable semantics to instantiate accessibility bridge.
-  view.OnUpdateSemanticsEnabled(true);
+  view->OnUpdateSemanticsEnabled(true);
 
-  auto bridge = view.accessibility_bridge().lock();
+  auto bridge = view->accessibility_bridge().lock();
   ASSERT_TRUE(bridge);
 
   // Add root node.
@@ -400,15 +406,13 @@ TEST(FlutterWindowsViewTest, AddSemanticsNodeUpdateWithChildren) {
         return kSuccess;
       };
 
-  auto window_binding_handler =
-      std::make_unique<NiceMock<MockWindowBindingHandler>>();
-  FlutterWindowsView view(std::move(window_binding_handler));
-  view.SetEngine(engine.get());
+  std::unique_ptr<FlutterWindowsView> view = engine->CreateView(
+      std::make_unique<NiceMock<MockWindowBindingHandler>>());
 
   // Enable semantics to instantiate accessibility bridge.
-  view.OnUpdateSemanticsEnabled(true);
+  view->OnUpdateSemanticsEnabled(true);
 
-  auto bridge = view.accessibility_bridge().lock();
+  auto bridge = view->accessibility_bridge().lock();
   ASSERT_TRUE(bridge);
 
   // Add root node.
@@ -598,15 +602,13 @@ TEST(FlutterWindowsViewTest, NonZeroSemanticsRoot) {
         return kSuccess;
       };
 
-  auto window_binding_handler =
-      std::make_unique<NiceMock<MockWindowBindingHandler>>();
-  FlutterWindowsView view(std::move(window_binding_handler));
-  view.SetEngine(engine.get());
+  std::unique_ptr<FlutterWindowsView> view = engine->CreateView(
+      std::make_unique<NiceMock<MockWindowBindingHandler>>());
 
   // Enable semantics to instantiate accessibility bridge.
-  view.OnUpdateSemanticsEnabled(true);
+  view->OnUpdateSemanticsEnabled(true);
 
-  auto bridge = view.accessibility_bridge().lock();
+  auto bridge = view->accessibility_bridge().lock();
   ASSERT_TRUE(bridge);
 
   // Add root node.
@@ -730,15 +732,13 @@ TEST(FlutterWindowsViewTest, AccessibilityHitTesting) {
         return kSuccess;
       };
 
-  auto window_binding_handler =
-      std::make_unique<NiceMock<MockWindowBindingHandler>>();
-  FlutterWindowsView view(std::move(window_binding_handler));
-  view.SetEngine(engine.get());
+  std::unique_ptr<FlutterWindowsView> view = engine->CreateView(
+      std::make_unique<NiceMock<MockWindowBindingHandler>>());
 
   // Enable semantics to instantiate accessibility bridge.
-  view.OnUpdateSemanticsEnabled(true);
+  view->OnUpdateSemanticsEnabled(true);
 
-  auto bridge = view.accessibility_bridge().lock();
+  auto bridge = view->accessibility_bridge().lock();
   ASSERT_TRUE(bridge);
 
   // Add root node at origin. Size 500x500.
@@ -813,12 +813,12 @@ TEST(FlutterWindowsViewTest, AccessibilityHitTesting) {
 }
 
 TEST(FlutterWindowsViewTest, WindowResizeTests) {
-  std::unique_ptr<FlutterWindowsEngine> engine = GetTestEngine();
+  auto windows_proc_table = std::make_shared<NiceMock<MockWindowsProcTable>>();
+
+  std::unique_ptr<FlutterWindowsEngine> engine =
+      GetTestEngine(windows_proc_table);
   EngineModifier modifier(engine.get());
 
-  auto window_binding_handler =
-      std::make_unique<NiceMock<MockWindowBindingHandler>>();
-  auto windows_proc_table = std::make_shared<MockWindowsProcTable>();
   auto egl_manager = std::make_unique<egl::MockManager>();
   auto surface = std::make_unique<egl::MockWindowSurface>();
 
@@ -831,11 +831,6 @@ TEST(FlutterWindowsViewTest, WindowResizeTests) {
   EXPECT_CALL(*surface.get(), IsValid).WillOnce(Return(true));
   EXPECT_CALL(*surface.get(), Destroy).Times(1);
 
-  FlutterWindowsView view(std::move(window_binding_handler),
-                          std::move(windows_proc_table));
-  modifier.SetEGLManager(std::move(egl_manager));
-  view.SetEngine(engine.get());
-
   fml::AutoResetWaitableEvent metrics_sent_latch;
   modifier.embedder_api().SendWindowMetricsEvent = MOCK_ENGINE_PROC(
       SendWindowMetricsEvent,
@@ -845,11 +840,16 @@ TEST(FlutterWindowsViewTest, WindowResizeTests) {
         return kSuccess;
       }));
 
+  modifier.SetEGLManager(std::move(egl_manager));
+
+  std::unique_ptr<FlutterWindowsView> view = engine->CreateView(
+      std::make_unique<NiceMock<MockWindowBindingHandler>>());
+
   fml::AutoResetWaitableEvent resized_latch;
   std::thread([&resized_latch, &view]() {
     // Start the window resize. This sends the new window metrics
     // and then blocks until another thread completes the window resize.
-    EXPECT_TRUE(view.OnWindowSizeChanged(500, 500));
+    EXPECT_TRUE(view->OnWindowSizeChanged(500, 500));
     resized_latch.Signal();
   }).detach();
 
@@ -857,23 +857,22 @@ TEST(FlutterWindowsViewTest, WindowResizeTests) {
   metrics_sent_latch.Wait();
 
   // Complete the window resize by reporting a frame with the new window size.
-  ASSERT_TRUE(view.OnFrameGenerated(500, 500));
-  view.OnFramePresented();
+  ASSERT_TRUE(view->OnFrameGenerated(500, 500));
+  view->OnFramePresented();
   resized_latch.Wait();
 }
 
 // Verify that an empty frame completes a view resize.
 TEST(FlutterWindowsViewTest, TestEmptyFrameResizes) {
-  std::unique_ptr<FlutterWindowsEngine> engine = GetTestEngine();
+  auto windows_proc_table = std::make_shared<NiceMock<MockWindowsProcTable>>();
+  std::unique_ptr<FlutterWindowsEngine> engine =
+      GetTestEngine(windows_proc_table);
   EngineModifier modifier(engine.get());
-
-  auto window_binding_handler =
-      std::make_unique<NiceMock<MockWindowBindingHandler>>();
-  auto windows_proc_table = std::make_shared<MockWindowsProcTable>();
   auto egl_manager = std::make_unique<egl::MockManager>();
   auto surface = std::make_unique<egl::MockWindowSurface>();
 
   EXPECT_CALL(*windows_proc_table.get(), DwmFlush).WillOnce(Return(S_OK));
+
   EXPECT_CALL(*egl_manager.get(), surface)
       .WillRepeatedly(Return(surface.get()));
   EXPECT_CALL(*egl_manager.get(),
@@ -881,11 +880,6 @@ TEST(FlutterWindowsViewTest, TestEmptyFrameResizes) {
       .Times(1);
   EXPECT_CALL(*surface.get(), IsValid).WillOnce(Return(true));
   EXPECT_CALL(*surface.get(), Destroy).Times(1);
-
-  FlutterWindowsView view(std::move(window_binding_handler),
-                          std::move(windows_proc_table));
-  modifier.SetEGLManager(std::move(egl_manager));
-  view.SetEngine(engine.get());
 
   fml::AutoResetWaitableEvent metrics_sent_latch;
   modifier.embedder_api().SendWindowMetricsEvent = MOCK_ENGINE_PROC(
@@ -896,11 +890,16 @@ TEST(FlutterWindowsViewTest, TestEmptyFrameResizes) {
         return kSuccess;
       }));
 
+  modifier.SetEGLManager(std::move(egl_manager));
+
+  std::unique_ptr<FlutterWindowsView> view = engine->CreateView(
+      std::make_unique<NiceMock<MockWindowBindingHandler>>());
+
   fml::AutoResetWaitableEvent resized_latch;
   std::thread([&resized_latch, &view]() {
     // Start the window resize. This sends the new window metrics
     // and then blocks until another thread completes the window resize.
-    EXPECT_TRUE(view.OnWindowSizeChanged(500, 500));
+    EXPECT_TRUE(view->OnWindowSizeChanged(500, 500));
     resized_latch.Signal();
   }).detach();
 
@@ -908,8 +907,8 @@ TEST(FlutterWindowsViewTest, TestEmptyFrameResizes) {
   metrics_sent_latch.Wait();
 
   // Complete the window resize by reporting an empty frame.
-  view.OnEmptyFrameGenerated();
-  view.OnFramePresented();
+  view->OnEmptyFrameGenerated();
+  view->OnFramePresented();
   resized_latch.Wait();
 }
 
@@ -920,9 +919,6 @@ TEST(FlutterWindowsViewTest, WindowResizeRace) {
   std::unique_ptr<FlutterWindowsEngine> engine = GetTestEngine();
   EngineModifier modifier(engine.get());
 
-  auto window_binding_handler =
-      std::make_unique<NiceMock<MockWindowBindingHandler>>();
-  auto windows_proc_table = std::make_shared<MockWindowsProcTable>();
   auto egl_manager = std::make_unique<egl::MockManager>();
   auto surface = std::make_unique<egl::MockWindowSurface>();
 
@@ -931,20 +927,20 @@ TEST(FlutterWindowsViewTest, WindowResizeRace) {
   EXPECT_CALL(*surface.get(), IsValid).WillOnce(Return(true));
   EXPECT_CALL(*surface.get(), Destroy).Times(1);
 
-  FlutterWindowsView view(std::move(window_binding_handler),
-                          std::move(windows_proc_table));
   modifier.SetEGLManager(std::move(egl_manager));
-  view.SetEngine(engine.get());
+
+  std::unique_ptr<FlutterWindowsView> view = engine->CreateView(
+      std::make_unique<NiceMock<MockWindowBindingHandler>>());
 
   // Begin a frame.
-  ASSERT_TRUE(view.OnFrameGenerated(100, 100));
+  ASSERT_TRUE(view->OnFrameGenerated(100, 100));
 
   // Inject a window resize between the frame generation and
   // frame presentation. The new size invalidates the current frame.
   fml::AutoResetWaitableEvent resized_latch;
   std::thread([&resized_latch, &view]() {
     // The resize is never completed. The view times out and returns false.
-    EXPECT_FALSE(view.OnWindowSizeChanged(500, 500));
+    EXPECT_FALSE(view->OnWindowSizeChanged(500, 500));
     resized_latch.Signal();
   }).detach();
 
@@ -954,7 +950,7 @@ TEST(FlutterWindowsViewTest, WindowResizeRace) {
   // Complete the invalidated frame while a resize is pending. Although this
   // might mean that we presented a frame with the wrong size, this should not
   // crash the app.
-  view.OnFramePresented();
+  view->OnFramePresented();
 }
 
 // Window resize should succeed even if the render surface could not be created
@@ -963,9 +959,6 @@ TEST(FlutterWindowsViewTest, WindowResizeInvalidSurface) {
   std::unique_ptr<FlutterWindowsEngine> engine = GetTestEngine();
   EngineModifier modifier(engine.get());
 
-  auto window_binding_handler =
-      std::make_unique<NiceMock<MockWindowBindingHandler>>();
-  auto windows_proc_table = std::make_shared<MockWindowsProcTable>();
   auto egl_manager = std::make_unique<egl::MockManager>();
   auto surface = std::make_unique<egl::MockWindowSurface>();
 
@@ -975,10 +968,10 @@ TEST(FlutterWindowsViewTest, WindowResizeInvalidSurface) {
   EXPECT_CALL(*surface.get(), IsValid).WillRepeatedly(Return(false));
   EXPECT_CALL(*surface.get(), Destroy).WillOnce(Return(false));
 
-  FlutterWindowsView view(std::move(window_binding_handler),
-                          std::move(windows_proc_table));
   modifier.SetEGLManager(std::move(egl_manager));
-  view.SetEngine(engine.get());
+
+  std::unique_ptr<FlutterWindowsView> view = engine->CreateView(
+      std::make_unique<NiceMock<MockWindowBindingHandler>>());
 
   auto metrics_sent = false;
   modifier.embedder_api().SendWindowMetricsEvent = MOCK_ENGINE_PROC(
@@ -988,7 +981,7 @@ TEST(FlutterWindowsViewTest, WindowResizeInvalidSurface) {
         return kSuccess;
       }));
 
-  view.OnWindowSizeChanged(500, 500);
+  view->OnWindowSizeChanged(500, 500);
 }
 
 // Window resize should succeed even if EGL initialized successfully
@@ -997,18 +990,10 @@ TEST(FlutterWindowsViewTest, WindowResizeWithoutSurface) {
   std::unique_ptr<FlutterWindowsEngine> engine = GetTestEngine();
   EngineModifier modifier(engine.get());
 
-  auto window_binding_handler =
-      std::make_unique<NiceMock<MockWindowBindingHandler>>();
-  auto windows_proc_table = std::make_shared<MockWindowsProcTable>();
   auto egl_manager = std::make_unique<egl::MockManager>();
 
   EXPECT_CALL(*egl_manager.get(), surface).WillRepeatedly(Return(nullptr));
   EXPECT_CALL(*egl_manager.get(), ResizeWindowSurface).Times(0);
-
-  FlutterWindowsView view(std::move(window_binding_handler),
-                          std::move(windows_proc_table));
-  modifier.SetEGLManager(std::move(egl_manager));
-  view.SetEngine(engine.get());
 
   auto metrics_sent = false;
   modifier.embedder_api().SendWindowMetricsEvent = MOCK_ENGINE_PROC(
@@ -1018,15 +1003,17 @@ TEST(FlutterWindowsViewTest, WindowResizeWithoutSurface) {
         return kSuccess;
       }));
 
-  view.OnWindowSizeChanged(500, 500);
+  modifier.SetEGLManager(std::move(egl_manager));
+
+  std::unique_ptr<FlutterWindowsView> view = engine->CreateView(
+      std::make_unique<NiceMock<MockWindowBindingHandler>>());
+
+  view->OnWindowSizeChanged(500, 500);
 }
 
 TEST(FlutterWindowsViewTest, WindowRepaintTests) {
   std::unique_ptr<FlutterWindowsEngine> engine = GetTestEngine();
   EngineModifier modifier(engine.get());
-
-  FlutterWindowsView view(std::make_unique<flutter::FlutterWindow>(100, 100));
-  view.SetEngine(engine.get());
 
   bool schedule_frame_called = false;
   modifier.embedder_api().ScheduleFrame =
@@ -1035,7 +1022,10 @@ TEST(FlutterWindowsViewTest, WindowRepaintTests) {
                          return kSuccess;
                        }));
 
-  view.OnWindowRepaint();
+  std::unique_ptr<FlutterWindowsView> view =
+      engine->CreateView(std::make_unique<flutter::FlutterWindow>(100, 100));
+
+  view->OnWindowRepaint();
   EXPECT_TRUE(schedule_frame_called);
 }
 
@@ -1053,15 +1043,13 @@ TEST(FlutterWindowsViewTest, CheckboxNativeState) {
         return kSuccess;
       };
 
-  auto window_binding_handler =
-      std::make_unique<NiceMock<MockWindowBindingHandler>>();
-  FlutterWindowsView view(std::move(window_binding_handler));
-  view.SetEngine(engine.get());
+  std::unique_ptr<FlutterWindowsView> view = engine->CreateView(
+      std::make_unique<NiceMock<MockWindowBindingHandler>>());
 
   // Enable semantics to instantiate accessibility bridge.
-  view.OnUpdateSemanticsEnabled(true);
+  view->OnUpdateSemanticsEnabled(true);
 
-  auto bridge = view.accessibility_bridge().lock();
+  auto bridge = view->accessibility_bridge().lock();
   ASSERT_TRUE(bridge);
 
   FlutterSemanticsNode2 root{sizeof(FlutterSemanticsNode2), 0};
@@ -1199,15 +1187,13 @@ TEST(FlutterWindowsViewTest, SwitchNativeState) {
         return kSuccess;
       };
 
-  auto window_binding_handler =
-      std::make_unique<NiceMock<MockWindowBindingHandler>>();
-  FlutterWindowsView view(std::move(window_binding_handler));
-  view.SetEngine(engine.get());
+  std::unique_ptr<FlutterWindowsView> view = engine->CreateView(
+      std::make_unique<NiceMock<MockWindowBindingHandler>>());
 
   // Enable semantics to instantiate accessibility bridge.
-  view.OnUpdateSemanticsEnabled(true);
+  view->OnUpdateSemanticsEnabled(true);
 
-  auto bridge = view.accessibility_bridge().lock();
+  auto bridge = view->accessibility_bridge().lock();
   ASSERT_TRUE(bridge);
 
   FlutterSemanticsNode2 root{sizeof(FlutterSemanticsNode2), 0};
@@ -1318,15 +1304,13 @@ TEST(FlutterWindowsViewTest, TooltipNodeData) {
         return kSuccess;
       };
 
-  auto window_binding_handler =
-      std::make_unique<NiceMock<MockWindowBindingHandler>>();
-  FlutterWindowsView view(std::move(window_binding_handler));
-  view.SetEngine(engine.get());
+  std::unique_ptr<FlutterWindowsView> view = engine->CreateView(
+      std::make_unique<NiceMock<MockWindowBindingHandler>>());
 
   // Enable semantics to instantiate accessibility bridge.
-  view.OnUpdateSemanticsEnabled(true);
+  view->OnUpdateSemanticsEnabled(true);
 
-  auto bridge = view.accessibility_bridge().lock();
+  auto bridge = view->accessibility_bridge().lock();
   ASSERT_TRUE(bridge);
 
   FlutterSemanticsNode2 root{sizeof(FlutterSemanticsNode2), 0};
@@ -1370,10 +1354,8 @@ TEST(FlutterWindowsViewTest, TooltipNodeData) {
 // Don't block until the v-blank if it is disabled by the window.
 // The surface is updated on the platform thread at startup.
 TEST(FlutterWindowsViewTest, DisablesVSyncAtStartup) {
-  auto engine = std::make_unique<MockFlutterWindowsEngine>();
-  auto window_binding_handler =
-      std::make_unique<NiceMock<MockWindowBindingHandler>>();
   auto windows_proc_table = std::make_shared<MockWindowsProcTable>();
+  auto engine = std::make_unique<MockFlutterWindowsEngine>(windows_proc_table);
   auto egl_manager = std::make_unique<egl::MockManager>();
   egl::MockContext render_context;
   auto surface = std::make_unique<egl::MockWindowSurface>();
@@ -1389,10 +1371,6 @@ TEST(FlutterWindowsViewTest, DisablesVSyncAtStartup) {
   EXPECT_CALL(*egl_manager.get(), surface)
       .WillRepeatedly(Return(surface.get()));
 
-  EngineModifier modifier(engine.get());
-  FlutterWindowsView view(std::move(window_binding_handler),
-                          std::move(windows_proc_table));
-
   InSequence s;
   EXPECT_CALL(*egl_manager.get(), CreateWindowSurface(_, _, _))
       .Times(1)
@@ -1404,19 +1382,20 @@ TEST(FlutterWindowsViewTest, DisablesVSyncAtStartup) {
   EXPECT_CALL(*engine.get(), Stop).Times(1);
   EXPECT_CALL(*surface.get(), Destroy).Times(1);
 
+  EngineModifier modifier(engine.get());
   modifier.SetEGLManager(std::move(egl_manager));
-  view.SetEngine(engine.get());
 
-  view.CreateRenderSurface();
+  std::unique_ptr<FlutterWindowsView> view = engine->CreateView(
+      std::make_unique<NiceMock<MockWindowBindingHandler>>());
+
+  view->CreateRenderSurface();
 }
 
 // Blocks until the v-blank if it is enabled by the window.
 // The surface is updated on the platform thread at startup.
 TEST(FlutterWindowsViewTest, EnablesVSyncAtStartup) {
-  auto engine = std::make_unique<MockFlutterWindowsEngine>();
-  auto window_binding_handler =
-      std::make_unique<NiceMock<MockWindowBindingHandler>>();
   auto windows_proc_table = std::make_shared<MockWindowsProcTable>();
+  auto engine = std::make_unique<MockFlutterWindowsEngine>(windows_proc_table);
   auto egl_manager = std::make_unique<egl::MockManager>();
   egl::MockContext render_context;
   auto surface = std::make_unique<egl::MockWindowSurface>();
@@ -1431,10 +1410,6 @@ TEST(FlutterWindowsViewTest, EnablesVSyncAtStartup) {
   EXPECT_CALL(*egl_manager.get(), surface)
       .WillRepeatedly(Return(surface.get()));
 
-  EngineModifier modifier(engine.get());
-  FlutterWindowsView view(std::move(window_binding_handler),
-                          std::move(windows_proc_table));
-
   InSequence s;
   EXPECT_CALL(*egl_manager.get(), CreateWindowSurface(_, _, _))
       .Times(1)
@@ -1446,19 +1421,20 @@ TEST(FlutterWindowsViewTest, EnablesVSyncAtStartup) {
   EXPECT_CALL(*engine.get(), Stop).Times(1);
   EXPECT_CALL(*surface.get(), Destroy).Times(1);
 
+  EngineModifier modifier(engine.get());
   modifier.SetEGLManager(std::move(egl_manager));
-  view.SetEngine(engine.get());
 
-  view.CreateRenderSurface();
+  std::unique_ptr<FlutterWindowsView> view = engine->CreateView(
+      std::make_unique<NiceMock<MockWindowBindingHandler>>());
+
+  view->CreateRenderSurface();
 }
 
 // Don't block until the v-blank if it is disabled by the window.
 // The surface is updated on the raster thread if the engine is running.
 TEST(FlutterWindowsViewTest, DisablesVSyncAfterStartup) {
-  auto engine = std::make_unique<MockFlutterWindowsEngine>();
-  auto window_binding_handler =
-      std::make_unique<NiceMock<MockWindowBindingHandler>>();
   auto windows_proc_table = std::make_shared<MockWindowsProcTable>();
+  auto engine = std::make_unique<MockFlutterWindowsEngine>(windows_proc_table);
   auto egl_manager = std::make_unique<egl::MockManager>();
   egl::MockContext render_context;
   auto surface = std::make_unique<egl::MockWindowSurface>();
@@ -1471,10 +1447,6 @@ TEST(FlutterWindowsViewTest, DisablesVSyncAfterStartup) {
       .WillOnce(Return(&render_context));
   EXPECT_CALL(*egl_manager.get(), surface)
       .WillRepeatedly(Return(surface.get()));
-
-  EngineModifier modifier(engine.get());
-  FlutterWindowsView view(std::move(window_binding_handler),
-                          std::move(windows_proc_table));
 
   InSequence s;
   EXPECT_CALL(*egl_manager.get(), CreateWindowSurface(_, _, _))
@@ -1491,19 +1463,20 @@ TEST(FlutterWindowsViewTest, DisablesVSyncAfterStartup) {
   EXPECT_CALL(*engine.get(), Stop).Times(1);
   EXPECT_CALL(*surface.get(), Destroy).Times(1);
 
+  EngineModifier modifier(engine.get());
   modifier.SetEGLManager(std::move(egl_manager));
-  view.SetEngine(engine.get());
 
-  view.CreateRenderSurface();
+  std::unique_ptr<FlutterWindowsView> view = engine->CreateView(
+      std::make_unique<NiceMock<MockWindowBindingHandler>>());
+
+  view->CreateRenderSurface();
 }
 
 // Blocks until the v-blank if it is enabled by the window.
 // The surface is updated on the raster thread if the engine is running.
 TEST(FlutterWindowsViewTest, EnablesVSyncAfterStartup) {
-  auto engine = std::make_unique<MockFlutterWindowsEngine>();
-  auto window_binding_handler =
-      std::make_unique<NiceMock<MockWindowBindingHandler>>();
   auto windows_proc_table = std::make_shared<MockWindowsProcTable>();
+  auto engine = std::make_unique<MockFlutterWindowsEngine>(windows_proc_table);
   auto egl_manager = std::make_unique<egl::MockManager>();
   egl::MockContext render_context;
   auto surface = std::make_unique<egl::MockWindowSurface>();
@@ -1517,10 +1490,6 @@ TEST(FlutterWindowsViewTest, EnablesVSyncAfterStartup) {
       .WillOnce(Return(&render_context));
   EXPECT_CALL(*egl_manager.get(), surface)
       .WillRepeatedly(Return(surface.get()));
-
-  EngineModifier modifier(engine.get());
-  FlutterWindowsView view(std::move(window_binding_handler),
-                          std::move(windows_proc_table));
 
   InSequence s;
   EXPECT_CALL(*egl_manager.get(), CreateWindowSurface(_, _, _))
@@ -1538,20 +1507,21 @@ TEST(FlutterWindowsViewTest, EnablesVSyncAfterStartup) {
   EXPECT_CALL(*engine.get(), Stop).Times(1);
   EXPECT_CALL(*surface.get(), Destroy).Times(1);
 
+  EngineModifier modifier(engine.get());
   modifier.SetEGLManager(std::move(egl_manager));
-  view.SetEngine(engine.get());
 
-  view.CreateRenderSurface();
+  std::unique_ptr<FlutterWindowsView> view = engine->CreateView(
+      std::make_unique<NiceMock<MockWindowBindingHandler>>());
+
+  view->CreateRenderSurface();
 }
 
 // Desktop Window Manager composition can be disabled on Windows 7.
 // If this happens, the app must synchronize with the vsync to prevent
 // screen tearing.
 TEST(FlutterWindowsViewTest, UpdatesVSyncOnDwmUpdates) {
-  auto engine = std::make_unique<MockFlutterWindowsEngine>();
-  auto window_binding_handler =
-      std::make_unique<NiceMock<MockWindowBindingHandler>>();
   auto windows_proc_table = std::make_shared<MockWindowsProcTable>();
+  auto engine = std::make_unique<MockFlutterWindowsEngine>(windows_proc_table);
   auto egl_manager = std::make_unique<egl::MockManager>();
   egl::MockContext render_context;
   auto surface = std::make_unique<egl::MockWindowSurface>();
@@ -1573,10 +1543,6 @@ TEST(FlutterWindowsViewTest, UpdatesVSyncOnDwmUpdates) {
   EXPECT_CALL(*egl_manager.get(), surface)
       .WillRepeatedly(Return(surface.get()));
 
-  EngineModifier modifier(engine.get());
-  FlutterWindowsView view(std::move(window_binding_handler),
-                          std::move(windows_proc_table));
-
   InSequence s;
   EXPECT_CALL(*surface.get(), MakeCurrent).WillOnce(Return(true));
   EXPECT_CALL(*surface.get(), SetVSyncEnabled(true)).WillOnce(Return(true));
@@ -1589,11 +1555,14 @@ TEST(FlutterWindowsViewTest, UpdatesVSyncOnDwmUpdates) {
   EXPECT_CALL(*engine.get(), Stop).Times(1);
   EXPECT_CALL(*surface.get(), Destroy).Times(1);
 
+  EngineModifier modifier(engine.get());
   modifier.SetEGLManager(std::move(egl_manager));
-  view.SetEngine(engine.get());
 
-  view.GetEngine()->OnDwmCompositionChanged();
-  view.GetEngine()->OnDwmCompositionChanged();
+  std::unique_ptr<FlutterWindowsView> view = engine->CreateView(
+      std::make_unique<NiceMock<MockWindowBindingHandler>>());
+
+  engine->OnDwmCompositionChanged();
+  engine->OnDwmCompositionChanged();
 }
 
 }  // namespace testing

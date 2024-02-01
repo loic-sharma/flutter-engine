@@ -9,6 +9,7 @@
 #include "flutter/fml/macros.h"
 #include "flutter/shell/platform/common/json_method_codec.h"
 #include "flutter/shell/platform/windows/flutter_windows_view.h"
+#include "flutter/shell/platform/windows/testing/engine_modifier.h"
 #include "flutter/shell/platform/windows/testing/flutter_windows_engine_builder.h"
 #include "flutter/shell/platform/windows/testing/mock_window_binding_handler.h"
 #include "flutter/shell/platform/windows/testing/test_binary_messenger.h"
@@ -152,10 +153,12 @@ class PlatformHandlerTest : public WindowsTest {
     FlutterWindowsEngineBuilder builder{GetContext()};
 
     auto window = std::make_unique<NiceMock<MockWindowBindingHandler>>();
-    view_ = std::make_unique<FlutterWindowsView>(std::move(window));
     engine_ = builder.Build();
+    view_ =
+        std::make_unique<FlutterWindowsView>(engine_.get(), std::move(window));
 
-    engine_->SetView(view_.get());
+    EngineModifier modifier{engine_.get()};
+    modifier.SetView(view_.get());
   }
 
  private:

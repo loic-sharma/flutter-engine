@@ -83,9 +83,10 @@ void UpdateVsync(const FlutterWindowsEngine& engine, bool needs_vsync) {
 }  // namespace
 
 FlutterWindowsView::FlutterWindowsView(
+    FlutterWindowsEngine* engine,
     std::unique_ptr<WindowBindingHandler> window_binding,
     std::shared_ptr<WindowsProcTable> windows_proc_table)
-    : windows_proc_table_(std::move(windows_proc_table)) {
+    : engine_(engine), windows_proc_table_(std::move(windows_proc_table)) {
   if (windows_proc_table_ == nullptr) {
     windows_proc_table_ = std::make_shared<WindowsProcTable>();
   }
@@ -98,25 +99,9 @@ FlutterWindowsView::FlutterWindowsView(
 FlutterWindowsView::~FlutterWindowsView() {
   // The engine renders into the view's surface. The engine must be
   // shutdown before the view's resources can be destroyed.
-  if (engine_) {
-    engine_->Stop();
-  }
+  engine_->Stop();
 
   DestroyRenderSurface();
-}
-
-void FlutterWindowsView::SetEngine(FlutterWindowsEngine* engine) {
-  FML_DCHECK(engine_ == nullptr);
-  FML_DCHECK(engine != nullptr);
-
-  engine_ = engine;
-
-  engine_->SetView(this);
-
-  PhysicalWindowBounds bounds = binding_handler_->GetPhysicalWindowBounds();
-
-  SendWindowMetrics(bounds.width, bounds.height,
-                    binding_handler_->GetDpiScale());
 }
 
 void FlutterWindowsView::OnEmptyFrameGenerated() {
@@ -651,7 +636,7 @@ bool FlutterWindowsView::PresentSoftwareBitmap(const void* allocation,
 }
 
 void FlutterWindowsView::CreateRenderSurface() {
-  if (engine_ && engine_->egl_manager()) {
+  if (engine_->egl_manager()) {
     PhysicalWindowBounds bounds = binding_handler_->GetPhysicalWindowBounds();
     engine_->egl_manager()->CreateWindowSurface(GetWindowHandle(), bounds.width,
                                                 bounds.height);
@@ -664,10 +649,6 @@ void FlutterWindowsView::CreateRenderSurface() {
 }
 
 void FlutterWindowsView::DestroyRenderSurface() {
-  if (!engine_) {
-    return;
-  }
-
   auto const manager = engine_->egl_manager();
   if (!manager) {
     return;
@@ -740,9 +721,7 @@ void FlutterWindowsView::OnDwmCompositionChanged() {
 }
 
 void FlutterWindowsView::OnWindowStateEvent(HWND hwnd, WindowStateEvent event) {
-  if (engine_) {
-    engine_->OnWindowStateEvent(hwnd, event);
-  }
+  engine_->OnWindowStateEvent(hwnd, event);
 }
 
 bool FlutterWindowsView::NeedsVsync() const {
