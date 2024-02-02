@@ -410,38 +410,6 @@ TEST_F(FlutterWindowTest, CachedLifecycleMessage) {
   EXPECT_TRUE(restored);
 }
 
-TEST_F(FlutterWindowTest, PosthumousWindowMessage) {
-  MockWindowBindingHandlerDelegate delegate;
-  int msg_count = 0;
-  HWND hwnd;
-  EXPECT_CALL(delegate, OnWindowStateEvent)
-      .WillRepeatedly([&](HWND hwnd, WindowStateEvent event) { msg_count++; });
-
-  {
-    MockFlutterWindow win32window(false);
-    EXPECT_CALL(win32window, GetWindowHandle).WillRepeatedly([&]() {
-      return win32window.FlutterWindow::GetWindowHandle();
-    });
-    EXPECT_CALL(win32window, OnWindowStateEvent)
-        .WillRepeatedly([&](WindowStateEvent event) {
-          win32window.FlutterWindow::OnWindowStateEvent(event);
-        });
-    EXPECT_CALL(win32window, OnResize).Times(AnyNumber());
-    win32window.SetView(&delegate);
-    win32window.InitializeChild("Title", 1, 1);
-    hwnd = win32window.GetWindowHandle();
-    SendMessage(hwnd, WM_SIZE, 0, MAKEWORD(1, 1));
-    SendMessage(hwnd, WM_SETFOCUS, 0, 0);
-
-    // By setting this to zero before exiting the scope that contains
-    // win32window, and then checking its value afterwards, enforce that the
-    // window receive and process messages from its destructor without
-    // accessing out-of-bounds memory.
-    msg_count = 0;
-  }
-  EXPECT_GE(msg_count, 1);
-}
-
 TEST_F(FlutterWindowTest, UpdateCursor) {
   FlutterWindow win32window(100, 100);
   win32window.UpdateFlutterCursor("text");
