@@ -833,6 +833,53 @@ typedef struct {
 
 typedef struct {
   /// The size of this struct.
+  /// Must be sizeof(FlutterAddViewResult).
+  size_t struct_size;
+
+  /// True if the add view operation succeeded.
+  bool added;
+
+  /// The |FlutterAddViewInfo.user_data|.
+  void* user_data;
+} FlutterAddViewResult;
+
+/// The callback invoked by the engine when the engine has attempted to add a
+/// view.
+///
+/// The |FlutterAddViewResult| will be deallocated once the callback returns.
+typedef void (*FlutterAddViewCallback)(const FlutterAddViewResult* result);
+
+typedef struct {
+  /// The size of this struct.
+  /// Must be sizeof(FlutterAddViewInfo).
+  size_t struct_size;
+
+  /// The identifier for the view to add. This must be unique.
+  FlutterViewId view_id;
+
+  /// The view's properties.
+  ///
+  /// The metric's |view_id| must match this struct�s |view_id|.
+  FlutterWindowMetricsEvent* view_metrics;
+
+  /// A baton that is not interpreted by the engine in any way. It will be given
+  /// back to the embedder in |add_view_callback|. Embedder resources may be
+  /// associated with this baton.
+  void* user_data;
+
+  /// Called once the engine has attempted to add the view. This callback is
+  /// required.
+  ///
+  /// The embedder/app must not use the view until the callback is invoked with
+  /// an `added` value of `true`.
+  ///
+  /// This callback is invoked on an internal engine managed thread. Embedders
+  /// must re-thread if necessary.
+  FlutterAddViewCallback add_view_callback;
+} FlutterAddViewInfo;
+
+typedef struct {
+  /// The size of this struct.
   /// Must be sizeof(FlutterRemoveViewResult).
   size_t struct_size;
 
@@ -2504,6 +2551,20 @@ FlutterEngineResult FlutterEngineDeinitialize(FLUTTER_API_SYMBOL(FlutterEngine)
 FLUTTER_EXPORT
 FlutterEngineResult FlutterEngineRunInitialized(
     FLUTTER_API_SYMBOL(FlutterEngine) engine);
+
+/// Add a view.
+///
+/// This is an asynchronous operation. The view should not be
+/// used until the |add_view_callback| is invoked with an
+/// `added` value of `true`.
+///
+/// The |info| struct can be deallocated once
+/// |FlutterEngineAddView| returns,
+/// before |add_view_callback| is invoked.
+FLUTTER_EXPORT
+FlutterEngineResult FlutterEngineAddView(FLUTTER_API_SYMBOL(FlutterEngine)
+                                             engine,
+                                         const FlutterAddViewInfo* info);
 
 //------------------------------------------------------------------------------
 /// @brief      Removes a view.

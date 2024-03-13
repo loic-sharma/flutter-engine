@@ -1265,10 +1265,45 @@ TEST_F(EmbedderTest, CanDeinitializeAnEngine) {
   engine.reset();
 }
 
+TEST_F(EmbedderTest, CanAddView) {
+  auto& context = GetEmbedderContext(EmbedderTestContextType::kSoftwareContext);
+  EmbedderConfigBuilder builder(context);
+  builder.SetSoftwareRendererConfig();
+
+  auto engine = builder.LaunchEngine();
+  ASSERT_TRUE(engine.is_valid());
+
+  FlutterWindowMetricsEvent metrics = {};
+  metrics.struct_size = sizeof(FlutterWindowMetricsEvent);
+  metrics.width = 800;
+  metrics.height = 600;
+  metrics.pixel_ratio = 1.0;
+  metrics.physical_view_inset_top = 0.0;
+  metrics.physical_view_inset_right = 0.0;
+  metrics.physical_view_inset_bottom = 0.0;
+  metrics.physical_view_inset_left = 0.0;
+  metrics.view_id = 123;
+
+  FlutterAddViewInfo info = {};
+  info.struct_size = sizeof(FlutterAddViewInfo);
+  info.view_id = 123;
+  info.view_metrics = &metrics;
+  info.add_view_callback = [](const FlutterAddViewResult* result) {
+    ASSERT_TRUE(result->added);
+  };
+  ASSERT_EQ(FlutterEngineAddView(engine.get(), &info), kSuccess);
+}
+
 TEST_F(EmbedderTest, CanRemoveView) {
   // TODO(loicsharma): We can't test this until views can be added!
   // https://github.com/flutter/flutter/issues/144806
 }
+
+TEST_F(EmbedderTest, CanReuseViewIds) {}
+
+TEST_F(EmbedderTest, CannotAddViewTwice) {}
+
+TEST_F(EmbedderTest, CannotRemoveViewTwice) {}
 
 TEST_F(EmbedderTest, CannotRemoveImplicitView) {
   auto& context = GetEmbedderContext(EmbedderTestContextType::kSoftwareContext);
