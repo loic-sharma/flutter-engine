@@ -104,7 +104,7 @@ TEST_F(CompositorSoftwareTest, Present) {
   const FlutterLayer* layer_ptr = &layer;
 
   EXPECT_CALL(*view(), PresentSoftwareBitmap).WillOnce(Return(true));
-  EXPECT_TRUE(compositor.Present(&layer_ptr, 1));
+  EXPECT_TRUE(compositor.Present(view()->view_id(), &layer_ptr, 1));
 
   ASSERT_TRUE(compositor.CollectBackingStore(&backing_store));
 }
@@ -115,7 +115,7 @@ TEST_F(CompositorSoftwareTest, PresentEmpty) {
   auto compositor = CompositorSoftware{engine()};
 
   EXPECT_CALL(*view(), ClearSoftwareBitmap).WillOnce(Return(true));
-  EXPECT_TRUE(compositor.Present(nullptr, 0));
+  EXPECT_TRUE(compositor.Present(view()->view_id(), nullptr, 0));
 }
 
 TEST_F(CompositorSoftwareTest, HeadlessPresentIgnored) {
@@ -133,7 +133,7 @@ TEST_F(CompositorSoftwareTest, HeadlessPresentIgnored) {
   layer.backing_store = &backing_store;
   const FlutterLayer* layer_ptr = &layer;
 
-  EXPECT_FALSE(compositor.Present(&layer_ptr, 1));
+  EXPECT_FALSE(compositor.Present(0, &layer_ptr, 1));
 
   ASSERT_TRUE(compositor.CollectBackingStore(&backing_store));
 }

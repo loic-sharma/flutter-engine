@@ -361,13 +361,11 @@ static void CommonInit(FlutterViewController* controller, FlutterEngine* engine)
     engine = [[FlutterEngine alloc] initWithName:@"io.flutter"
                                          project:controller->_project
                           allowHeadlessExecution:NO];
+    engine.viewController = controller;
+  } else {
+    [engine addViewController:controller];
   }
-  NSCAssert(controller.engine == nil,
-            @"The FlutterViewController is unexpectedly attached to "
-            @"engine %@ before initialization.",
-            controller.engine);
-  [engine addViewController:controller];
-  NSCAssert(controller.engine != nil,
+  NSCAssert(engine != nil ? controller.engine == engine : controller.engine != nil,
             @"The FlutterViewController unexpectedly stays unattached after initialization. "
             @"In unit tests, this is likely because either the FlutterViewController or "
             @"the FlutterEngine is mocked. Please subclass these classes instead.",
@@ -457,6 +455,10 @@ static void CommonInit(FlutterViewController* controller, FlutterEngine* engine)
     [self launchEngine];
   }
   [self listenForMetaModifiedKeyUpEvents];
+}
+
+- (void)viewDidAppear {
+  [_engine updateWindowMetricsForViewController:self];
 }
 
 - (void)viewWillDisappear {

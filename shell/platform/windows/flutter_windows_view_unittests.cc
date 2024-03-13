@@ -233,8 +233,8 @@ TEST(FlutterWindowsViewTest, SubMenuExpandedState) {
   }
 }
 
-// The view's surface must be destroyed after the engine is shutdown.
-// See: https://github.com/flutter/flutter/issues/124463
+// TODO(loicsharma): The view's surface should be destroyed
+// *after* the engine no longer needs the surface.
 TEST(FlutterWindowsViewTest, Shutdown) {
   auto engine = std::make_unique<MockFlutterWindowsEngine>();
   auto window_binding_handler =

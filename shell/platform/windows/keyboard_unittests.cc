@@ -379,6 +379,9 @@ class KeyboardTester {
         view_.get(), [this](UINT virtual_key) -> SHORT {
           return map_virtual_key_layout_(virtual_key, MAPVK_VK_TO_CHAR);
         });
+
+    view_->SetEngine(engine_.get());
+    engine_->AddView(view_.get());
   }
 
   TestFlutterWindowsView& GetView() { return *view_; }

@@ -62,12 +62,9 @@ void EmbedderExternalViewEmbedder::PrepareFlutterView(
     int64_t flutter_view_id,
     SkISize frame_size,
     double device_pixel_ratio) {
-  // TODO(dkwingsmt): This class only supports rendering into the implicit
-  // view. Properly support multi-view in the future.
-  // https://github.com/flutter/flutter/issues/135530 item 4
-  FML_DCHECK(flutter_view_id == kFlutterImplicitViewId);
   Reset();
 
+  pending_flutter_view_id_ = flutter_view_id;
   pending_frame_size_ = frame_size;
   pending_device_pixel_ratio_ = device_pixel_ratio;
   pending_surface_transformation_ = GetSurfaceTransformation();
@@ -119,6 +116,7 @@ DlCanvas* EmbedderExternalViewEmbedder::CompositeEmbeddedView(int64_t view_id) {
 }
 
 static FlutterBackingStoreConfig MakeBackingStoreConfig(
+    int64_t view_id,
     const SkISize& backing_store_size) {
   FlutterBackingStoreConfig config = {};
 
@@ -126,6 +124,7 @@ static FlutterBackingStoreConfig MakeBackingStoreConfig(
 
   config.size.width = backing_store_size.width();
   config.size.height = backing_store_size.height();
+  config.view_id = view_id;
 
   return config;
 }
@@ -289,7 +288,8 @@ class Layer {
 /// Implements https://flutter.dev/go/optimized-platform-view-layers
 class LayerBuilder {
  public:
-  explicit LayerBuilder(SkISize frame_size) : frame_size_(frame_size) {
+  explicit LayerBuilder(int64_t flutter_view_id, SkISize frame_size)
+      : flutter_view_id_(flutter_view_id), frame_size_(frame_size) {
     layers_.push_back(Layer());
   }
 
@@ -312,7 +312,7 @@ class LayerBuilder {
   void PrepareBackingStore(
       const std::function<std::unique_ptr<EmbedderRenderTarget>(
           FlutterBackingStoreConfig)>& target_provider) {
-    auto config = MakeBackingStoreConfig(frame_size_);
+    auto config = MakeBackingStoreConfig(flutter_view_id_, frame_size_);
     for (auto& layer : layers_) {
       if (layer.has_flutter_contents()) {
         layer.SetRenderTarget(target_provider(config));
@@ -411,6 +411,7 @@ class LayerBuilder {
   }
 
   std::vector<Layer> layers_;
+  int64_t flutter_view_id_;
   SkISize frame_size_;
 };
 
@@ -424,7 +425,8 @@ void EmbedderExternalViewEmbedder::SubmitFlutterView(
                                  pending_frame_size_.height());
   pending_surface_transformation_.mapRect(&_rect);
 
-  LayerBuilder builder(SkISize::Make(_rect.width(), _rect.height()));
+  LayerBuilder builder(pending_flutter_view_id_,
+                       SkISize::Make(_rect.width(), _rect.height()));
 
   for (auto view_id : composition_order_) {
     auto& view = pending_views_[view_id];
@@ -494,9 +496,7 @@ void EmbedderExternalViewEmbedder::SubmitFlutterView(
 
     builder.PushLayers(presented_layers);
 
-    // TODO(loic-sharma): Currently only supports a single view.
-    // See https://github.com/flutter/flutter/issues/135530.
-    presented_layers.InvokePresentCallback(kFlutterImplicitViewId,
+    presented_layers.InvokePresentCallback(pending_flutter_view_id_,
                                            present_callback_);
   }
 

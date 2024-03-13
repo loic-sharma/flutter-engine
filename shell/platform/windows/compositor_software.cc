@@ -38,7 +38,8 @@ bool CompositorSoftware::CollectBackingStore(const FlutterBackingStore* store) {
   return true;
 }
 
-bool CompositorSoftware::Present(const FlutterLayer** layers,
+bool CompositorSoftware::Present(int64_t view_id,
+                                 const FlutterLayer** layers,
                                  size_t layers_count) {
   // TODO(loicsharma): Remove implicit view assumption.
   // https://github.com/flutter/flutter/issues/142845

@@ -70,8 +70,20 @@ typedef struct {
 
 } FlutterDesktopEngineProperties;
 
+// Properties for configuring a Flutter view controller.
+typedef struct {
+  // The view's initial width.
+  int width;
+
+  // The view's initial height.
+  int height;
+
+} FlutterDesktopViewControllerProperties;
+
 // ========== View Controller ==========
 
+// Deprecated. Use FlutterDesktopEngineCreateViewController instead.
+//
 // Creates a view that hosts and displays the given engine instance.
 //
 // This takes ownership of |engine|, so FlutterDesktopEngineDestroy should no
@@ -79,8 +91,7 @@ typedef struct {
 // controller is destroyed. If creating the view controller fails, the engine
 // will be destroyed immediately.
 //
-// If |engine| is not already running, the view controller will start running
-// it automatically before displaying the window.
+// The |engine| will be started if it is not already running.
 //
 // The caller owns the returned reference, and is responsible for calling
 // FlutterDesktopViewControllerDestroy. Returns a null pointer in the event of
@@ -164,6 +175,22 @@ FLUTTER_EXPORT bool FlutterDesktopEngineDestroy(FlutterDesktopEngineRef engine);
 // Returns false if running the engine failed.
 FLUTTER_EXPORT bool FlutterDesktopEngineRun(FlutterDesktopEngineRef engine,
                                             const char* entry_point);
+
+// Creates a view for the given engine.
+//
+// The |engine| will be started if it is not already running.
+//
+// The caller owns the returned reference, and is responsible for calling
+// |FlutterDesktopViewControllerDestroy|. Returns a null pointer in the event of
+// an error.
+//
+// Unlike |FlutterDesktopViewControllerCreate|, this does *not* take ownership
+// of |engine| and |FlutterDesktopEngineDestroy| must be called to destroy
+// the engine.
+FLUTTER_EXPORT FlutterDesktopViewControllerRef
+FlutterDesktopEngineCreateViewController(
+    FlutterDesktopEngineRef engine,
+    const FlutterDesktopViewControllerProperties* properties);
 
 // DEPRECATED: This is no longer necessary to call, Flutter will take care of
 // processing engine messages transparently through DispatchMessage.

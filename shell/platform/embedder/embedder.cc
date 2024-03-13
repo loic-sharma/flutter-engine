@@ -2162,54 +2162,121 @@ FlutterEngineResult FlutterEngineShutdown(FLUTTER_API_SYMBOL(FlutterEngine)
   return kSuccess;
 }
 
+static FlutterEngineResult BuildViewportMetrics(
+    flutter::ViewportMetrics* metrics,
+    const FlutterWindowMetricsEvent* flutter_metrics) {
+  if (flutter_metrics == nullptr) {
+    return kSuccess;
+  }
+  metrics->physical_width = SAFE_ACCESS(flutter_metrics, width, 0.0);
+  metrics->physical_height = SAFE_ACCESS(flutter_metrics, height, 0.0);
+  metrics->device_pixel_ratio = SAFE_ACCESS(flutter_metrics, pixel_ratio, 1.0);
+  metrics->physical_view_inset_top =
+      SAFE_ACCESS(flutter_metrics, physical_view_inset_top, 0.0);
+  metrics->physical_view_inset_right =
+      SAFE_ACCESS(flutter_metrics, physical_view_inset_right, 0.0);
+  metrics->physical_view_inset_bottom =
+      SAFE_ACCESS(flutter_metrics, physical_view_inset_bottom, 0.0);
+  metrics->physical_view_inset_left =
+      SAFE_ACCESS(flutter_metrics, physical_view_inset_left, 0.0);
+  metrics->display_id = SAFE_ACCESS(flutter_metrics, display_id, 0);
+
+  if (metrics->device_pixel_ratio <= 0.0) {
+    return LOG_EMBEDDER_ERROR(
+        kInvalidArguments,
+        "Device pixel ratio was invalid. It must be greater than zero.");
+  }
+
+  if (metrics->physical_view_inset_top < 0 ||
+      metrics->physical_view_inset_right < 0 ||
+      metrics->physical_view_inset_bottom < 0 ||
+      metrics->physical_view_inset_left < 0) {
+    return LOG_EMBEDDER_ERROR(
+        kInvalidArguments,
+        "Physical view insets are invalid. They must be non-negative.");
+  }
+
+  if (metrics->physical_view_inset_top > metrics->physical_height ||
+      metrics->physical_view_inset_right > metrics->physical_width ||
+      metrics->physical_view_inset_bottom > metrics->physical_height ||
+      metrics->physical_view_inset_left > metrics->physical_width) {
+    return LOG_EMBEDDER_ERROR(kInvalidArguments,
+                              "Physical view insets are invalid. They cannot "
+                              "be greater than physical height or width.");
+  }
+  return kSuccess;
+}
+
+FLUTTER_EXPORT
+FlutterEngineResult FlutterEngineAddView(FLUTTER_API_SYMBOL(FlutterEngine)
+                                             engine,
+                                         FlutterAddViewInfo* info) {
+  if (engine == nullptr) {
+    return LOG_EMBEDDER_ERROR(kInvalidArguments, "Engine handle was invalid.");
+  }
+  if (info->callback == nullptr) {
+    return LOG_EMBEDDER_ERROR(kInvalidArguments, "A callback is required.");
+  }
+  flutter::ViewportMetrics metrics;
+  FlutterEngineResult build_metrics_result =
+      BuildViewportMetrics(&metrics, info->view_metrics);
+  if (build_metrics_result != kSuccess) {
+    return build_metrics_result;
+  }
+  flutter::EmbedderEngine* embedder_engine =
+      reinterpret_cast<flutter::EmbedderEngine*>(engine);
+  embedder_engine->GetShell().AddView(
+      info->view_id, metrics,
+      [callback = info->callback, user_data = info->user_data](bool success) {
+        FlutterAddViewResult result = {};
+        result.struct_size = sizeof(FlutterAddViewResult);
+        result.user_data = user_data;
+        result.success = success;
+        callback(&result);
+      });
+
+  return kSuccess;
+}
+
+FLUTTER_EXPORT
+FlutterEngineResult FlutterEngineRemoveView(FLUTTER_API_SYMBOL(FlutterEngine)
+                                                engine,
+                                            FlutterRemoveViewInfo* info) {
+  if (engine == nullptr) {
+    return LOG_EMBEDDER_ERROR(kInvalidArguments, "Engine handle was invalid.");
+  }
+  if (info->callback == nullptr) {
+    return LOG_EMBEDDER_ERROR(kInvalidArguments, "A callback is required.");
+  }
+  flutter::EmbedderEngine* embedder_engine =
+      reinterpret_cast<flutter::EmbedderEngine*>(engine);
+  embedder_engine->GetShell().RemoveView(
+      info->view_id,
+      [callback = info->callback, user_data = info->user_data](bool success) {
+        FlutterRemoveViewResult result = {};
+        result.struct_size = sizeof(FlutterAddViewResult);
+        result.user_data = user_data;
+        result.success = success;
+        callback(&result);
+      });
+
+  return kSuccess;
+}
+
 FlutterEngineResult FlutterEngineSendWindowMetricsEvent(
     FLUTTER_API_SYMBOL(FlutterEngine) engine,
     const FlutterWindowMetricsEvent* flutter_metrics) {
   if (engine == nullptr || flutter_metrics == nullptr) {
     return LOG_EMBEDDER_ERROR(kInvalidArguments, "Engine handle was invalid.");
   }
-  FlutterViewId view_id =
-      SAFE_ACCESS(flutter_metrics, view_id, kFlutterImplicitViewId);
+  int64_t view_id = SAFE_ACCESS(flutter_metrics, view_id, 0);
 
   flutter::ViewportMetrics metrics;
-
-  metrics.physical_width = SAFE_ACCESS(flutter_metrics, width, 0.0);
-  metrics.physical_height = SAFE_ACCESS(flutter_metrics, height, 0.0);
-  metrics.device_pixel_ratio = SAFE_ACCESS(flutter_metrics, pixel_ratio, 1.0);
-  metrics.physical_view_inset_top =
-      SAFE_ACCESS(flutter_metrics, physical_view_inset_top, 0.0);
-  metrics.physical_view_inset_right =
-      SAFE_ACCESS(flutter_metrics, physical_view_inset_right, 0.0);
-  metrics.physical_view_inset_bottom =
-      SAFE_ACCESS(flutter_metrics, physical_view_inset_bottom, 0.0);
-  metrics.physical_view_inset_left =
-      SAFE_ACCESS(flutter_metrics, physical_view_inset_left, 0.0);
-  metrics.display_id = SAFE_ACCESS(flutter_metrics, display_id, 0);
-
-  if (metrics.device_pixel_ratio <= 0.0) {
-    return LOG_EMBEDDER_ERROR(
-        kInvalidArguments,
-        "Device pixel ratio was invalid. It must be greater than zero.");
+  FlutterEngineResult build_metrics_result =
+      BuildViewportMetrics(&metrics, flutter_metrics);
+  if (build_metrics_result != kSuccess) {
+    return build_metrics_result;
   }
-
-  if (metrics.physical_view_inset_top < 0 ||
-      metrics.physical_view_inset_right < 0 ||
-      metrics.physical_view_inset_bottom < 0 ||
-      metrics.physical_view_inset_left < 0) {
-    return LOG_EMBEDDER_ERROR(
-        kInvalidArguments,
-        "Physical view insets are invalid. They must be non-negative.");
-  }
-
-  if (metrics.physical_view_inset_top > metrics.physical_height ||
-      metrics.physical_view_inset_right > metrics.physical_width ||
-      metrics.physical_view_inset_bottom > metrics.physical_height ||
-      metrics.physical_view_inset_left > metrics.physical_width) {
-    return LOG_EMBEDDER_ERROR(kInvalidArguments,
-                              "Physical view insets are invalid. They cannot "
-                              "be greater than physical height or width.");
-  }
-
   return reinterpret_cast<flutter::EmbedderEngine*>(engine)->SetViewportMetrics(
              view_id, metrics)
              ? kSuccess
@@ -3224,6 +3291,8 @@ FlutterEngineResult FlutterEngineGetProcAddresses(
   SET_PROC(Initialize, FlutterEngineInitialize);
   SET_PROC(Deinitialize, FlutterEngineDeinitialize);
   SET_PROC(RunInitialized, FlutterEngineRunInitialized);
+  SET_PROC(AddView, FlutterEngineAddView);
+  SET_PROC(RemoveView, FlutterEngineRemoveView);
   SET_PROC(SendWindowMetricsEvent, FlutterEngineSendWindowMetricsEvent);
   SET_PROC(SendPointerEvent, FlutterEngineSendPointerEvent);
   SET_PROC(SendKeyEvent, FlutterEngineSendKeyEvent);

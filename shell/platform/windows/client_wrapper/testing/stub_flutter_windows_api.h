@@ -36,6 +36,13 @@ class StubFlutterWindowsApi {
     return nullptr;
   }
 
+  // Called for FlutterDesktopEngineCreateViewController.
+  virtual FlutterDesktopViewControllerRef EngineCreateViewController(
+      FlutterDesktopEngineRef engine,
+      const FlutterDesktopViewControllerProperties* properties) {
+    return nullptr;
+  }
+
   // Called for FlutterDesktopViewControllerDestroy.
   virtual void ViewControllerDestroy() {}
 

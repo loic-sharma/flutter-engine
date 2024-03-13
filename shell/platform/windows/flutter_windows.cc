@@ -72,10 +72,11 @@ static FlutterDesktopTextureRegistrarRef HandleForTextureRegistrar(
   return reinterpret_cast<FlutterDesktopTextureRegistrarRef>(registrar);
 }
 
-FlutterDesktopViewControllerRef FlutterDesktopViewControllerCreate(
+static FlutterDesktopViewControllerRef CreateViewController(
+    FlutterDesktopEngineRef engine_ref,
     int width,
     int height,
-    FlutterDesktopEngineRef engine_ref) {
+    bool owns_engine) {
   flutter::FlutterWindowsEngine* engine_ptr = EngineFromHandle(engine_ref);
   std::unique_ptr<flutter::WindowBindingHandler> window_wrapper =
       std::make_unique<flutter::FlutterWindow>(
@@ -88,6 +89,9 @@ FlutterDesktopViewControllerRef FlutterDesktopViewControllerCreate(
       std::move(engine), std::move(view));
 
   controller->view()->CreateRenderSurface();
+  controller->engine()->AddView(controller->view());
+
+  // Launch the engine if necessary.
   if (!controller->engine()->running()) {
     if (!controller->engine()->Run()) {
       return nullptr;
@@ -105,8 +109,32 @@ FlutterDesktopViewControllerRef FlutterDesktopViewControllerCreate(
   return HandleForViewController(controller.release());
 }
 
+FlutterDesktopViewControllerRef FlutterDesktopViewControllerCreate(
+    int width,
+    int height,
+    FlutterDesktopEngineRef engine) {
+  return CreateViewController(engine, width, height, /*owns_engine=*/true);
+}
+
+FlutterDesktopViewControllerRef FlutterDesktopEngineCreateViewController(
+    FlutterDesktopEngineRef engine,
+    const FlutterDesktopViewControllerProperties* properties) {
+  return CreateViewController(engine, properties->width, properties->height,
+                              /*owns_engine=*/false);
+}
+
 void FlutterDesktopViewControllerDestroy(FlutterDesktopViewControllerRef ref) {
   auto controller = ViewControllerFromHandle(ref);
+  auto engine = controller->view()->GetEngine();
+  if (engine) {
+    auto view_id = controller->view()->view_id();
+
+    // The implicit view is special: it must continue to exist
+    // as long as the engine is running.
+    if (view_id != flutter::kImplicitViewId) {
+      engine->DestroyView(view_id);
+    }
+  }
   delete controller;
 }
 

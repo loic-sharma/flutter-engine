@@ -203,7 +203,7 @@ TEST_F(CompositorOpenGLTest, HeadlessPresentIgnored) {
   layer.backing_store = &backing_store;
   const FlutterLayer* layer_ptr = &layer;
 
-  EXPECT_FALSE(compositor.Present(&layer_ptr, 1));
+  EXPECT_FALSE(compositor.Present(0, &layer_ptr, 1));
 
   ASSERT_TRUE(compositor.CollectBackingStore(&backing_store));
 }

@@ -200,12 +200,13 @@ static bool compositor_collect_backing_store_callback(
 }
 
 // Called when embedder should composite contents of each layer onto the screen.
-static bool compositor_present_layers_callback(const FlutterLayer** layers,
-                                               size_t layers_count,
-                                               void* user_data) {
-  g_return_val_if_fail(FL_IS_RENDERER(user_data), false);
-  return fl_renderer_present_layers(FL_RENDERER(user_data), layers,
-                                    layers_count);
+static bool compositor_present_view_callback(FlutterPresentViewInfo* info) {
+  g_return_val_if_fail(FL_IS_RENDERER(info->user_data), false);
+  // TODO(dkwingsmt): The Linux embedder only supports rendering to the implicit
+  // view for now. Correctly support multiple views.
+  g_return_val_if_fail(info->view_id == flutter::kFlutterImplicitViewId, false);
+  return fl_renderer_present_layers(FL_RENDERER(info->user_data), info->layers,
+                                    info->layers_count);
 }
 
 // Flutter engine rendering callbacks.
@@ -531,7 +532,7 @@ gboolean fl_engine_start(FlEngine* self, GError** error) {
       compositor_create_backing_store_callback;
   compositor.collect_backing_store_callback =
       compositor_collect_backing_store_callback;
-  compositor.present_layers_callback = compositor_present_layers_callback;
+  compositor.present_view_callback = compositor_present_view_callback;
   args.compositor = &compositor;
 
   if (self->embedder_api.RunsAOTCompiledDartCode()) {
@@ -755,15 +756,15 @@ void fl_engine_send_window_metrics_event(FlEngine* self,
     return;
   }
 
+  // TODO(dkwingsmt): The Linux embedder doesn't support multi-view for now. Use
+  // the real view ID when it does.
+  int64_t view_id = flutter::kFlutterImplicitViewId;
   FlutterWindowMetricsEvent event = {};
   event.struct_size = sizeof(FlutterWindowMetricsEvent);
   event.width = width;
   event.height = height;
   event.pixel_ratio = pixel_ratio;
-  // TODO(dkwingsmt): Assign the correct view ID once the Linux embedder
-  // supports multiple views.
-  // https://github.com/flutter/flutter/issues/138178
-  event.view_id = flutter::kFlutterImplicitViewId;
+  event.view_id = view_id;
   self->embedder_api.SendWindowMetricsEvent(self->engine, &event);
 }
 
