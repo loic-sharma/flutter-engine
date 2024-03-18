@@ -2200,8 +2200,8 @@ FlutterEngineResult FlutterEngineAddView(FLUTTER_API_SYMBOL(FlutterEngine)
         kInvalidArguments,
         "Add view info was invalid. The implicit view cannot be added.");
   }
-  // TODO: View ID isn't of display ID. Fallback to implicit view.
-  if (SAFE_ACCESS(info->view_metrics, display_id, 0) != view_id) {
+  if (SAFE_ACCESS(info->view_metrics, view_id, kFlutterImplicitViewId) !=
+      view_id) {
     if (view_id == kFlutterImplicitViewId) {
       return LOG_EMBEDDER_ERROR(kInvalidArguments,
                                 "Add view info was invalid. The info and "

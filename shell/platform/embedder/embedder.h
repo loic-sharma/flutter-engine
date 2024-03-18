@@ -831,6 +831,38 @@ typedef struct {
   };
 } FlutterRendererConfig;
 
+/// Display refers to a graphics hardware system consisting of a framebuffer,
+/// typically a monitor or a screen. This ID is unique per display and is
+/// stable until the Flutter application restarts.
+typedef uint64_t FlutterEngineDisplayId;
+
+typedef struct {
+  /// The size of this struct. Must be sizeof(FlutterWindowMetricsEvent).
+  size_t struct_size;
+  /// Physical width of the window.
+  size_t width;
+  /// Physical height of the window.
+  size_t height;
+  /// Scale factor for the physical screen.
+  double pixel_ratio;
+  /// Horizontal physical location of the left side of the window on the screen.
+  size_t left;
+  /// Vertical physical location of the top of the window on the screen.
+  size_t top;
+  /// Top inset of window.
+  double physical_view_inset_top;
+  /// Right inset of window.
+  double physical_view_inset_right;
+  /// Bottom inset of window.
+  double physical_view_inset_bottom;
+  /// Left inset of window.
+  double physical_view_inset_left;
+  /// The identifier of the display the view is rendering on.
+  FlutterEngineDisplayId display_id;
+  /// The view that this event is describing.
+  int64_t view_id;
+} FlutterWindowMetricsEvent;
+
 typedef struct {
   /// The size of this struct.
   /// Must be sizeof(FlutterAddViewResult).
@@ -924,38 +956,6 @@ typedef struct {
   /// The |result| argument will be deallocated when the callback returns.
   FlutterRemoveViewCallback remove_view_callback;
 } FlutterRemoveViewInfo;
-
-/// Display refers to a graphics hardware system consisting of a framebuffer,
-/// typically a monitor or a screen. This ID is unique per display and is
-/// stable until the Flutter application restarts.
-typedef uint64_t FlutterEngineDisplayId;
-
-typedef struct {
-  /// The size of this struct. Must be sizeof(FlutterWindowMetricsEvent).
-  size_t struct_size;
-  /// Physical width of the window.
-  size_t width;
-  /// Physical height of the window.
-  size_t height;
-  /// Scale factor for the physical screen.
-  double pixel_ratio;
-  /// Horizontal physical location of the left side of the window on the screen.
-  size_t left;
-  /// Vertical physical location of the top of the window on the screen.
-  size_t top;
-  /// Top inset of window.
-  double physical_view_inset_top;
-  /// Right inset of window.
-  double physical_view_inset_right;
-  /// Bottom inset of window.
-  double physical_view_inset_bottom;
-  /// Left inset of window.
-  double physical_view_inset_left;
-  /// The identifier of the display the view is rendering on.
-  FlutterEngineDisplayId display_id;
-  /// The view that this event is describing.
-  int64_t view_id;
-} FlutterWindowMetricsEvent;
 
 /// The phase of the pointer event.
 typedef enum {

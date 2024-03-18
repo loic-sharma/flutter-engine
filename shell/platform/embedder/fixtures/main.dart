@@ -1391,6 +1391,20 @@ void window_metrics_event_view_id() {
 }
 
 @pragma('vm:entry-point')
+void window_metrics_event_all_view_ids() {
+  PlatformDispatcher.instance.onMetricsChanged = () {
+    final List<int> viewIds =
+      PlatformDispatcher.instance.views.map((view) => view.viewId).toList();
+
+    viewIds.sort();
+
+    signalNativeMessage('View IDs: [${viewIds.join(', ')}]');
+  };
+
+  signalNativeTest();
+}
+
+@pragma('vm:entry-point')
 Future<void> channel_listener_response() async {
   channelBuffers.setListener('test/listen',
       (ByteData? data, PlatformMessageResponseCallback callback) {
