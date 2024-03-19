@@ -1681,6 +1681,11 @@ TEST_F(EmbedderTest, ViewOperationsOrdered) {
   ASSERT_EQ(message_count, 3);
 }
 
+TEST_F(EmbedderTest, CanRenderMultipleViews) {
+  // TODO(dkwingsmt): Support rendering views that aren't the implicit view.
+  // https://github.com/flutter/flutter/issues/135530
+}
+
 TEST_F(EmbedderTest, CanUpdateLocales) {
   auto& context = GetEmbedderContext(EmbedderTestContextType::kSoftwareContext);
   EmbedderConfigBuilder builder(context);
