@@ -2554,12 +2554,10 @@ FlutterEngineResult FlutterEngineRunInitialized(
 
 /// Add a view.
 ///
-/// This is an asynchronous operation. The view should not be
-/// used until the |add_view_callback| is invoked with an
-/// `added` value of `true`.
+/// This is an asynchronous operation. The view should not be used until the
+/// |add_view_callback| is invoked with an `added` value of `true`.
 ///
-/// The |info| struct can be deallocated once
-/// |FlutterEngineAddView| returns,
+/// The |info| struct can be deallocated once |FlutterEngineAddView| returns,
 /// before |add_view_callback| is invoked.
 FLUTTER_EXPORT
 FlutterEngineResult FlutterEngineAddView(FLUTTER_API_SYMBOL(FlutterEngine)
