@@ -1548,8 +1548,7 @@ TEST_F(EmbedderTest, ViewOperationsOrdered) {
       CREATE_NATIVE_ENTRY(
           [&ready_latch](Dart_NativeArguments args) { ready_latch.Signal(); }));
 
-  std::string message;
-  std::atomic<int> message_count;
+  std::atomic<int> message_count = 0;
   context.AddNativeCallback("SignalNativeMessage",
                             CREATE_NATIVE_ENTRY([&](Dart_NativeArguments args) {
                               message_count.fetch_add(1);
