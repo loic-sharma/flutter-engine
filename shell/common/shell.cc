@@ -2115,7 +2115,7 @@ void Shell::AddView(int64_t view_id,
   task_runners_.GetUITaskRunner()->PostTask([engine = engine_->GetWeakPtr(),  //
                                              view_id,                         //
                                              viewport_metrics,                //
-                                             callback                         //
+                                             callback = std::move(callback)   //
   ] {
     if (engine) {
       bool added = engine->AddView(view_id, viewport_metrics);
