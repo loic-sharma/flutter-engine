@@ -891,8 +891,8 @@ typedef struct {
 
   /// The view's properties.
   ///
-  /// The metric's |view_id| must match this struct�s |view_id|.
-  FlutterWindowMetricsEvent* view_metrics;
+  /// The metric's |view_id| must match this struct's |view_id|.
+  const FlutterWindowMetricsEvent* view_metrics;
 
   /// A baton that is not interpreted by the engine in any way. It will be given
   /// back to the embedder in |add_view_callback|. Embedder resources may be
@@ -3253,6 +3253,12 @@ typedef FlutterEngineResult (*FlutterEngineSetNextFrameCallbackFnPtr)(
     FLUTTER_API_SYMBOL(FlutterEngine) engine,
     VoidCallback callback,
     void* user_data);
+typedef FlutterEngineResult (*FlutterEngineAddViewFnPtr)(
+    FLUTTER_API_SYMBOL(FlutterEngine) engine,
+    const FlutterAddViewInfo* info);
+typedef FlutterEngineResult (*FlutterEngineRemoveViewFnPtr)(
+    FLUTTER_API_SYMBOL(FlutterEngine) engine,
+    const FlutterRemoveViewInfo* info);
 
 /// Function-pointer-based versions of the APIs above.
 typedef struct {
@@ -3299,6 +3305,8 @@ typedef struct {
   FlutterEngineNotifyDisplayUpdateFnPtr NotifyDisplayUpdate;
   FlutterEngineScheduleFrameFnPtr ScheduleFrame;
   FlutterEngineSetNextFrameCallbackFnPtr SetNextFrameCallback;
+  FlutterEngineAddViewFnPtr AddView;
+  FlutterEngineRemoveViewFnPtr RemoveView;
 } FlutterEngineProcTable;
 
 //------------------------------------------------------------------------------

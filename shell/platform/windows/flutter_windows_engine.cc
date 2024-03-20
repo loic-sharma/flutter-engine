@@ -12,6 +12,7 @@
 #include "flutter/fml/logging.h"
 #include "flutter/fml/paths.h"
 #include "flutter/fml/platform/win/wstring_conversion.h"
+#include "flutter/fml/synchronization/waitable_event.h"
 #include "flutter/shell/platform/common/client_wrapper/binary_messenger_impl.h"
 #include "flutter/shell/platform/common/client_wrapper/include/flutter/standard_message_codec.h"
 #include "flutter/shell/platform/common/path_utils.h"
@@ -491,15 +492,112 @@ bool FlutterWindowsEngine::Stop() {
 
 std::unique_ptr<FlutterWindowsView> FlutterWindowsEngine::CreateView(
     std::unique_ptr<WindowBindingHandler> window) {
-  // TODO(loicsharma): Remove implicit view assumption.
-  // https://github.com/flutter/flutter/issues/142845
+  auto view_id = next_view_id_;
   auto view = std::make_unique<FlutterWindowsView>(
-      kImplicitViewId, this, std::move(window), windows_proc_table_);
+      view_id, this, std::move(window), windows_proc_table_);
 
-  views_[kImplicitViewId] = view.get();
-  InitializeKeyboard();
+  views_[view_id] = view.get();
 
+  if (view_id == kImplicitViewId) {
+    InitializeKeyboard();
+  } else {
+    // TODO(loicsharma): Adding a view requires a running engine. However,
+    // this path will run before the engine is launched if the implicit
+    // view is disabled. One option would be to make this method launch the
+    // engine if necessary.
+    FML_DCHECK(running());
+
+    struct Captures {
+      fml::AutoResetWaitableEvent latch;
+      bool added;
+    };
+    Captures captures = {};
+
+    FlutterWindowMetricsEvent metrics = {};
+    metrics.struct_size = sizeof(FlutterWindowMetricsEvent);
+    metrics.view_id = view_id;
+    metrics.width = 0;
+    metrics.height = 0;
+    metrics.pixel_ratio = 1.0;
+
+    FlutterAddViewInfo info = {};
+    info.struct_size = sizeof(FlutterAddViewInfo);
+    info.view_id = view_id;
+    info.view_metrics = &metrics;
+    info.user_data = &captures;
+    info.add_view_callback = [](const FlutterAddViewResult* result) {
+      auto captures = reinterpret_cast<Captures*>(result->user_data);
+      captures->added = result->added;
+      captures->latch.Signal();
+    };
+
+    FlutterEngineResult result = embedder_api_.AddView(engine_, &info);
+    if (result != kSuccess) {
+      FML_LOG(ERROR) << "FlutterEngineAddView returned unexpected result: "
+                     << result;
+      return nullptr;
+    }
+
+    // Adding the view from the engine is an asynchronous operation.
+    // Block the platform thread until the view is removed to prevent
+    // any view operations until the view exists.
+    captures.latch.Wait();
+
+    if (!captures.added) {
+      FML_LOG(ERROR) << "FlutterEngineAddView failed to add the view";
+      return nullptr;
+    }
+  }
+
+  next_view_id_++;
   return std::move(view);
+}
+
+void FlutterWindowsEngine::RemoveView(FlutterViewId view_id) {
+  FML_DCHECK(running());
+  FML_DCHECK(views_.find(view_id) != views_.end());
+
+  // The implicit view cannot be removed from the engine.
+  // The Windows embedder will ignore presents to the implicit view.
+  if (view_id == kImplicitViewId) {
+    views_.erase(view_id);
+    return;
+  }
+
+  struct Captures {
+    fml::AutoResetWaitableEvent latch;
+    bool removed;
+  };
+  Captures captures = {};
+
+  FlutterRemoveViewInfo info = {};
+  info.struct_size = sizeof(FlutterRemoveViewInfo);
+  info.view_id = view_id;
+  info.user_data = &captures;
+  info.remove_view_callback = [](const FlutterRemoveViewResult* result) {
+    auto captures = reinterpret_cast<Captures*>(result->user_data);
+    captures->removed = result->removed;
+    captures->latch.Signal();
+  };
+
+  FlutterEngineResult result = embedder_api_.RemoveView(engine_, &info);
+  if (result != kSuccess) {
+    FML_LOG(ERROR) << "FlutterEngineRemoveView returned unexpected result: "
+                   << result;
+    return;
+  }
+
+  // Removing the view from the engine is an asynchronous operation.
+  // The engine's raster thread can present to this view concurrently.
+  // Block the platform thread until the view is removed.
+  captures.latch.Wait();
+
+  if (!captures.removed) {
+    FML_LOG(ERROR) << "FlutterEngineRemoveView failed to remove the view";
+    return;
+  }
+
+  views_.erase(view_id);
 }
 
 void FlutterWindowsEngine::OnVsync(intptr_t baton) {

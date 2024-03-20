@@ -121,8 +121,13 @@ class FlutterWindowsEngine {
   virtual bool Stop();
 
   // Create a view that can display this engine's content.
+  //
+  // Returns null on failure.
   std::unique_ptr<FlutterWindowsView> CreateView(
       std::unique_ptr<WindowBindingHandler> window);
+
+  // Remove a view. The engine will no longer render into it.
+  void RemoveView(FlutterViewId view_id);
 
   // Get a view that displays this engine's content.
   //
@@ -350,6 +355,8 @@ class FlutterWindowsEngine {
 
   // AOT data, if any.
   UniqueAotDataPtr aot_data_;
+
+  FlutterViewId next_view_id_ = kImplicitViewId;
 
   // The views displaying the content running in this engine, if any.
   std::unordered_map<FlutterViewId, FlutterWindowsView*> views_;

@@ -3367,6 +3367,8 @@ FlutterEngineResult FlutterEngineGetProcAddresses(
   SET_PROC(NotifyDisplayUpdate, FlutterEngineNotifyDisplayUpdate);
   SET_PROC(ScheduleFrame, FlutterEngineScheduleFrame);
   SET_PROC(SetNextFrameCallback, FlutterEngineSetNextFrameCallback);
+  SET_PROC(AddView, FlutterEngineAddView);
+  SET_PROC(RemoveView, FlutterEngineRemoveView);
 #undef SET_PROC
 
   return kSuccess;
