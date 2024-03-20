@@ -1681,8 +1681,65 @@ TEST_F(EmbedderTest, ViewOperationsOrdered) {
 }
 
 TEST_F(EmbedderTest, CanRenderMultipleViews) {
-  // TODO(dkwingsmt): Support rendering views that aren't the implicit view.
-  // https://github.com/flutter/flutter/issues/135530
+  auto& context = GetEmbedderContext(EmbedderTestContextType::kSoftwareContext);
+  EmbedderConfigBuilder builder(context);
+  builder.SetSoftwareRendererConfig();
+  builder.SetCompositor();
+  builder.SetDartEntrypoint("render_all_views");
+
+  builder.SetRenderTargetType(
+      EmbedderTestBackingStoreProducer::RenderTargetType::kSoftwareBuffer);
+
+  fml::AutoResetWaitableEvent latch0, latch123;
+  context.GetCompositor().SetPresentCallback(
+      [&](FlutterViewId view_id, const FlutterLayer** layers,
+          size_t layers_count) {
+        switch (view_id) {
+          case 0:
+            latch0.Signal();
+            break;
+          case 123:
+            latch123.Signal();
+            break;
+          default:
+            FML_UNREACHABLE();
+        }
+      },
+      /* one_shot= */ false);
+
+  auto engine = builder.LaunchEngine();
+  ASSERT_TRUE(engine.is_valid());
+
+  // Give the implicit view a non-zero size so that it renders something.
+  FlutterWindowMetricsEvent metrics0 = {};
+  metrics0.struct_size = sizeof(FlutterWindowMetricsEvent);
+  metrics0.width = 800;
+  metrics0.height = 600;
+  metrics0.pixel_ratio = 1.0;
+  metrics0.view_id = 0;
+  ASSERT_EQ(FlutterEngineSendWindowMetricsEvent(engine.get(), &metrics0),
+            kSuccess);
+
+  // Add view 123.
+  FlutterWindowMetricsEvent metrics123 = {};
+  metrics123.struct_size = sizeof(FlutterWindowMetricsEvent);
+  metrics123.width = 800;
+  metrics123.height = 600;
+  metrics123.pixel_ratio = 1.0;
+  metrics123.view_id = 123;
+
+  FlutterAddViewInfo add_view_info = {};
+  add_view_info.struct_size = sizeof(FlutterAddViewInfo);
+  add_view_info.view_id = 123;
+  add_view_info.view_metrics = &metrics123;
+  add_view_info.add_view_callback = [](const FlutterAddViewResult* result) {
+    ASSERT_TRUE(result->added);
+  };
+
+  ASSERT_EQ(FlutterEngineAddView(engine.get(), &add_view_info), kSuccess);
+
+  latch0.Wait();
+  latch123.Wait();
 }
 
 TEST_F(EmbedderTest, CanUpdateLocales) {
