@@ -159,7 +159,7 @@ void RuntimeController::AddView(int64_t view_id,
   platform_data_.viewport_metrics_for_views[view_id] = view_metrics;
 
   // If the Dart isolate is not running, |FlushRuntimeStateToIsolate| will
-  // add the view when the isolate is started.
+  // add the view and invoke the callback when the isolate is started.
   auto* platform_configuration = GetPlatformConfigurationIfAvailable();
   if (!platform_configuration) {
     FML_DCHECK(has_flushed_runtime_state_ == false);
