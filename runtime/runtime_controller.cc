@@ -184,7 +184,6 @@ bool RuntimeController::RemoveView(int64_t view_id) {
         pending_add_view_callbacks_.end()) {
       pending_add_view_callbacks_[view_id](false);
       pending_add_view_callbacks_.erase(view_id);
-      return true;
     }
 
     return false;

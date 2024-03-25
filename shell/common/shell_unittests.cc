@@ -4698,7 +4698,7 @@ TEST_F(ShellTest, ShellFlushesPlatformStatesByMain) {
     // This effectively cancels the pending add view operation.
     shell->AddView(2, ViewportMetrics{1, 30, 1, 0, 0},
                    [](bool added) { ASSERT_FALSE(added); });
-    shell->RemoveView(2, [](bool removed) { ASSERT_TRUE(removed); });
+    shell->RemoveView(2, [](bool removed) { ASSERT_FALSE(removed); });
   });
 
   bool first_report = true;
