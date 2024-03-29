@@ -15,7 +15,7 @@ namespace flutter {
 // rasterization and bitmaps.
 class CompositorSoftware : public Compositor {
  public:
-  CompositorSoftware(FlutterWindowsEngine* engine);
+  CompositorSoftware();
 
   /// |Compositor|
   bool CreateBackingStore(const FlutterBackingStoreConfig& config,
@@ -24,12 +24,9 @@ class CompositorSoftware : public Compositor {
   bool CollectBackingStore(const FlutterBackingStore* store) override;
 
   /// |Compositor|
-  bool Present(FlutterViewId view_id,
+  bool Present(FlutterWindowsView* view,
                const FlutterLayer** layers,
                size_t layers_count) override;
-
- private:
-  FlutterWindowsEngine* engine_;
 };
 
 }  // namespace flutter

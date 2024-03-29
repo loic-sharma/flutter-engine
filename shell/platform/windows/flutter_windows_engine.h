@@ -16,6 +16,7 @@
 
 #include "flutter/fml/closure.h"
 #include "flutter/fml/macros.h"
+#include "flutter/fml/synchronization/shared_mutex.h"
 #include "flutter/shell/platform/common/accessibility_bridge.h"
 #include "flutter/shell/platform/common/app_lifecycle_state.h"
 #include "flutter/shell/platform/common/client_wrapper/binary_messenger_impl.h"
@@ -121,6 +122,8 @@ class FlutterWindowsEngine {
   virtual bool Stop();
 
   // Create a view that can display this engine's content.
+  //
+  // Returns nullptr on failure.
   std::unique_ptr<FlutterWindowsView> CreateView(
       std::unique_ptr<WindowBindingHandler> window);
 
@@ -344,6 +347,11 @@ class FlutterWindowsEngine {
   // Send the currently enabled accessibility features to the engine.
   void SendAccessibilityFeatures();
 
+  // Present content to a view. Returns true if the content was presented.
+  //
+  // This is invoked on the raster thread.
+  bool Present(const FlutterPresentViewInfo* info);
+
   // The handle to the embedder.h engine instance.
   FLUTTER_API_SYMBOL(FlutterEngine) engine_ = nullptr;
 
@@ -354,8 +362,19 @@ class FlutterWindowsEngine {
   // AOT data, if any.
   UniqueAotDataPtr aot_data_;
 
+  // The ID that the next view will have.
+  FlutterViewId next_view_id_ = kImplicitViewId;
+
   // The views displaying the content running in this engine, if any.
+  //
+  // This is read and mutated by the platform thread. This is read by the raster
+  // thread to present content to a view. Reads to this object must be protected
+  // by acquiring a lock on |views_mutex_|. Writes to this object must be
+  // protected by acquiring an exclusive lock on |views_mutex_|.
   std::unordered_map<FlutterViewId, FlutterWindowsView*> views_;
+
+  // The mutex that protects the |views_| map.
+  std::unique_ptr<fml::SharedMutex> views_mutex_;
 
   // Task runner for tasks posted from the engine.
   std::unique_ptr<TaskRunner> task_runner_;
