@@ -350,6 +350,7 @@ TEST_F(WindowsTest, NextFrameCallback) {
 
     // Pump messages for the Windows platform task runner.
     while (!captures.done) {
+      PumpMessage();
     }
   });
 
@@ -359,48 +360,38 @@ TEST_F(WindowsTest, NextFrameCallback) {
 // Verify the embedder ignores presents to the implicit view when there is no
 // implicit view.
 TEST_F(WindowsTest, PresentHeadless) {
-  struct Captures {
-    fml::AutoResetWaitableEvent latch;
-    bool done;
-  };
-  Captures captures = {};
+  auto& context = GetContext();
+  WindowsConfigBuilder builder(context);
+  builder.SetDartEntrypoint("renderImplicitView");
 
-  CreateNewThread("test_platform_thread")->PostTask([&]() {
-    auto& context = GetContext();
-    WindowsConfigBuilder builder(context);
-    builder.SetDartEntrypoint("renderImplicitView");
+  EnginePtr engine{builder.RunHeadless()};
+  ASSERT_NE(engine, nullptr);
 
-    EnginePtr engine{builder.RunHeadless()};
-    ASSERT_NE(engine, nullptr);
+  std::atomic<bool> done = false;
+  FlutterDesktopEngineSetNextFrameCallback(
+      engine.get(),
+      [](void* user_data) {
+        auto done = reinterpret_cast<std::atomic<bool>*>(user_data);
+        *done = true;
+      },
+      &done);
 
-    FlutterDesktopEngineSetNextFrameCallback(
-        engine.get(),
-        [](void* user_data) {
-          auto captures = reinterpret_cast<Captures*>(user_data);
-          captures->done = true;
-          captures->latch.Signal();
-        },
-        &captures);
+  // This app is in headless mode, however, the engine assumes the implicit
+  // view always exists. Send window metrics for the implicit view, causing
+  // the engine to present to the implicit view. The embedder must not crash.
+  auto engine_ptr = reinterpret_cast<FlutterWindowsEngine*>(engine.get());
+  FlutterWindowMetricsEvent metrics = {};
+  metrics.struct_size = sizeof(FlutterWindowMetricsEvent);
+  metrics.width = 100;
+  metrics.height = 100;
+  metrics.pixel_ratio = 1.0;
+  metrics.view_id = kImplicitViewId;
+  engine_ptr->SendWindowMetricsEvent(metrics);
 
-    // This app is in headless mode, however, the engine assumes the implicit
-    // view always exists. Send window metrics for the implicit view, causing
-    // the engine to present to the implicit view. The embedder must not crash.
-    auto engine_ptr = reinterpret_cast<FlutterWindowsEngine*>(engine.get());
-    FlutterWindowMetricsEvent metrics = {};
-    metrics.struct_size = sizeof(FlutterWindowMetricsEvent);
-    metrics.width = 100;
-    metrics.height = 100;
-    metrics.pixel_ratio = 1.0;
-    metrics.view_id = kImplicitViewId;
-    engine_ptr->SendWindowMetricsEvent(metrics);
-
-    // Pump messages for the Windows platform task runner.
-    while (!captures.done) {
-      PumpMessage();
-    }
-  });
-
-  captures.latch.Wait();
+  // Pump messages for the Windows platform task runner.
+  while (!done) {
+    PumpMessage();
+  }
 }
 
 // Implicit view has the implicit view ID.
@@ -553,38 +544,28 @@ TEST_F(WindowsTest, Lifecycle) {
 }
 
 TEST_F(WindowsTest, GetKeyboardStateHeadless) {
-  // Run the test on its own thread so that it can pump its event loop while
-  // this thread waits.
-  fml::AutoResetWaitableEvent latch;
-  auto platform_task_runner = CreateNewThread("test_platform_thread");
-  platform_task_runner->PostTask([&]() {
-    auto& context = GetContext();
-    WindowsConfigBuilder builder(context);
-    builder.SetDartEntrypoint("sendGetKeyboardState");
+  auto& context = GetContext();
+  WindowsConfigBuilder builder(context);
+  builder.SetDartEntrypoint("sendGetKeyboardState");
 
-    bool done = false;
-    context.AddNativeFunction(
-        "SignalStringValue",
-        CREATE_NATIVE_ENTRY([&](Dart_NativeArguments args) {
-          auto handle = Dart_GetNativeArgument(args, 0);
-          ASSERT_FALSE(Dart_IsError(handle));
-          auto value = tonic::DartConverter<std::string>::FromDart(handle);
-          EXPECT_EQ(value, "Success");
-          done = true;
-          latch.Signal();
-        }));
+  std::atomic<bool> done = false;
+  context.AddNativeFunction(
+      "SignalStringValue", CREATE_NATIVE_ENTRY([&](Dart_NativeArguments args) {
+        auto handle = Dart_GetNativeArgument(args, 0);
+        ASSERT_FALSE(Dart_IsError(handle));
+        auto value = tonic::DartConverter<std::string>::FromDart(handle);
+        EXPECT_EQ(value, "Success");
+        done = true;
+      }));
 
-    ViewControllerPtr controller{builder.Run()};
-    ASSERT_NE(controller, nullptr);
+  ViewControllerPtr controller{builder.Run()};
+  ASSERT_NE(controller, nullptr);
 
-    // Pump messages for the Windows platform task runner.
-    ::MSG msg;
-    while (!done) {
-      PumpMessage();
-    }
-  });
-
-  latch.Wait();
+  // Pump messages for the Windows platform task runner.
+  ::MSG msg;
+  while (!done) {
+    PumpMessage();
+  }
 }
 
 // Verify the embedder can add and remove views.
