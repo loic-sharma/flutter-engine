@@ -539,6 +539,7 @@ std::unique_ptr<FlutterWindowsView> FlutterWindowsEngine::CreateView(
     // TODO(loicsharma): This blocks the platform thread eagerly and can
     // cause unnecessary delay in input processing. Instead, this should block
     // lazily only when the app does an operation which needs the view.
+    // https://github.com/flutter/flutter/issues/146248
     captures.latch.Wait();
 
     if (!captures.added) {
@@ -586,6 +587,7 @@ void FlutterWindowsEngine::RemoveView(FlutterViewId view_id) {
     // TODO(loicsharma): This blocks the platform thread eagerly and can
     // cause unnecessary delay in input processing. Instead, this should block
     // lazily only when an operation needs the view.
+    // https://github.com/flutter/flutter/issues/146248
     captures.latch.Wait();
 
     if (!captures.removed) {
