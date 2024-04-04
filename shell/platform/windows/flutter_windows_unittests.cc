@@ -47,6 +47,16 @@ class MockWindowsLifecycleManager : public WindowsLifecycleManager {
   MOCK_METHOD(void, SetLifecycleState, (AppLifecycleState), (override));
 };
 
+// Process the next win32 message if there is one. This can be used to
+// pump the Windows platform thread task runner.
+void PumpMessage() {
+  ::MSG msg;
+  if (::GetMessage(&msg, nullptr, 0, 0)) {
+    ::TranslateMessage(&msg);
+    ::DispatchMessage(&msg);
+  }
+}
+
 }  // namespace
 
 // Verify that we can fetch a texture registrar.
@@ -116,8 +126,26 @@ TEST_F(WindowsTest, LaunchCustomEntrypointInEngineRunInvocation) {
 TEST_F(WindowsTest, LaunchHeadlessEngine) {
   auto& context = GetContext();
   WindowsConfigBuilder builder(context);
+  builder.SetDartEntrypoint("verifyViewIds");
   EnginePtr engine{builder.RunHeadless()};
   ASSERT_NE(engine, nullptr);
+
+  std::string view_ids;
+  fml::AutoResetWaitableEvent latch;
+  context.AddNativeFunction(
+      "SignalStringValue", CREATE_NATIVE_ENTRY([&](Dart_NativeArguments args) {
+        auto handle = Dart_GetNativeArgument(args, 0);
+        ASSERT_FALSE(Dart_IsError(handle));
+        view_ids = tonic::DartConverter<std::string>::FromDart(handle);
+        latch.Signal();
+      }));
+
+  ViewControllerPtr controller{builder.Run()};
+  ASSERT_NE(controller, nullptr);
+
+  // Verify a headless app has the implicit view.
+  latch.Wait();
+  EXPECT_EQ(view_ids, "View IDs: [0]");
 }
 
 // Verify that the engine can return to headless mode.
@@ -283,8 +311,9 @@ TEST_F(WindowsTest, NextFrameCallback) {
     fml::AutoResetWaitableEvent frame_scheduled_latch;
     fml::AutoResetWaitableEvent frame_drawn_latch;
     std::thread::id thread_id;
+    bool done;
   };
-  Captures captures;
+  Captures captures = {};
 
   CreateNewThread("test_platform_thread")->PostTask([&]() {
     captures.thread_id = std::this_thread::get_id();
@@ -314,21 +343,64 @@ TEST_F(WindowsTest, NextFrameCallback) {
           // Callback should execute on platform thread.
           ASSERT_EQ(std::this_thread::get_id(), captures->thread_id);
 
-          // Signal the test passed and end the Windows message loop.
+          captures->done = true;
           captures->frame_drawn_latch.Signal();
-          ::PostQuitMessage(0);
         },
         &captures);
 
     // Pump messages for the Windows platform task runner.
-    ::MSG msg;
-    while (::GetMessage(&msg, nullptr, 0, 0)) {
-      ::TranslateMessage(&msg);
-      ::DispatchMessage(&msg);
+    while (!captures.done) {
     }
   });
 
   captures.frame_drawn_latch.Wait();
+}
+
+// Verify the embedder ignores presents to the implicit view when there is no
+// implicit view.
+TEST_F(WindowsTest, PresentHeadless) {
+  struct Captures {
+    fml::AutoResetWaitableEvent latch;
+    bool done;
+  };
+  Captures captures = {};
+
+  CreateNewThread("test_platform_thread")->PostTask([&]() {
+    auto& context = GetContext();
+    WindowsConfigBuilder builder(context);
+    builder.SetDartEntrypoint("renderImplicitView");
+
+    EnginePtr engine{builder.RunHeadless()};
+    ASSERT_NE(engine, nullptr);
+
+    FlutterDesktopEngineSetNextFrameCallback(
+        engine.get(),
+        [](void* user_data) {
+          auto captures = reinterpret_cast<Captures*>(user_data);
+          captures->done = true;
+          captures->latch.Signal();
+        },
+        &captures);
+
+    // This app is in headless mode, however, the engine assumes the implicit
+    // view always exists. Send window metrics for the implicit view, causing
+    // the engine to present to the implicit view. The embedder must not crash.
+    auto engine_ptr = reinterpret_cast<FlutterWindowsEngine*>(engine.get());
+    FlutterWindowMetricsEvent metrics = {};
+    metrics.struct_size = sizeof(FlutterWindowMetricsEvent);
+    metrics.width = 100;
+    metrics.height = 100;
+    metrics.pixel_ratio = 1.0;
+    metrics.view_id = kImplicitViewId;
+    engine_ptr->SendWindowMetricsEvent(metrics);
+
+    // Pump messages for the Windows platform task runner.
+    while (!captures.done) {
+      PumpMessage();
+    }
+  });
+
+  captures.latch.Wait();
 }
 
 // Implicit view has the implicit view ID.
@@ -508,14 +580,71 @@ TEST_F(WindowsTest, GetKeyboardStateHeadless) {
     // Pump messages for the Windows platform task runner.
     ::MSG msg;
     while (!done) {
-      if (::GetMessage(&msg, nullptr, 0, 0)) {
-        ::TranslateMessage(&msg);
-        ::DispatchMessage(&msg);
-      }
+      PumpMessage();
     }
   });
 
   latch.Wait();
+}
+
+// Verify the embedder can add and remove views.
+TEST_F(WindowsTest, AddRemoveView) {
+  std::mutex mutex;
+  std::string view_ids;
+
+  auto& context = GetContext();
+  WindowsConfigBuilder builder(context);
+  builder.SetDartEntrypoint("onMetricsChangedSignalViewIds");
+
+  fml::AutoResetWaitableEvent ready_latch;
+  context.AddNativeFunction(
+      "Signal", CREATE_NATIVE_ENTRY(
+                    [&](Dart_NativeArguments args) { ready_latch.Signal(); }));
+
+  context.AddNativeFunction(
+      "SignalStringValue", CREATE_NATIVE_ENTRY([&](Dart_NativeArguments args) {
+        auto handle = Dart_GetNativeArgument(args, 0);
+        ASSERT_FALSE(Dart_IsError(handle));
+
+        std::scoped_lock lock{mutex};
+        view_ids = tonic::DartConverter<std::string>::FromDart(handle);
+      }));
+
+  // Create the implicit view.
+  ViewControllerPtr first_controller{builder.Run()};
+  ASSERT_NE(first_controller, nullptr);
+
+  ready_latch.Wait();
+
+  // Create a second view.
+  FlutterDesktopEngineRef engine =
+      FlutterDesktopViewControllerGetEngine(first_controller.get());
+  FlutterDesktopViewControllerProperties properties = {};
+  properties.width = 100;
+  properties.height = 100;
+  ViewControllerPtr second_controller{
+      FlutterDesktopEngineCreateViewController(engine, &properties)};
+  ASSERT_NE(second_controller, nullptr);
+
+  // Pump messages for the Windows platform task runner until the view is added.
+  while (true) {
+    PumpMessage();
+    std::scoped_lock lock{mutex};
+    if (view_ids == "View IDs: [0, 1]") {
+      break;
+    }
+  }
+
+  // Delete the second view and pump messages for the Windows platform task
+  // runner until the view is removed.
+  second_controller.reset();
+  while (true) {
+    PumpMessage();
+    std::scoped_lock lock{mutex};
+    if (view_ids == "View IDs: [0]") {
+      break;
+    }
+  }
 }
 
 }  // namespace testing
