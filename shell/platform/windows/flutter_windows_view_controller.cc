@@ -15,12 +15,10 @@ void FlutterWindowsViewController::Destroy() {
     return;
   }
 
-  // Prevent the engine from rendering into this view.
-  if (view_->GetEngine()->running()) {
-    auto view_id = view_->view_id();
-
-    view_->GetEngine()->RemoveView(view_id);
-  }
+  // Stop the engine from rendering into the view.
+  // This must happen before the view or its surface are destroyed
+  // as the engine makes the view's surface current to clean up resources.
+  view_->GetEngine()->Stop();
 
   // Destroy the view, followed by the engine if it is owned by this controller.
   view_.reset();

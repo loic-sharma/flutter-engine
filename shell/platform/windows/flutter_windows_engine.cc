@@ -35,6 +35,8 @@ namespace flutter {
 
 namespace {
 
+constexpr uint32_t kWindowFrameBufferId = 0;
+
 // Lifted from vsync_waiter_fallback.cc
 static std::chrono::nanoseconds SnapToNextTick(
     std::chrono::nanoseconds value,
@@ -56,10 +58,17 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
   config.open_gl.struct_size = sizeof(config.open_gl);
   config.open_gl.make_current = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
-    if (!host->egl_manager()) {
+    auto view = host->view(kImplicitViewId);
+    if (!view) {
       return false;
     }
-    return host->egl_manager()->render_context()->MakeCurrent();
+
+    auto surface = view->surface();
+    if (!surface) {
+      return false;
+    }
+
+    return surface->MakeCurrent();
   };
   config.open_gl.clear_current = [](void* user_data) -> bool {
     auto host = static_cast<FlutterWindowsEngine*>(user_data);
@@ -68,11 +77,34 @@ FlutterRendererConfig GetOpenGLRendererConfig() {
     }
     return host->egl_manager()->render_context()->ClearCurrent();
   };
-  config.open_gl.present = [](void* user_data) -> bool { FML_UNREACHABLE(); };
+  config.open_gl.present = [](void* user_data) -> bool {
+    auto host = static_cast<FlutterWindowsEngine*>(user_data);
+    auto view = host->view(kImplicitViewId);
+    if (!view) {
+      return false;
+    }
+
+    auto surface = view->surface();
+    if (!surface) {
+      return false;
+    }
+
+    return surface->SwapBuffers();
+  };
   config.open_gl.fbo_reset_after_present = true;
   config.open_gl.fbo_with_frame_info_callback =
       [](void* user_data, const FlutterFrameInfo* info) -> uint32_t {
-    FML_UNREACHABLE();
+    auto host = static_cast<FlutterWindowsEngine*>(user_data);
+    auto view = host->view(kImplicitViewId);
+    if (!view) {
+      return kWindowFrameBufferId;
+    }
+
+    if (!view->OnFrameGenerated(info->size.width, info->size.height)) {
+      return kWindowFrameBufferId;
+    }
+
+    return kWindowFrameBufferId;
   };
   config.open_gl.gl_proc_resolver = [](void* user_data,
                                        const char* what) -> void* {
@@ -422,7 +454,7 @@ bool FlutterWindowsEngine::Run(std::string_view entrypoint) {
 
     return host->Present(info);
   };
-  args.compositor = &compositor;
+  // args.compositor = &compositor;
 
   if (aot_data_) {
     args.aot_data = aot_data_.get();
