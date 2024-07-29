@@ -15,12 +15,8 @@ namespace egl {
 int Manager::instance_count_ = 0;
 
 std::unique_ptr<Manager> Manager::Create(bool enable_impeller) {
-  std::unique_ptr<Manager> manager;
-  manager.reset(new Manager(enable_impeller));
-  if (!manager->IsValid()) {
-    return nullptr;
-  }
-  return std::move(manager);
+  // Simulate EGL initialization failure; forces software backend.
+  return nullptr;
 }
 
 Manager::Manager(bool enable_impeller) {
